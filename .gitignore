@@ -24,7 +24,8 @@ yarn-error.log*
 
 # local env files — API 키가 여기 들어갑니다. 절대 커밋하지 마세요.
 .env
-.env*.local
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo

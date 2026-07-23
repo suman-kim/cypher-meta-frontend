@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getPlayer, getPlayerMatches, getRatingRanking, NeopleApiError } from "@/lib/neople";
+import { getMatch, getPlayer, getPlayerMatches, getRatingRanking, NeopleApiError } from "@/lib/neople";
+import { mapLimit } from "@/lib/ranking-enrich";
 import { Avatar } from "@/components/CharacterAvatar";
 import MatchRow from "@/components/MatchRow";
 import SafeImage from "@/components/SafeImage";
@@ -37,7 +38,7 @@ async function loadMatches(playerId: string, gameTypeId?: string): Promise<Tagge
   const results = await Promise.all(
     types.map(async (gt) => {
       try {
-        const res = await getPlayerMatches(playerId, { gameTypeId: gt, limit: 20 });
+        const res = await getPlayerMatches(playerId, { gameTypeId: gt, limit: 15 });
         return (res.matches?.rows ?? []).map((m) => ({ match: m, gameTypeId: gt }));
       } catch {
         return [] as TaggedMatch[];
@@ -45,6 +46,36 @@ async function loadMatches(playerId: string, gameTypeId?: string): Promise<Tagge
     }),
   );
   return results.flat();
+}
+
+/**
+ * 일반전 매치 요약에는 result·KDA 가 없어(공식전만 있음) 승/패·전투 스탯이 비어 있다.
+ * 요약에 스탯이 없는 매치는 매치 상세(/cy/matches/:id)에서 해당 플레이어 값을 채운다.
+ */
+async function backfillStats(tagged: TaggedMatch[], playerId: string): Promise<TaggedMatch[]> {
+  return mapLimit(tagged, 8, async (tm) => {
+    const pi = tm.match.playInfo;
+    const hasStats =
+      pi.killCount !== undefined || pi.deathCount !== undefined || pi.assistCount !== undefined;
+    const hasResult = pi.result === "win" || pi.result === "lose";
+    if (hasStats && hasResult) return tm;
+
+    try {
+      const detail = await getMatch(tm.match.matchId);
+      for (const team of detail.teams) {
+        const me = team.players.find((pl) => pl.playerId === playerId);
+        if (!me) continue;
+        const info = { ...pi, ...me.playInfo };
+        if (!(info.result === "win" || info.result === "lose")) {
+          info.result = (team.result ?? "lose") as typeof info.result;
+        }
+        return { ...tm, match: { ...tm.match, playInfo: info } };
+      }
+    } catch {
+      /* 상세 조회 실패 시 원본 유지 */
+    }
+    return tm;
+  });
 }
 
 export default async function PlayerPage({ params, searchParams }: Props) {
@@ -56,13 +87,14 @@ export default async function PlayerPage({ params, searchParams }: Props) {
 
   try {
     // 기본 정보 + 평점 랭킹 행(티어/RP/공식전 전적) + 매치 목록 병렬 조회
-    const [p, ratingRes, m] = await Promise.all([
+    const [p, ratingRes, loaded] = await Promise.all([
       getPlayer(params.playerId),
       getRatingRanking({ playerId: params.playerId, limit: 5 }).catch(() => null),
       loadMatches(params.playerId, gameTypeId),
     ]);
     player = p;
-    matches = m;
+    // 일반전 등 요약에 스탯이 없는 매치를 상세로 보강
+    matches = await backfillStats(loaded, params.playerId);
 
     // 평점 랭킹에서 이 플레이어의 행을 찾아 티어/RP/전적 보강
     const row = ratingRes?.rows.find((r) => r.player.playerId === params.playerId);
@@ -200,6 +232,9 @@ export default async function PlayerPage({ params, searchParams }: Props) {
             ))}
           </div>
         )}
+        <p className="text-center text-xs text-gray-500">
+          전적을 클릭하면 요약이 펼쳐지고, 상세 보기로 매치 상세 페이지로 이동합니다.
+        </p>
       </div>
 
       <div className="pt-2 text-center">

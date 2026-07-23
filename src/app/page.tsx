@@ -2,13 +2,20 @@ import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import { getRatingRanking } from "@/lib/neople";
 import { getCharacterMeta, withTiers, TIER_META, type TieredCharacter } from "@/lib/meta";
+import { enrichPlayer, mapLimit, type PlayerMeta } from "@/lib/ranking-enrich";
 import { Avatar } from "@/components/CharacterAvatar";
-import { winRate } from "@/lib/format";
+import RankAvatar from "@/components/ranking/RankAvatar";
+import PickList from "@/components/ranking/PickList";
+import {
+  getNotices,
+  getRecentPosts,
+  isBoard,
+  categoryLabel,
+  type CommunityPost,
+} from "@/lib/community";
 import type { RatingRankingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-const POPULAR = ["듀블", "레베카", "다오", "아이샤"];
 
 // 메타 데이터가 아직 없을 때 보여줄 예시(목업)
 const TREND_MOCK = [
@@ -19,17 +26,6 @@ const TREND_MOCK = [
   { tier: "B", name: "피터", pick: "35.8", win: "54.2" },
   { tier: "B", name: "카인", pick: "31.4", win: "47.8" },
 ];
-const NEWS = [
-  { tag: "업데이트", title: "밸런스 패치 노트: 시즌 12 에피소드 3" },
-  { tag: "E스포츠", title: "사이퍼즈 스프링 챔피언십 결승 대진표" },
-  { tag: "가이드", title: "신규 유저를 위한 포지션별 캐릭터 추천" },
-];
-const POSTS = [
-  { tag: "자유", title: "랭크에서 클레어 플레이 팁 아시는 분 계신가요?", c: 124 },
-  { tag: "공략", title: "[궁극의 가이드] 탱커 캐릭터 상대하는 방법", c: 89 },
-  { tag: "유머", title: "우리가 이길 때 vs 질 때 우리 팀원들...", c: 256 },
-  { tag: "영상", title: "그랜드마스터 랭킹 1위 하이라이트 - 4주차", c: 42 },
-];
 
 const RANK_COLORS = ["#e3b23c", "#9aa7b4", "#b06b3f"];
 
@@ -37,12 +33,20 @@ function MockBadge() {
   return <span className="chip bg-surface-3 text-gray-500">예시</span>;
 }
 
+function communityHref(p: CommunityPost) {
+  return `/community/${isBoard(p.boardType) ? p.boardType : "free"}/${p.id}`;
+}
+
 export default async function HomePage() {
+  // 상위 랭커(실데이터) + 각자 최근 공식전 기록(대표캐릭터·픽·승률)
   let top: RatingRankingRow[] = [];
   try {
     const r = await getRatingRanking({ limit: 3 });
     top = (r.rows ?? []).slice(0, 3);
   } catch {}
+
+  const topMetas = await mapLimit(top, 3, (row) => enrichPlayer(row.player.playerId, 30));
+  const metaMap = new Map<string, PlayerMeta>(topMetas.map((m) => [m.playerId, m]));
 
   // 실 메타 트렌드 (점수 상위 6)
   let trend: TieredCharacter[] = [];
@@ -51,6 +55,16 @@ export default async function HomePage() {
     trend = withTiers(meta)
       .sort((a, b) => b.score - a.score || b.pickRate - a.pickRate)
       .slice(0, 6);
+  } catch {}
+
+  // 커뮤니티 실데이터
+  let notices: CommunityPost[] = [];
+  let recent: CommunityPost[] = [];
+  try {
+    [notices, recent] = await Promise.all([
+      getNotices(4).catch(() => []),
+      getRecentPosts(5).catch(() => []),
+    ]);
   } catch {}
 
   return (
@@ -64,23 +78,11 @@ export default async function HomePage() {
             <div className="mt-6">
               <SearchBar size="lg" autoFocus />
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-white/70">
-              <span>인기:</span>
-              {POPULAR.map((n) => (
-                <Link
-                  key={n}
-                  href={`/search?nickname=${encodeURIComponent(n)}`}
-                  className="font-semibold text-white hover:underline"
-                >
-                  {n}
-                </Link>
-              ))}
-            </div>
           </div>
         </div>
       </section>
 
-      {/* 상위 랭커 (실데이터) */}
+      {/* 상위 랭커 (실데이터 + 대표캐릭터·픽·승률) */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-100">🏅 상위 랭커</h2>
@@ -95,7 +97,10 @@ export default async function HomePage() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {top.map((row, i) => {
-              const wr = winRate(row.win, row.lose);
+              const m = metaMap.get(row.player.playerId);
+              const hasRecord = (m?.total ?? 0) > 0;
+              const wr = m?.winRate ?? 0;
+              const loses = (m?.total ?? 0) - (m?.wins ?? 0);
               return (
                 <Link
                   key={row.player.playerId}
@@ -106,12 +111,14 @@ export default async function HomePage() {
                     {row.ranking}
                   </span>
                   <div className="relative flex items-center gap-3">
-                    <span
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full font-bold text-white"
-                      style={{ backgroundColor: RANK_COLORS[i] ?? "#9aa7b4" }}
-                    >
-                      {row.ranking}
-                    </span>
+                    <RankAvatar
+                      characterId={m?.topChar?.characterId}
+                      characterName={m?.topChar?.characterName}
+                      nickname={row.player.nickname}
+                      size={48}
+                      zoom={2}
+                      ringStyle={{ boxShadow: `0 0 0 3px ${RANK_COLORS[i] ?? "#9aa7b4"}` }}
+                    />
                     <div className="min-w-0">
                       <div className="truncate font-bold text-gray-100">{row.player.nickname}</div>
                       <div className="text-xs text-gray-500">
@@ -119,16 +126,26 @@ export default async function HomePage() {
                       </div>
                     </div>
                   </div>
-                  <div className="relative mt-3">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-semibold text-primary">승률 {wr}%</span>
-                      <span className="text-gray-500">
-                        {row.win ?? 0}승 {row.lose ?? 0}패
-                      </span>
+
+                  {hasRecord ? (
+                    <div className="relative mt-3">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-semibold text-primary">승률 {wr}%</span>
+                        <span className="text-gray-500">
+                          {m?.wins ?? 0}승 {loses}패
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-3">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${wr}%` }} />
+                      </div>
                     </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-3">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${wr}%` }} />
-                    </div>
+                  ) : (
+                    <div className="relative mt-3 text-xs text-gray-500">최근 공식전 기록 없음</div>
+                  )}
+
+                  <div className="relative mt-3 flex items-center gap-2">
+                    <span className="shrink-0 text-[11px] font-semibold text-gray-500">픽 TOP3</span>
+                    <PickList picks={m?.picks ?? []} />
                   </div>
                 </Link>
               );
@@ -137,7 +154,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 주간 캐릭터 트렌드 */}
+      {/* 캐릭터 메타 트렌드 */}
       <section>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-bold text-gray-100">📈 캐릭터 메타 트렌드</h2>
@@ -215,33 +232,64 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 최신 소식 + 커뮤니티 (예시) */}
+      {/* 최신 소식(공지) + 커뮤니티 포스트 — 실데이터 */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div>
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-gray-100">
-            🗞 최신 소식 <MockBadge />
+          <h2 className="mb-3 flex items-center justify-between text-lg font-bold text-gray-100">
+            🗞 최신 소식
+            <Link href="/community" className="text-sm font-medium text-primary hover:underline">
+              커뮤니티 가기
+            </Link>
           </h2>
           <div className="card divide-y divide-line">
-            {NEWS.map((n) => (
-              <div key={n.title} className="flex items-center gap-3 p-3">
-                <span className="chip shrink-0 bg-primary/10 text-primary">{n.tag}</span>
-                <span className="truncate text-sm text-gray-200">{n.title}</span>
-              </div>
-            ))}
+            {notices.length === 0 ? (
+              <div className="p-6 text-center text-sm text-gray-500">등록된 공지가 없습니다.</div>
+            ) : (
+              notices.map((n) => (
+                <Link
+                  key={n.id}
+                  href={communityHref(n)}
+                  className="flex items-center gap-3 p-3 transition-colors hover:bg-surface-2"
+                >
+                  <span className="chip shrink-0 bg-primary/10 text-primary">공지</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{n.title}</span>
+                </Link>
+              ))
+            )}
           </div>
         </div>
         <div>
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-gray-100">
-            💬 커뮤니티 포스트 <MockBadge />
+          <h2 className="mb-3 flex items-center justify-between text-lg font-bold text-gray-100">
+            💬 커뮤니티 포스트
+            <Link href="/community" className="text-sm font-medium text-primary hover:underline">
+              더보기
+            </Link>
           </h2>
           <div className="card divide-y divide-line">
-            {POSTS.map((p) => (
-              <div key={p.title} className="flex items-center gap-3 p-3">
-                <span className="chip shrink-0 bg-surface-3 text-gray-500">{p.tag}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{p.title}</span>
-                <span className="shrink-0 text-xs text-gray-500">댓글 {p.c}</span>
+            {recent.length === 0 ? (
+              <div className="p-6 text-center text-sm text-gray-500">
+                아직 게시글이 없습니다.{" "}
+                <Link href="/community/free/write" className="font-medium text-primary hover:underline">
+                  첫 글 남기기
+                </Link>
               </div>
-            ))}
+            ) : (
+              recent.map((p) => (
+                <Link
+                  key={p.id}
+                  href={communityHref(p)}
+                  className="flex items-center gap-3 p-3 transition-colors hover:bg-surface-2"
+                >
+                  <span className="chip shrink-0 bg-surface-3 text-gray-500">
+                    {categoryLabel(p.category)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{p.title}</span>
+                  {p.commentCount > 0 && (
+                    <span className="shrink-0 text-xs text-gray-500">댓글 {p.commentCount}</span>
+                  )}
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </section>

@@ -51,7 +51,8 @@ export default function Header() {
             </div>
           )}
           <ThemeToggle />
-          <button className="btn-primary hidden px-3 py-2 sm:inline-flex">로그인</button>
+          {/* 로그인 기능은 추후 추가 예정 — 현재 숨김 */}
+          <button className="btn-primary hidden px-3 py-2">로그인</button>
         </div>
       </div>
     </header>

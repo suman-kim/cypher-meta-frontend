@@ -113,3 +113,7 @@ export function getPost(id: string): Promise<PostDetail> {
 export function getNotices(limit = 5): Promise<CommunityPost[]> {
   return api<CommunityPost[]>(`/community/notices?limit=${limit}`);
 }
+
+export function getRecentPosts(limit = 5): Promise<CommunityPost[]> {
+  return api<CommunityPost[]>(`/community/recent?limit=${limit}`);
+}
