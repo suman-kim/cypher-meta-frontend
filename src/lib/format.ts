@@ -41,36 +41,35 @@ export function formatPlayTime(seconds?: number): string {
   return `${m}분 ${s.toString().padStart(2, "0")}초`;
 }
 
-/** API 날짜 문자열("2024-01-02 15:04:05") → 상대/절대 표기 */
-export function formatDate(dateStr?: string): string {
+/** KST 기준 "2026년 7월 24일 오전 12시 18분" 형식으로 통일. */
+export function formatKoreanDateTime(dateStr?: string): string {
   if (!dateStr) return "";
-  const normalized = dateStr.replace(" ", "T");
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleString("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
+  const d = new Date(String(dateStr).replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return String(dateStr);
+  // Asia/Seoul 기준 24시간 성분을 뽑아, 오전/오후·12시간은 직접 계산(로컬 dayPeriod가 AM/PM으로 나오는 환경 대응).
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const hour24 = parseInt(g("hour"), 10) || 0;
+  const period = hour24 < 12 ? "오전" : "오후";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${g("year")}년 ${parseInt(g("month"), 10)}월 ${parseInt(g("day"), 10)}일 ${period} ${hour12}시 ${g("minute")}분`;
 }
 
+export function formatDate(dateStr?: string): string {
+  return formatKoreanDateTime(dateStr);
+}
+
+/** 사용자 요청으로 모든 날짜를 절대 표기로 통일 (기존 'N분 전' 상대표기 → 절대표기). */
 export function relativeTime(dateStr?: string): string {
-  if (!dateStr) return "";
-  const normalized = dateStr.replace(" ", "T");
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  const diff = Date.now() - d.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "방금 전";
-  if (mins < 60) return `${mins}분 전`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}시간 전`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}일 전`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}개월 전`;
-  return `${Math.floor(months / 12)}년 전`;
+  return formatKoreanDateTime(dateStr);
 }
 
 export function formatNumber(n?: number): string {

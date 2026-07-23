@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site";
@@ -48,19 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen bg-bg">
+      <body className="flex min-h-screen flex-col bg-bg">
         <AnalyticsTracker />
         <Header />
-        <main className="container-app py-6">{children}</main>
-        <footer className="mt-10 border-t border-line bg-surface-2">
-          <div className="container-app py-8 text-center text-xs text-gray-500">
-            <p className="text-sm font-extrabold tracking-tight text-gray-200">{SITE_NAME}</p>
-            <p className="mt-2">
-              데이터 제공: Neople 오픈API. 본 사이트는 Neople·넥슨과 무관한 비공식 팬 사이트입니다.
-            </p>
-            <p className="mt-1">© {new Date().getFullYear()} {SITE_NAME}</p>
-          </div>
-        </footer>
+        <main className="container-app flex-1 py-6">{children}</main>
+        <Footer />
       </body>
     </html>
   );

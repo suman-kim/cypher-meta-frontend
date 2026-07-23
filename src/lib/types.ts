@@ -167,6 +167,8 @@ export interface RankingPlayer {
 }
 export interface RatingRankingRow {
   ranking: number;
+  /** 이전 순위 (API 제공). 0/undefined 면 신규 진입. */
+  beforeRank?: number;
   player: RankingPlayer;
   ratingPoint?: number;
   rankingPoint?: number;

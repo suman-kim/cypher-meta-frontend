@@ -183,6 +183,7 @@ export function normalizeRatingRanking(raw: any): RatingRankingResponse {
   const rows: RatingRankingRow[] = asArray(raw?.rows).map(
     (r: any, i: number): RatingRankingRow => ({
       ranking: rankOf(r, i),
+      beforeRank: r?.beforeRank,
       player: pickRankingPlayer(r),
       ratingPoint: r?.ratingPoint ?? r?.rp,
       rankingPoint: r?.rankingPoint,

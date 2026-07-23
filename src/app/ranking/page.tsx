@@ -8,10 +8,11 @@ import PodiumCard from "@/components/ranking/PodiumCard";
 import RankAvatar from "@/components/ranking/RankAvatar";
 import TagChips from "@/components/ranking/TagChips";
 import PickList from "@/components/ranking/PickList";
+import RankChange from "@/components/ranking/RankChange";
 import type { RatingRankingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "평점 랭킹" };
+export const metadata = { title: "전체 랭킹" };
 
 const LIMIT = 50;
 
@@ -40,7 +41,10 @@ function HighlightRow({
   return (
     <div className="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
       <div className="flex items-center gap-3 sm:w-52 sm:shrink-0">
-        <span className="w-6 shrink-0 text-center text-lg font-black text-gray-400">{rank}</span>
+        <div className="flex w-7 shrink-0 flex-col items-center gap-0.5">
+          <span className="text-lg font-black text-gray-400">{rank}</span>
+          <RankChange rank={rank} beforeRank={row.beforeRank} />
+        </div>
         <RankAvatar
           characterId={meta?.topChar?.characterId}
           characterName={meta?.topChar?.characterName}
@@ -200,9 +204,12 @@ export default async function RatingRankingPage({ searchParams }: Props) {
                     className="border-b border-line transition-colors last:border-0 hover:bg-surface-2"
                   >
                     <td className="px-4 py-3">
-                      <span className={`font-bold ${row.ranking <= 3 ? "text-primary" : "text-gray-400"}`}>
-                        {row.ranking}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold ${row.ranking <= 3 ? "text-primary" : "text-gray-400"}`}>
+                          {row.ranking}
+                        </span>
+                        <RankChange rank={row.ranking} beforeRank={row.beforeRank} />
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <Link

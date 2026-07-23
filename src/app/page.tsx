@@ -69,15 +69,38 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-8">
-      {/* 히어로 검색 */}
-      <section className="-mx-4 overflow-hidden bg-gradient-to-b from-navy to-primary sm:-mx-6 lg:-mx-8 2xl:-mx-12">
-        <div className="px-4 py-14 sm:py-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-2xl font-extrabold text-white sm:text-3xl">사이퍼즈 전적 및 통계 검색</h1>
-            <p className="mt-2 text-sm text-white/75">닉네임으로 전적을 검색하고 랭킹·캐릭터·아이템을 확인하세요.</p>
-            <div className="mt-6">
-              <SearchBar size="lg" autoFocus />
-            </div>
+      {/* 히어로 검색 (라이트=화이트 / 다크=어두운색) */}
+      <section className="relative -mx-4 border-b border-line bg-surface sm:-mx-6 lg:-mx-8 2xl:-mx-12">
+        {/* 은은한 상단 브랜드 글로우 */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-primary/10 to-transparent" />
+        <div className="relative mx-auto max-w-2xl px-4 py-14 text-center sm:py-20">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold tracking-wide text-primary">
+            CYPHER META
+          </span>
+          <h1 className="mt-4 text-3xl font-black tracking-tight text-gray-50 sm:text-4xl">
+            사이퍼즈 <span className="text-primary">전적·통계</span> 검색
+          </h1>
+          <p className="mt-2.5 text-sm text-gray-500">
+            닉네임으로 전적을 검색하고 랭킹·캐릭터·아이템을 확인하세요.
+          </p>
+          <div className="mt-6">
+            <SearchBar size="lg" autoFocus />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {[
+              { href: "/ranking", label: "🏅 랭킹" },
+              { href: "/meta", label: "📈 메타" },
+              { href: "/characters", label: "🦸 캐릭터" },
+              { href: "/items", label: "🛡 아이템" },
+            ].map((q) => (
+              <Link
+                key={q.href}
+                href={q.href}
+                className="rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-gray-400 transition-colors hover:border-primary hover:text-primary"
+              >
+                {q.label}
+              </Link>
+            ))}
           </div>
         </div>
       </section>

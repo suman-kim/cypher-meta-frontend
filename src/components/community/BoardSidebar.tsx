@@ -46,7 +46,7 @@ export default function BoardSidebar() {
       <Link href="/ranking" className="card block overflow-hidden">
         <div className="bg-gradient-to-br from-navy to-primary p-5">
           <p className="text-xs font-semibold tracking-wide text-white/70">NEW SEASON</p>
-          <p className="mt-1 text-base font-extrabold text-white">2024 공식전 시즌 1 시작</p>
+          <p className="mt-1 text-base font-extrabold text-white">공식전 시즌 시작</p>
           <p className="mt-3 text-xs font-medium text-white/80">랭킹 보러가기 →</p>
         </div>
       </Link>

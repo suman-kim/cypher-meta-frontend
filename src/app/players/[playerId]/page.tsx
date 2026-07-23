@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getMatch, getPlayer, getPlayerMatches, getRatingRanking, NeopleApiError } from "@/lib/neople";
-import { mapLimit } from "@/lib/ranking-enrich";
+import { getPlayer, getPlayerMatches, getRatingRanking, NeopleApiError } from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import MatchRow from "@/components/MatchRow";
 import SafeImage from "@/components/SafeImage";
@@ -48,34 +47,13 @@ async function loadMatches(playerId: string, gameTypeId?: string): Promise<Tagge
   return results.flat();
 }
 
-/**
- * 일반전 매치 요약에는 result·KDA 가 없어(공식전만 있음) 승/패·전투 스탯이 비어 있다.
- * 요약에 스탯이 없는 매치는 매치 상세(/cy/matches/:id)에서 해당 플레이어 값을 채운다.
- */
-async function backfillStats(tagged: TaggedMatch[], playerId: string): Promise<TaggedMatch[]> {
-  return mapLimit(tagged, 8, async (tm) => {
-    const pi = tm.match.playInfo;
-    const hasStats =
-      pi.killCount !== undefined || pi.deathCount !== undefined || pi.assistCount !== undefined;
-    const hasResult = pi.result === "win" || pi.result === "lose";
-    if (hasStats && hasResult) return tm;
-
-    try {
-      const detail = await getMatch(tm.match.matchId);
-      for (const team of detail.teams) {
-        const me = team.players.find((pl) => pl.playerId === playerId);
-        if (!me) continue;
-        const info = { ...pi, ...me.playInfo };
-        if (!(info.result === "win" || info.result === "lose")) {
-          info.result = (team.result ?? "lose") as typeof info.result;
-        }
-        return { ...tm, match: { ...tm.match, playInfo: info } };
-      }
-    } catch {
-      /* 상세 조회 실패 시 원본 유지 */
-    }
-    return tm;
-  });
+function isResolved(m: TaggedMatch): boolean {
+  const r = m.match.playInfo.result;
+  return r === "win" || r === "lose";
+}
+function hasKda(m: TaggedMatch): boolean {
+  const pi = m.match.playInfo;
+  return pi.killCount !== undefined || pi.deathCount !== undefined || pi.assistCount !== undefined;
 }
 
 export default async function PlayerPage({ params, searchParams }: Props) {
@@ -93,8 +71,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
       loadMatches(params.playerId, gameTypeId),
     ]);
     player = p;
-    // 일반전 등 요약에 스탯이 없는 매치를 상세로 보강
-    matches = await backfillStats(loaded, params.playerId);
+    matches = loaded;
 
     // 평점 랭킹에서 이 플레이어의 행을 찾아 티어/RP/전적 보강
     const row = ratingRes?.rows.find((r) => r.player.playerId === params.playerId);
@@ -127,17 +104,22 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   const rt = readRecord(ratingRecord);
   const overallWinRate = winRate(rt.win, rt.lose);
 
-  // 현재 탭의 최근 전적 (불러온 매치 기준)
+  // 현재 탭의 최근 전적 (불러온 매치 기준) — 일반전은 승패/KDA 미제공이라 제외하고 계산
   const recent = matches.slice(0, 40);
-  const recentWins = recent.filter((m) => m.match.playInfo.result === "win").length;
+  const resolved = recent.filter(isResolved);
+  const recentWinRate =
+    resolved.length > 0
+      ? Math.round((resolved.filter((m) => m.match.playInfo.result === "win").length / resolved.length) * 100)
+      : null;
+  const kdaMatches = recent.filter(hasKda);
   const avgKDA =
-    recent.length > 0
-      ? recent.reduce(
+    kdaMatches.length > 0
+      ? kdaMatches.reduce(
           (s, m) =>
             s + calcKDA(m.match.playInfo.killCount, m.match.playInfo.deathCount, m.match.playInfo.assistCount),
           0,
-        ) / recent.length
-      : 0;
+        ) / kdaMatches.length
+      : null;
   const recentLabel = gameTypeId ? `최근 ${gameTypeLabel(gameTypeId)}` : "최근 전체";
 
   const tabs = [
@@ -167,7 +149,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
               <TierBadge tierName={player.tierName} rp={player.ratingPoint} />
               {player.maxRatingPoint !== undefined && (
-                <span className="text-gray-500">랭킹점수 {player.maxRatingPoint.toLocaleString()}</span>
+                <span className="text-gray-500">최고 점수 {player.maxRatingPoint.toLocaleString()} RP</span>
               )}
             </div>
             {player.represent && (
@@ -201,9 +183,13 @@ export default async function PlayerPage({ params, searchParams }: Props) {
           <Stat label="공식전 전적" value={rt.win + rt.lose > 0 ? `${rt.win}승 ${rt.lose}패` : "-"} />
           <Stat
             label={`${recentLabel} 승률`}
-            value={recent.length ? `${Math.round((recentWins / recent.length) * 100)}%` : "-"}
+            value={recentWinRate !== null ? `${recentWinRate}%` : "-"}
           />
-          <Stat label={`${recentLabel} 평균 평점`} value={avgKDA ? avgKDA.toFixed(2) : "-"} accent="#4fbf6b" />
+          <Stat
+            label={`${recentLabel} 평균 평점`}
+            value={avgKDA !== null ? avgKDA.toFixed(2) : "-"}
+            accent="#4fbf6b"
+          />
         </div>
       </div>
 
@@ -231,6 +217,12 @@ export default async function PlayerPage({ params, searchParams }: Props) {
               />
             ))}
           </div>
+        )}
+
+        {gameTypeId === "normal" && matches.length > 0 && (
+          <p className="text-center text-xs text-gray-500">
+            일반전은 Neople API가 승패·KDA를 제공하지 않습니다. 대신 전적을 펼치면 캐릭터·맵·팀 구성과 아이템 빌드를 확인할 수 있습니다.
+          </p>
         )}
         <p className="text-center text-xs text-gray-500">
           전적을 클릭하면 요약이 펼쳐지고, 상세 보기로 매치 상세 페이지로 이동합니다.

@@ -4,6 +4,7 @@ const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 export interface CharacterMeta {
   characterId: string;
   characterName: string | null;
+  role: RoleOrEtc;
   picks: number;
   /** 이 캐릭터가 등장한 고유 매치 수 (판 기준 픽률의 분자) */
   matchCount: number;
@@ -223,3 +224,72 @@ export function groupByTier(rows: TieredCharacter[]): Record<Tier, TieredCharact
   for (const t of TIER_ORDER) g[t].sort((a, b) => b.score - a.score || b.picks - a.picks);
   return g;
 }
+
+/* ------------------------------------------------------------------ */
+/* 역할(포지션) 필터                                                    */
+/* ------------------------------------------------------------------ */
+
+export type CharacterRoleCode = "tank" | "melee" | "ranged" | "support";
+export type RoleOrEtc = CharacterRoleCode | "etc";
+export type RoleFilter = "all" | RoleOrEtc;
+
+export const ROLE_LABELS: Record<RoleOrEtc, string> = {
+  tank: "탱커",
+  melee: "근접딜러",
+  ranged: "원거리딜러",
+  support: "서포터",
+  etc: "미분류",
+};
+
+/** 메타 페이지 역할 탭 (전체 + 4개 포지션) */
+export const ROLE_TABS: { key: RoleFilter; label: string }[] = [
+  { key: "all", label: "전체" },
+  { key: "tank", label: "탱커" },
+  { key: "melee", label: "근접딜러" },
+  { key: "ranged", label: "원거리딜러" },
+  { key: "support", label: "서포터" },
+];
+
+export function isRoleFilter(v: string | undefined): v is RoleFilter {
+  return !!v && ["all", "tank", "melee", "ranged", "support", "etc"].includes(v);
+}
+
+/* ------------------------------------------------------------------ */
+/* 팀 조합 (5인 풀팀)                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface Composition {
+  ids: string[];
+  names: string[];
+  games: number;
+  wins: number;
+  winRate: number;
+}
+
+export interface CompositionsResult {
+  gameTypeId: string;
+  teamSize: number;
+  totalTeams: number;
+  distinctCombos: number;
+  minGames: number;
+  byFrequency: Composition[];
+  byWinRate: Composition[];
+}
+
+export async function getCompositions(opts?: {
+  gameTypeId?: string;
+  limit?: number;
+  minGames?: number;
+}): Promise<CompositionsResult> {
+  const p = new URLSearchParams();
+  if (opts?.gameTypeId) p.set("gameTypeId", opts.gameTypeId);
+  if (opts?.limit) p.set("limit", String(opts.limit));
+  if (opts?.minGames) p.set("minGames", String(opts.minGames));
+  const qs = p.toString();
+  const res = await fetch(`${API}/meta/compositions${qs ? `?${qs}` : ""}`, {
+    next: { revalidate: 300 },
+  });
+  if (!res.ok) throw new Error(`meta compositions ${res.status}`);
+  return res.json();
+}
+

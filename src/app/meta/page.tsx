@@ -7,22 +7,31 @@ import {
   TIER_ORDER,
   TIER_META,
   TIER_BASIS_LABEL,
+  ROLE_TABS,
+  ROLE_LABELS,
+  isRoleFilter,
   type TierBasis,
+  type RoleFilter,
   type CharacterMeta,
   type MetaSummary,
 } from "@/lib/meta";
+import {
+  getRoster,
+  getTierVotes,
+  rosterMapOf,
+  VOTE_ROLES,
+  type RosterEntry,
+  type TierVotesResult,
+} from "@/lib/votes";
 import { Avatar } from "@/components/CharacterAvatar";
 import MetaTable from "@/components/MetaTable";
+import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "메타 통계" };
+export const metadata = { title: "캐릭터 티어" };
 
-const GAME_TABS = [
-  { key: "", label: "전체" },
-  { key: "rating", label: "공식전" },
-  { key: "normal", label: "일반전" },
-] as const;
+const GAME_TABS = [{ key: "rating", label: "공식전" }] as const;
 
 const BASIS_TABS: { key: TierBasis; label: string }[] = [
   { key: "score", label: "종합" },
@@ -30,25 +39,27 @@ const BASIS_TABS: { key: TierBasis; label: string }[] = [
   { key: "pick", label: "픽률" },
 ];
 
-/** gameType·tierBy 를 함께 유지하는 /meta URL 생성 (기본값은 생략) */
-function metaHref(gameType: string, tierBy: TierBasis): string {
+function metaHref(gameType: string, tierBy: TierBasis, role: RoleFilter): string {
   const p: string[] = [];
   if (gameType) p.push(`gameType=${gameType}`);
   if (tierBy !== "score") p.push(`tierBy=${tierBy}`);
+  if (role !== "all") p.push(`role=${role}`);
   return p.length ? `/meta?${p.join("&")}` : "/meta";
 }
 
 interface Props {
-  searchParams: { gameType?: string; tierBy?: string };
+  searchParams: { gameType?: string; tierBy?: string; role?: string };
 }
 
 export default async function MetaPage({ searchParams }: Props) {
   const gameType = GAME_TABS.some((t) => t.key === searchParams.gameType)
     ? (searchParams.gameType as string)
-    : "";
+    : "rating";
   const tierBy: TierBasis = BASIS_TABS.some((b) => b.key === searchParams.tierBy)
     ? (searchParams.tierBy as TierBasis)
     : "score";
+  const role: RoleFilter = isRoleFilter(searchParams.role) ? searchParams.role : "all";
+  const roleLabel = (r: RoleFilter) => (r === "all" ? "전체" : ROLE_LABELS[r]);
 
   let rows: CharacterMeta[] = [];
   let summary: MetaSummary | null = null;
@@ -62,60 +73,69 @@ export default async function MetaPage({ searchParams }: Props) {
     failed = true;
   }
 
+  // 투표 데이터/로스터는 실패해도 페이지를 막지 않음(백엔드 미배포 대비)
+  let roster: RosterEntry[] = [];
+  let tierVotes: TierVotesResult | null = null;
+  try {
+    [roster, tierVotes] = await Promise.all([getRoster(), getTierVotes()]);
+  } catch {
+    roster = [];
+    tierVotes = null;
+  }
+  const rmap = rosterMapOf(roster);
+
   if (failed) {
     return (
-      <ErrorState
-        message="메타 데이터를 불러오지 못했습니다."
-        hint="백엔드 서버(:4000)가 실행 중인지 확인하세요."
-      />
+      <div className="space-y-5">
+        <ErrorState
+          message="메타 데이터를 불러오지 못했습니다."
+          hint="백엔드 서버(:4000)가 실행 중인지 확인하세요."
+        />
+      </div>
     );
   }
 
-  const tiered = withTiers(rows, tierBy);
+  const tieredAll = withTiers(rows, tierBy);
+  const tiered = role === "all" ? tieredAll : tieredAll.filter((r) => r.role === role);
   const grouped = groupByTier(tiered);
   const activeTiers = TIER_ORDER.filter((t) => grouped[t].length > 0);
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-black text-gray-50">메타 통계</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          상위 랭커의 매치를 수집·집계한 캐릭터 통계입니다. 픽률은 판 기준 등장률, 티어는 점수 상대 평가입니다.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-gray-50">캐릭터 티어</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            상위 랭커 매치 집계 + 커뮤니티 투표. 픽률은 판 기준 등장률, 티어는 점수 상대 평가입니다.
+          </p>
+        </div>
       </div>
 
-      {/* 요약 칩 */}
       {summary && (
         <div className="flex flex-wrap gap-2 text-sm">
-          <span className="chip bg-surface-2 text-gray-300">
-            표본 매치 {summary.matches.toLocaleString()}
-          </span>
+          <span className="chip bg-surface-2 text-gray-300">표본 매치 {summary.matches.toLocaleString()}</span>
           <span className="chip bg-surface-2 text-gray-300">
             플레이어 기록 {summary.playerRecords.toLocaleString()}
           </span>
           <span className="chip bg-surface-2 text-gray-300">캐릭터 {summary.characters}종</span>
           {summary.lastCollect?.lastRun && (
             <span className="chip bg-surface-2 text-gray-500">
-              최근 수집 {new Date(summary.lastCollect.lastRun).toLocaleString("ko-KR")}
+              최근 수집 {new Date(summary.lastCollect.lastRun).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
             </span>
           )}
         </div>
       )}
 
-      {/* 게임 타입 세그먼트 탭 */}
       <div className="inline-flex gap-1 rounded-lg border border-line bg-surface-2 p-1">
-        {GAME_TABS.map((t) => {
-          const active = t.key === gameType;
-          return (
-            <Link
-              key={t.key}
-              href={metaHref(t.key, tierBy)}
-              className={`segtab ${active ? "segtab-active" : ""}`}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
+        {GAME_TABS.map((t) => (
+          <Link
+            key={t.key}
+            href={metaHref(t.key, tierBy, role)}
+            className={`segtab ${t.key === gameType ? "segtab-active" : ""}`}
+          >
+            {t.label}
+          </Link>
+        ))}
       </div>
 
       {rows.length === 0 ? (
@@ -126,22 +146,38 @@ export default async function MetaPage({ searchParams }: Props) {
         />
       ) : (
         <>
-          {/* 티어 리스트 */}
+          {/* 역할 필터 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">역할</span>
+            <div className="inline-flex flex-wrap gap-1 rounded-lg border border-line bg-surface-2 p-1">
+              {ROLE_TABS.map((t) => (
+                <Link
+                  key={t.key}
+                  href={metaHref(gameType, tierBy, t.key)}
+                  className={`segtab text-xs ${t.key === role ? "segtab-active" : ""}`}
+                >
+                  {t.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* 데이터 티어 리스트 */}
           <section>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-bold text-gray-100">티어 리스트</h2>
+                {role !== "all" && <span className="chip bg-surface-3 text-gray-300">{roleLabel(role)}</span>}
                 <span className="text-xs text-gray-500">
                   {TIER_BASIS_LABEL[tierBy]} 기준 상대 평가 · 상위 10% S / 25% A / 50% B / 80% C
                 </span>
               </div>
-              {/* 티어 기준 선택 */}
               <div className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">
                 <span className="px-1.5 text-xs font-medium text-gray-500">기준</span>
                 {BASIS_TABS.map((b) => (
                   <Link
                     key={b.key}
-                    href={metaHref(gameType, b.key)}
+                    href={metaHref(gameType, b.key, role)}
                     className={`segtab text-xs ${b.key === tierBy ? "segtab-active" : ""}`}
                   >
                     {b.label}
@@ -149,40 +185,104 @@ export default async function MetaPage({ searchParams }: Props) {
                 ))}
               </div>
             </div>
-            <div className="card divide-y divide-line">
-              {activeTiers.map((t) => (
-                <div key={t} className="flex items-stretch gap-3 p-3">
-                  <div
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-lg font-black text-white"
-                    style={{ backgroundColor: TIER_META[t].color }}
-                    title={TIER_META[t].desc}
-                  >
-                    {t}
+            {tiered.length === 0 ? (
+              <EmptyState title={`${roleLabel(role)} 캐릭터 표본이 없습니다`} icon="📭" />
+            ) : (
+              <div className="card divide-y divide-line">
+                {activeTiers.map((t) => (
+                  <div key={t} className="flex items-stretch gap-3 p-3">
+                    <div
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-lg font-black text-white"
+                      style={{ backgroundColor: TIER_META[t].color }}
+                      title={TIER_META[t].desc}
+                    >
+                      {t}
+                    </div>
+                    <div className="flex flex-1 flex-wrap gap-2">
+                      {grouped[t].map((c) => (
+                        <Link
+                          key={c.characterId}
+                          href={`/characters/${c.characterId}`}
+                          className="flex w-[68px] flex-col items-center gap-1 rounded-md p-1 transition-colors hover:bg-surface-2"
+                          title={`${c.characterName ?? c.characterId} · 픽률 ${c.pickRate}% · 승률 ${c.winRate}%`}
+                        >
+                          <Avatar characterId={c.characterId} characterName={c.characterName ?? undefined} size={44} />
+                          <span className="w-full truncate text-center text-[11px] font-medium text-gray-300">
+                            {c.characterName ?? c.characterId}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-1 flex-wrap gap-2">
-                    {grouped[t].map((c) => (
-                      <Link
-                        key={c.characterId}
-                        href={`/characters/${c.characterId}`}
-                        className="flex w-[68px] flex-col items-center gap-1 rounded-md p-1 transition-colors hover:bg-surface-2"
-                        title={`${c.characterName ?? c.characterId} · 픽률 ${c.pickRate}% · 승률 ${c.winRate}%`}
-                      >
-                        <Avatar characterId={c.characterId} characterName={c.characterName ?? undefined} size={44} />
-                        <span className="w-full truncate text-center text-[11px] font-medium text-gray-300">
-                          {c.characterName ?? c.characterId}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 커뮤니티 티어 투표 */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-100">커뮤니티 티어</h2>
+              <span className="text-xs text-gray-500">
+                유저 투표 · 역할별 최고 캐릭터 {tierVotes ? `· ${tierVotes.totalBallots.toLocaleString()}표` : ""}
+              </span>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* 결과: 역할별 득표 1~5위 */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {VOTE_ROLES.map((r) => {
+                  const list = tierVotes?.roles?.[r] ?? [];
+                  return (
+                    <div key={r} className="card p-3">
+                      <div className="mb-2 text-sm font-semibold text-gray-200">{ROLE_LABELS[r]}</div>
+                      {list.length === 0 ? (
+                        <div className="py-3 text-center text-xs text-gray-500">아직 투표가 없습니다</div>
+                      ) : (
+                        <ol className="space-y-1.5">
+                          {list.map((e, i) => {
+                            const c = rmap.get(e.characterId);
+                            return (
+                              <li key={e.characterId} className="flex items-center gap-2">
+                                <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500">
+                                  {i + 1}
+                                </span>
+                                <Avatar
+                                  characterId={e.characterId}
+                                  characterName={c?.characterName ?? undefined}
+                                  size={26}
+                                  zoom={1}
+                                />
+                                <span className="flex-1 truncate text-xs text-gray-200">
+                                  {c?.characterName ?? e.characterId}
+                                </span>
+                                <span className="shrink-0 text-xs font-semibold text-primary">{e.votes}표</span>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 투표 폼 */}
+              {roster.length > 0 ? (
+                <TierVote roster={roster} />
+              ) : (
+                <div className="card grid place-items-center p-6 text-center text-sm text-gray-500">
+                  투표 기능을 사용하려면 백엔드(투표 API)가 실행/배포되어 있어야 합니다.
                 </div>
-              ))}
+              )}
             </div>
           </section>
 
-          {/* 상세 표 (정렬 가능) */}
+          {/* 데이터 상세 표 */}
           <section>
             <div className="mb-2 flex items-center gap-2">
               <h2 className="text-lg font-bold text-gray-100">캐릭터 상세</h2>
+              {role !== "all" && <span className="chip bg-surface-3 text-gray-300">{roleLabel(role)}</span>}
               <span className="text-xs text-gray-500">헤더를 눌러 정렬</span>
             </div>
             <MetaTable rows={tiered} />

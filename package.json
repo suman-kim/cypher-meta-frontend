@@ -1,5 +1,5 @@
 {
-  "name": "cyphers-stats",
+  "name": "cypher-meta",
   "version": "0.1.0",
   "private": true,
   "description": "사이퍼즈 전적 검색 - OP.GG 스타일 웹앱 (Neople 오픈API)",
