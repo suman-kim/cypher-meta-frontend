@@ -9,7 +9,7 @@
  */
 
 import type { MatchRow, MatchDetail, MatchDetailPlayer } from "./types";
-import { kstDateParts } from "./format";
+import { kstDateParts, calcKDA, formatPlayTime } from "./format";
 
 /* ── 플레이 스타일 (근거리/원거리) ── */
 export interface PlayStyle {
@@ -186,4 +186,215 @@ export function buildPlayTimeHeat(matches: MatchRow[]): PlayTimeHeat {
     if (grid[row][col] > max) max = grid[row][col];
   }
   return { grid, max, total };
+}
+
+
+/* ── 최근 전적 요약 (탭별 분석) ── */
+export interface RecentInsight {
+  icon: string;
+  title: string;
+  value: string;
+  sub?: string;
+  tone?: "good" | "bad" | "neutral";
+}
+export interface RecentSummary {
+  sample: number;
+  resolved: number;
+  analysis: string[];
+  items: RecentInsight[];
+}
+
+/**
+ * 현재 탭의 최근 매치(최신순 가정, 최대 30판)로 요약 지표를 만든다.
+ * 일반전은 승패/KDA가 없어 판수·주력 캐릭터·플레이타임 위주로 자동 축소된다.
+ */
+export function buildRecentSummary(
+  matches: MatchRow[],
+  gameTypeId: string | undefined,
+  basisLabel: string,
+): RecentSummary {
+  const recent = matches.slice(0, 30);
+  const isRes = (m: MatchRow) => m.playInfo?.result === "win" || m.playInfo?.result === "lose";
+  const hasK = (m: MatchRow) => {
+    const p = m.playInfo;
+    return !!p && (p.killCount !== undefined || p.deathCount !== undefined || p.assistCount !== undefined);
+  };
+  const resolved = recent.filter(isRes);
+  const kdaRows = recent.filter(hasK);
+
+  // 픽 집계
+  const pickMap = new Map<string, { name: string; count: number; wins: number; decided: number }>();
+  for (const m of recent) {
+    const name = m.playInfo?.characterName;
+    if (!name) continue;
+    const e = pickMap.get(name) ?? { name, count: 0, wins: 0, decided: 0 };
+    e.count += 1;
+    if (m.playInfo?.result === "win") { e.wins += 1; e.decided += 1; }
+    else if (m.playInfo?.result === "lose") e.decided += 1;
+    pickMap.set(name, e);
+  }
+  const picksArr = [...pickMap.values()];
+  const topPick = [...picksArr].sort((a, b) => b.count - a.count)[0];
+  const topPickWr = topPick && topPick.decided > 0 ? Math.round((topPick.wins / topPick.decided) * 100) : null;
+  const distinct = picksArr.length;
+  const topShare = topPick && recent.length ? topPick.count / recent.length : 0;
+  const rated = picksArr
+    .filter((p) => p.decided >= 2)
+    .map((p) => ({ ...p, wr: Math.round((p.wins / p.decided) * 100) }));
+  const bestChamp = [...rated].sort((a, b) => b.wr - a.wr || b.count - a.count)[0];
+  const worstChamp = [...rated].sort((a, b) => a.wr - b.wr || b.count - a.count)[0];
+
+  const items: RecentInsight[] = [];
+
+  // 폼 + 스트릭
+  let wr: number | null = null;
+  let streakText = "";
+  let streakResult: string | undefined;
+  if (resolved.length > 0) {
+    const wins = resolved.filter((m) => m.playInfo?.result === "win").length;
+    const loses = resolved.length - wins;
+    wr = Math.round((wins / resolved.length) * 100);
+    streakResult = resolved[0]?.playInfo?.result;
+    let streak = 0;
+    for (const m of resolved) {
+      if (m.playInfo?.result === streakResult) streak += 1;
+      else break;
+    }
+    if (streak >= 2) streakText = streakResult === "win" ? `${streak}연승` : `${streak}연패`;
+    items.push({
+      icon: "🎯",
+      title: "최근 폼",
+      value: `${wins}승 ${loses}패`,
+      sub: `승률 ${wr}%${streakText ? ` · ${streakResult === "win" ? "🔥" : "❄️"} ${streakText}` : ""}`,
+      tone: wr >= 55 ? "good" : wr < 45 ? "bad" : "neutral",
+    });
+  }
+
+  // 평균 KDA
+  let avgKda: number | null = null;
+  let avgKill = 0, avgDeath = 0, avgAssist = 0;
+  if (kdaRows.length > 0) {
+    let k = 0, d = 0, a = 0;
+    for (const m of kdaRows) {
+      k += m.playInfo?.killCount ?? 0;
+      d += m.playInfo?.deathCount ?? 0;
+      a += m.playInfo?.assistCount ?? 0;
+    }
+    const n = kdaRows.length;
+    avgKill = k / n; avgDeath = d / n; avgAssist = a / n;
+    avgKda = calcKDA(avgKill, avgDeath, avgAssist);
+    items.push({
+      icon: "⚔️",
+      title: "평균 KDA",
+      value: avgKda.toFixed(2),
+      sub: `${avgKill.toFixed(1)} / ${avgDeath.toFixed(1)} / ${avgAssist.toFixed(1)} (K/D/A)`,
+      tone: avgKda >= 3.5 ? "good" : avgKda < 2 ? "bad" : "neutral",
+    });
+  }
+
+  // 주력 캐릭터
+  if (topPick) {
+    items.push({
+      icon: "⭐",
+      title: "주력 캐릭터",
+      value: topPick.name,
+      sub: `${topPick.count}판${topPickWr !== null ? ` · 승률 ${topPickWr}%` : ""}`,
+    });
+  }
+
+  // 최근 흐름
+  let trend: string | null = null;
+  if (resolved.length >= 8) {
+    const half = Math.floor(resolved.length / 2);
+    const rHalf = resolved.slice(0, half);
+    const oHalf = resolved.slice(half);
+    const rWr = Math.round((rHalf.filter((m) => m.playInfo?.result === "win").length / rHalf.length) * 100);
+    const oWr = Math.round((oHalf.filter((m) => m.playInfo?.result === "win").length / oHalf.length) * 100);
+    const diff = rWr - oWr;
+    trend = diff >= 8 ? "상승세" : diff <= -8 ? "하락세" : "유지";
+    items.push({
+      icon: diff >= 8 ? "📈" : diff <= -8 ? "📉" : "➡️",
+      title: "최근 흐름",
+      value: trend,
+      sub: `직전 구간 대비 ${diff > 0 ? "+" : ""}${diff}%p`,
+      tone: diff >= 8 ? "good" : diff <= -8 ? "bad" : "neutral",
+    });
+  }
+
+  // 평균 플레이타임
+  const timeRows = recent.filter((m) => (m.playInfo?.playTime ?? 0) > 0);
+  if (timeRows.length > 0) {
+    const avgT = Math.round(timeRows.reduce((sum, m) => sum + (m.playInfo?.playTime ?? 0), 0) / timeRows.length);
+    items.push({ icon: "⏱️", title: "평균 플레이타임", value: formatPlayTime(avgT), sub: "판당" });
+  }
+
+  // ACE
+  const aceCount = resolved.filter((m) => m.playInfo?.aceInfo?.name === "ACE").length;
+  if (aceCount > 0) {
+    items.push({ icon: "🏆", title: "ACE 획득", value: `${aceCount}회`, sub: `최근 ${resolved.length}판 중`, tone: "good" });
+  }
+
+  /* ── AI 스타일 서술 분석 ── */
+  const analysis: string[] = [];
+  if (resolved.length >= 3 && wr !== null) {
+    const wins = resolved.filter((m) => m.playInfo?.result === "win").length;
+
+    // 1) 총평
+    let p1: string;
+    if (wr >= 62) p1 = `최근 ${basisLabel} ${resolved.length}판을 ${wr}% 승률로 압도하며 좋은 폼을 보이고 있습니다.`;
+    else if (wr >= 53) p1 = `최근 ${basisLabel} ${resolved.length}판에서 ${wr}% 승률로 안정적으로 이기는 흐름입니다.`;
+    else if (wr >= 46) p1 = `최근 ${basisLabel} ${resolved.length}판 ${wr}% 승률로, 승패 편차가 있는 반반 구간입니다.`;
+    else p1 = `최근 ${basisLabel} ${resolved.length}판 ${wr}% 승률로 다소 부진해 반등 포인트가 필요합니다.`;
+    if (streakText) {
+      p1 += streakResult === "win"
+        ? ` 지금은 ${streakText} 중이라 자신감이 붙은 상태예요.`
+        : ` 지금은 ${streakText} 중이니, 무리한 교전보다 흐름을 끊는 데 집중하는 게 좋겠습니다.`;
+    } else if (trend === "상승세") p1 += ` 직전 구간보다 승률이 올라오며 반등하는 모습입니다.`;
+    else if (trend === "하락세") p1 += ` 다만 직전 구간보다 승률이 떨어져 하락세인 점은 유의해야 합니다.`;
+    analysis.push(p1);
+
+    // 2) 전투 스타일
+    if (avgKda !== null) {
+      let style: string;
+      const killLead = avgKill >= 7 && avgKill >= avgAssist * 0.9;
+      const assistLead = avgAssist >= 9 && avgAssist > avgKill;
+      if (killLead) style = `경기당 평균 ${avgKill.toFixed(1)}킬로 직접 교전을 여는 공격적인 캐리형`;
+      else if (assistLead) style = `평균 어시스트 ${avgAssist.toFixed(1)}로 팀 전투에 적극 관여하는 조력·서포팅 성향`;
+      else style = `킬·데스·어시가 고르게 나오는 균형형 플레이`;
+      let deathNote: string;
+      if (avgDeath <= 3.3) deathNote = ` 평균 데스 ${avgDeath.toFixed(1)}로 생존·포지셔닝 관리가 특히 안정적입니다.`;
+      else if (avgDeath >= 5.5) deathNote = ` 다만 평균 데스 ${avgDeath.toFixed(1)}로 높은 편이라, 데스만 줄여도 승률이 오를 여지가 큽니다.`;
+      else deathNote = ` 평균 데스 ${avgDeath.toFixed(1)}로 무난합니다.`;
+      analysis.push(`전투 스타일은 ${style}입니다.${deathNote} 최근 평균 KDA는 ${avgKda.toFixed(2)}예요.`);
+    }
+
+    // 3) 챔프 운영 + 코칭
+    let p3 = "";
+    if (topPick) {
+      if (distinct <= 2 || topShare >= 0.6) p3 = `챔프 폭은 ${topPick.name} 중심의 원챔 성향으로 주력 숙련도가 높습니다.`;
+      else if (distinct >= 6) p3 = `${distinct}종을 두루 다루는 넓은 챔프 폭을 갖췄습니다.`;
+      else p3 = `${topPick.name}을(를) 중심으로 몇 개 픽을 운영합니다.`;
+      if (bestChamp && bestChamp.wr >= 60) p3 += ` 특히 ${bestChamp.name}에서 ${bestChamp.wr}% 승률로 강합니다.`;
+      if (worstChamp && worstChamp.wr <= 40 && worstChamp.name !== bestChamp?.name) {
+        p3 += ` 반면 ${worstChamp.name}(${worstChamp.wr}%)에서는 다소 고전하는 편입니다.`;
+      }
+    }
+    let tip: string;
+    if (avgKda !== null && avgDeath >= 5.5) tip = "데스 관리에 조금만 더 집중하면 지표가 눈에 띄게 개선될 거예요.";
+    else if (trend === "하락세") tip = "하락세일 땐 자신 있는 주력 픽으로 흐름을 다잡아 보세요.";
+    else if (distinct <= 2 && wr < 50) tip = "상성에 대응할 서브 픽을 하나만 늘려도 승률 방어에 도움이 됩니다.";
+    else if (wr >= 55) tip = "지금의 폼과 픽 운영을 유지하면 좋은 결과가 이어질 것입니다.";
+    else tip = "주력 픽의 강점을 살리면서 데스를 줄이는 데 초점을 맞춰 보세요.";
+    analysis.push(`${p3 ? p3 + " " : ""}${tip}`.trim());
+  } else if (recent.length > 0) {
+    const pickClause = topPick ? ` 그중 ${topPick.name}을(를) ${topPick.count}판으로 가장 자주 골랐습니다.` : "";
+    analysis.push(`최근 ${basisLabel} ${recent.length}판을 플레이했습니다.${pickClause}`);
+    analysis.push(
+      "일반전은 Neople API가 승패·KDA를 공개하지 않아, 승률·전투 심층 분석은 공식전 탭에서 확인할 수 있습니다.",
+    );
+  } else {
+    analysis.push("표시할 최근 전적이 없습니다.");
+  }
+
+  return { sample: recent.length, resolved: resolved.length, analysis, items };
 }

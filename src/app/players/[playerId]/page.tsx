@@ -13,10 +13,11 @@ import SafeImage from "@/components/SafeImage";
 import PlayStyleCard from "@/components/player/PlayStyleCard";
 import TopCharactersCard from "@/components/player/TopCharactersCard";
 import PlayTimeHeatmap from "@/components/player/PlayTimeHeatmap";
+import RecentSummaryCard from "@/components/player/RecentSummaryCard";
 import PartyMembersCard, { PartyMembersSkeleton } from "@/components/player/PartyMembersCard";
 import { EmptyState, ErrorState, LinkTabs, Stat, TierBadge } from "@/components/ui";
 import { readRecord, winRate, calcKDA } from "@/lib/format";
-import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat } from "@/lib/profile";
+import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat, buildRecentSummary } from "@/lib/profile";
 import { computePlaystyleTags, PLAYSTYLE_SAMPLE } from "@/lib/badges";
 import TagChips from "@/components/ranking/TagChips";
 import { positionAttributeImage } from "@/lib/images";
@@ -190,6 +191,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
               <span className="chip bg-surface-2 text-[11px] text-gray-500">{basisLabel} 기준</span>
             </div>
             {playStyle && <PlayStyleCard style={playStyle} />}
+            {heat && heat.total > 0 && <PlayTimeHeatmap heat={heat} />}
             <TopCharactersCard characters={topChars} />
             <Suspense fallback={<PartyMembersSkeleton />}>
               <PartyMembersCard
@@ -268,8 +270,10 @@ export default async function PlayerPage({ params, searchParams }: Props) {
             </div>
           </div>
 
-          {/* 주 플레이 시간대 */}
-          {heat && heat.total > 0 && <PlayTimeHeatmap heat={heat} />}
+          {/* 최근 전적 요약 (탭별) */}
+          {hasAnalytics && (
+            <RecentSummaryCard summary={buildRecentSummary(analyticsMatches, gameTypeId, basisLabel)} />
+          )}
 
           {/* 매치 리스트 */}
           <div className="space-y-3">
