@@ -1,6 +1,8 @@
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import { getRatingRanking } from "@/lib/neople";
+import { getCharacterMeta, withTiers, TIER_META, type TieredCharacter } from "@/lib/meta";
+import { Avatar } from "@/components/CharacterAvatar";
 import { winRate } from "@/lib/format";
 import type { RatingRankingRow } from "@/lib/types";
 
@@ -8,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 const POPULAR = ["듀블", "레베카", "다오", "아이샤"];
 
-const TREND = [
+// 메타 데이터가 아직 없을 때 보여줄 예시(목업)
+const TREND_MOCK = [
   { tier: "S", name: "루이스", pick: "52.4", win: "51.2" },
   { tier: "S", name: "클레어", pick: "48.1", win: "50.8" },
   { tier: "A", name: "드렉슬러", pick: "42.7", win: "53.1" },
@@ -39,6 +42,15 @@ export default async function HomePage() {
   try {
     const r = await getRatingRanking({ limit: 3 });
     top = (r.rows ?? []).slice(0, 3);
+  } catch {}
+
+  // 실 메타 트렌드 (점수 상위 6)
+  let trend: TieredCharacter[] = [];
+  try {
+    const meta = await getCharacterMeta();
+    trend = withTiers(meta)
+      .sort((a, b) => b.score - a.score || b.pickRate - a.pickRate)
+      .slice(0, 6);
   } catch {}
 
   return (
@@ -125,33 +137,82 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 주간 캐릭터 트렌드 (예시) */}
+      {/* 주간 캐릭터 트렌드 */}
       <section>
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-bold text-gray-100">📈 주간 캐릭터 트렌드</h2>
-          <MockBadge />
-          <span className="text-xs text-gray-500">집계 통계(픽률·승률)는 준비중입니다</span>
+          <h2 className="text-lg font-bold text-gray-100">📈 캐릭터 메타 트렌드</h2>
+          {trend.length === 0 ? (
+            <>
+              <MockBadge />
+              <span className="text-xs text-gray-500">수집된 데이터가 아직 없습니다</span>
+            </>
+          ) : (
+            <Link href="/meta" className="text-sm font-medium text-primary hover:underline">
+              전체 메타 보기
+            </Link>
+          )}
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {TREND.map((c) => (
-            <div key={c.name} className="card overflow-hidden">
-              <div className="flex h-16 items-start bg-surface-2 p-2">
-                <span className="chip bg-navy/80 text-white">TIER {c.tier}</span>
-              </div>
-              <div className="p-2.5">
-                <div className="truncate text-sm font-bold text-gray-100">{c.name}</div>
-                <div className="mt-1 flex justify-between text-xs">
-                  <span className="text-gray-500">픽률</span>
-                  <span className="font-semibold text-primary">{c.pick}%</span>
+
+        {trend.length === 0 ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {TREND_MOCK.map((c) => (
+              <div key={c.name} className="card overflow-hidden">
+                <div className="flex h-16 items-start bg-surface-2 p-2">
+                  <span className="chip bg-navy/80 text-white">TIER {c.tier}</span>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">승률</span>
-                  <span className="font-semibold text-gray-200">{c.win}%</span>
+                <div className="p-2.5">
+                  <div className="truncate text-sm font-bold text-gray-100">{c.name}</div>
+                  <div className="mt-1 flex justify-between text-xs">
+                    <span className="text-gray-500">픽률</span>
+                    <span className="font-semibold text-primary">{c.pick}%</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">승률</span>
+                    <span className="font-semibold text-gray-200">{c.win}%</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {trend.map((c) => (
+              <Link
+                key={c.characterId}
+                href={`/characters/${c.characterId}`}
+                className="card overflow-hidden transition-colors hover:bg-surface-2"
+              >
+                <div className="flex items-center gap-2 bg-surface-2 p-2">
+                  <span
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded text-xs font-black text-white"
+                    style={{ backgroundColor: TIER_META[c.tier].color }}
+                  >
+                    {c.tier}
+                  </span>
+                  <Avatar characterId={c.characterId} characterName={c.characterName ?? undefined} size={28} />
+                  <span className="truncate text-sm font-bold text-gray-100">
+                    {c.characterName ?? c.characterId}
+                  </span>
+                </div>
+                <div className="p-2.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">픽률</span>
+                    <span className="font-semibold text-primary">{c.pickRate}%</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">승률</span>
+                    <span
+                      className="font-semibold"
+                      style={{ color: c.winRate >= 50 ? "rgb(var(--win))" : undefined }}
+                    >
+                      {c.winRate}%
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* 최신 소식 + 커뮤니티 (예시) */}

@@ -1,10 +1,12 @@
-/** 백엔드 메타 통계 API 클라이언트 (서버 컴포넌트 전용) */
+/** 백엔드 메타 통계 API 클라이언트 (서버 컴포넌트 전용 fetch) + 티어 산정 헬퍼(순수 함수) */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
 export interface CharacterMeta {
   characterId: string;
   characterName: string | null;
   picks: number;
+  /** 이 캐릭터가 등장한 고유 매치 수 (판 기준 픽률의 분자) */
+  matchCount: number;
   wins: number;
   pickRate: number;
   winRate: number;
@@ -18,8 +20,100 @@ export interface MetaSummary {
   matches: number;
   playerRecords: number;
   characters: number;
-  lastCollect: { lastRun?: string; collected?: number; scanned?: number } | null;
+  lastCollect: {
+    lastRun?: string;
+    collected?: number;
+    scanned?: number;
+    rankers?: number;
+    perPlayer?: number;
+    gameTypeId?: string;
+  } | null;
 }
+
+export interface ItemAdoption {
+  itemId: string;
+  itemName: string | null;
+  slotName: string | null;
+  rarityCode: string | null;
+  count: number;
+  rate: number;
+}
+
+export interface SlotItem {
+  itemId: string;
+  itemName: string | null;
+  rarityCode: string | null;
+  count: number;
+  rate: number;
+}
+
+export interface CharacterSlot {
+  equipSlotCode: string;
+  slotCode: string | null;
+  slotName: string | null;
+  items: SlotItem[];
+}
+
+export interface CharacterItemMeta {
+  characterId: string;
+  picks: number;
+  slots: CharacterSlot[];
+  items: ItemAdoption[];
+}
+
+/** 아이템 슬롯 표시 순서 (사용자 지정: 장갑→…→특수킷). 각 위치의 동의어로 slotName 매칭. */
+const SLOT_ORDER: string[][] = [
+  ["손", "장갑", "글러브"],   // 장갑  (실제 slotName: 손(공격))
+  ["머리", "모자"],           // 모자  (머리(치명))
+  ["가슴", "옷", "상의"],     // 옷    (가슴(체력))
+  ["허리", "벨트"],           // 허리  (허리(회피))
+  ["다리", "바지", "하의"],   // 바지  (다리(방어))
+  ["발", "신발", "구두"],     // 신발  (발(이동))
+  ["목걸이", "목"],           // 목걸이 (목)
+  ["장신구", "악세"],         // 장신구1~N
+  ["회복"],                   // 회복킷
+  ["가속", "스피드"],         // 스피드킷 (가속킷)
+  ["공격킷", "공격"],         // 공격킷  (손(공격)은 위 '손'에서 먼저 매칭)
+  ["방어킷", "방어"],         // 방어킷  (다리(방어)는 위 '다리'에서 먼저 매칭)
+  ["특수"],                   // 특수킷
+];
+
+const ACCESSORY_INDEX = 7; // SLOT_ORDER 에서 "장신구" 위치
+
+function slotOrderIndex(slotName: string | null): number {
+  const name = slotName ?? "";
+  if (!name) return SLOT_ORDER.length + 1;
+  for (let i = 0; i < SLOT_ORDER.length; i++) {
+    if (SLOT_ORDER[i].some((kw) => name.includes(kw))) return i;
+  }
+  return SLOT_ORDER.length + 1; // 미매칭은 뒤로
+}
+
+export interface OrderedSlot extends CharacterSlot {
+  label: string;
+}
+
+/** 슬롯을 사용자 지정 순서로 정렬하고 라벨을 붙임(장신구는 1..N). */
+export function orderSlots(slots: CharacterSlot[]): OrderedSlot[] {
+  const list = Array.isArray(slots) ? slots : [];
+  const sorted = [...list].sort((a, b) => {
+    const d = slotOrderIndex(a.slotName) - slotOrderIndex(b.slotName);
+    if (d !== 0) return d;
+    return a.equipSlotCode < b.equipSlotCode ? -1 : a.equipSlotCode > b.equipSlotCode ? 1 : 0;
+  });
+  let accIdx = 0;
+  return sorted.map((s) => {
+    if (slotOrderIndex(s.slotName) === ACCESSORY_INDEX) {
+      accIdx += 1;
+      return { ...s, label: `장신구${accIdx}` };
+    }
+    return { ...s, label: s.slotName ?? `슬롯 ${s.equipSlotCode}` };
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* fetch (서버 전용)                                                    */
+/* ------------------------------------------------------------------ */
 
 export async function getCharacterMeta(gameTypeId?: string): Promise<CharacterMeta[]> {
   const url = `${API}/meta/characters${gameTypeId ? `?gameTypeId=${encodeURIComponent(gameTypeId)}` : ""}`;
@@ -32,4 +126,100 @@ export async function getMetaSummary(): Promise<MetaSummary> {
   const res = await fetch(`${API}/meta/summary`, { next: { revalidate: 300 } });
   if (!res.ok) throw new Error(`meta summary ${res.status}`);
   return res.json();
+}
+
+export async function getCharacterItemMeta(characterId: string): Promise<CharacterItemMeta> {
+  const res = await fetch(`${API}/meta/characters/${encodeURIComponent(characterId)}/items`, {
+    next: { revalidate: 300 },
+  });
+  if (!res.ok) throw new Error(`meta items ${res.status}`);
+  return res.json();
+}
+
+/* ------------------------------------------------------------------ */
+/* 티어 산정 (순수 함수 — 서버/클라이언트 공용)                          */
+/* ------------------------------------------------------------------ */
+
+export type Tier = "S" | "A" | "B" | "C" | "D";
+
+export const TIER_ORDER: Tier[] = ["S", "A", "B", "C", "D"];
+
+export const TIER_META: Record<Tier, { label: string; color: string; desc: string }> = {
+  S: { label: "S", color: "#ff5470", desc: "최상위 (OP)" },
+  A: { label: "A", color: "#e3b23c", desc: "1티어" },
+  B: { label: "B", color: "#5383E8", desc: "준수" },
+  C: { label: "C", color: "#4fbf6b", desc: "평범" },
+  D: { label: "D", color: "#9aa7b4", desc: "하위" },
+};
+
+/**
+ * 메타 점수 = 승률 + 픽률 보정(픽률이 높을수록 표본 신뢰도·존재감 반영, 최대 +4).
+ * 승률 50%를 기준으로 절대 임계값으로 티어를 나눕니다(수집 표본 기준).
+ */
+export function metaScore(m: Pick<CharacterMeta, "winRate" | "pickRate">): number {
+  const pickBonus = Math.min(m.pickRate, 40) * 0.1; // 0 ~ +4
+  return Math.round((m.winRate + pickBonus) * 10) / 10;
+}
+
+export interface TieredCharacter extends CharacterMeta {
+  score: number;
+  tier: Tier;
+}
+
+/** 백분위(상위 %) 경계 — 상대 평가. pct < max 인 첫 구간의 티어. */
+const TIER_PERCENTILE: { tier: Tier; max: number }[] = [
+  { tier: "S", max: 0.1 },
+  { tier: "A", max: 0.25 },
+  { tier: "B", max: 0.5 },
+  { tier: "C", max: 0.8 },
+  { tier: "D", max: 1.01 },
+];
+
+function percentileTier(rank: number, n: number): Tier {
+  const pct = n > 0 ? rank / n : 0;
+  for (const b of TIER_PERCENTILE) if (pct < b.max) return b.tier;
+  return "D";
+}
+
+/** 티어 산정 기준 — 종합점수 / 승률 / 픽률 */
+export type TierBasis = "score" | "win" | "pick";
+
+export const TIER_BASIS_LABEL: Record<TierBasis, string> = {
+  score: "종합",
+  win: "승률",
+  pick: "픽률",
+};
+
+function basisValue(r: TieredCharacter, by: TierBasis): number {
+  if (by === "win") return r.winRate;
+  if (by === "pick") return r.pickRate;
+  return r.score;
+}
+
+/**
+ * 상대 평가(백분위) 티어. 선택한 기준(by) 내림차순 정렬 후
+ * 상위 10% S / 25% A / 50% B / 80% C / 나머지 D.
+ * minSample 미만 표본은 티어 산정에서 제외하고 D로 둡니다(기본 0 = 제외 없음).
+ */
+export function withTiers(
+  rows: CharacterMeta[],
+  by: TierBasis = "score",
+  minSample = 0,
+): TieredCharacter[] {
+  const scored: TieredCharacter[] = rows.map((r) => ({ ...r, score: metaScore(r), tier: "D" }));
+  const qualified = scored
+    .filter((r) => r.picks >= minSample)
+    .sort((a, b) => basisValue(b, by) - basisValue(a, by) || b.matchCount - a.matchCount);
+  const n = qualified.length;
+  qualified.forEach((r, i) => {
+    r.tier = percentileTier(i, n);
+  });
+  return scored;
+}
+
+export function groupByTier(rows: TieredCharacter[]): Record<Tier, TieredCharacter[]> {
+  const g: Record<Tier, TieredCharacter[]> = { S: [], A: [], B: [], C: [], D: [] };
+  for (const r of rows) g[r.tier].push(r);
+  for (const t of TIER_ORDER) g[t].sort((a, b) => b.score - a.score || b.picks - a.picks);
+  return g;
 }
