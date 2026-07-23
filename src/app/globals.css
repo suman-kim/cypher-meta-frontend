@@ -1,0 +1,123 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   테마 토큰 — 라이트(기본) / 다크(.dark)
+   값은 "R G B" 채널 (투명도 유틸 지원)
+   ───────────────────────────────────────────── */
+:root {
+  --bg: 240 242 245;
+  --surface: 255 255 255;
+  --surface-2: 247 248 250;
+  --surface-3: 238 241 245;
+  --border: 223 227 233;
+  --primary: 83 131 232;      /* #5383E8 */
+  --primary-strong: 47 95 200;
+  --navy: 32 45 74;           /* #202D4A */
+  --win: 83 131 232;
+  --lose: 226 64 87;
+  --up: 22 160 96;
+  /* 텍스트용 gray (라이트=어둡게) */
+  --g50: 17 20 27;
+  --g100: 28 31 38;
+  --g200: 48 54 66;
+  --g300: 74 82 97;
+  --g400: 104 113 130;
+  --g500: 130 139 155;
+  --g600: 160 168 183;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: 13 15 20;
+  --surface: 25 28 36;
+  --surface-2: 20 22 29;
+  --surface-3: 33 37 47;
+  --border: 40 44 56;
+  --primary: 122 162 255;
+  --primary-strong: 91 141 255;
+  --navy: 15 18 28;
+  --win: 91 141 255;
+  --lose: 226 74 95;
+  --up: 74 191 107;
+  --g50: 247 249 251;
+  --g100: 233 236 242;
+  --g200: 210 215 224;
+  --g300: 174 182 197;
+  --g400: 138 148 166;
+  --g500: 106 116 134;
+  --g600: 82 91 108;
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--g100));
+}
+
+body {
+  font-feature-settings: "tnum" 1, "cv11" 1;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.15s ease;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 6px;
+}
+
+@layer components {
+  .container-app {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8 2xl:px-12;
+  }
+  .card {
+    @apply rounded-lg border border-line bg-surface;
+  }
+  .card-header {
+    @apply border-b border-line bg-surface-2 px-4 py-3;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-primary-strong;
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-surface-2 text-gray-200 hover:bg-surface-3;
+  }
+  .btn-navy {
+    @apply btn bg-navy text-white hover:opacity-90;
+  }
+  .input {
+    @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-primary focus:outline-none;
+  }
+  /* 밑줄형 탭 */
+  .tab {
+    @apply border-b-2 border-transparent px-1 pb-2 text-sm font-medium text-gray-400 transition-colors hover:text-gray-100;
+  }
+  .tab-active {
+    @apply border-primary font-semibold text-primary;
+  }
+  /* 알약형 탭(세그먼트) */
+  .segtab {
+    @apply rounded-md px-3 py-1.5 text-sm font-medium text-gray-400 transition-colors hover:text-gray-100;
+  }
+  .segtab-active {
+    @apply bg-primary text-white hover:text-white;
+  }
+}
