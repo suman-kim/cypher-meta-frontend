@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getMatch, NeopleApiError } from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import ItemHoverCard from "@/components/ItemHoverCard";
+import MatchTabs from "@/components/match/MatchTabs";
+import MatchAnalysis from "@/components/match/MatchAnalysis";
 import SafeImage from "@/components/SafeImage";
 import { ErrorState } from "@/components/ui";
 import { characterImage } from "@/lib/images";
@@ -305,38 +307,60 @@ export default async function MatchPage({ params, searchParams }: Props) {
         </span>
       </div>
 
-      {/* 모바일: 팀별로 스택 */}
-      <div className="space-y-4 lg:hidden">
-        {teams.map((team, i) => (
-          <TeamPanel key={team.teamId ?? i} team={team} index={i} highlight={searchParams.highlight} />
-        ))}
-      </div>
+      <MatchTabs
+        tabs={[
+          {
+            key: "overview",
+            label: "종합",
+            content: (
+              <div className="space-y-3">
+                {/* 모바일: 팀별로 스택 */}
+                <div className="space-y-4 lg:hidden">
+                  {teams.map((team, i) => (
+                    <TeamPanel
+                      key={team.teamId ?? i}
+                      team={team}
+                      index={i}
+                      highlight={searchParams.highlight}
+                    />
+                  ))}
+                </div>
 
-      {/* 데스크탑: 1팀·2팀을 행 단위로 같은 높이로 정렬 */}
-      <div className="hidden space-y-3 lg:block">
-        <div className="grid grid-cols-2 gap-4">
-          {teamA ? <TeamHeaderBar team={teamA} index={0} /> : <div />}
-          {teamB ? <TeamHeaderBar team={teamB} index={1} /> : <div />}
-        </div>
-        {Array.from({ length: rowCount }).map((_, i) => {
-          const a = teamA?.players[i];
-          const b = teamB?.players[i];
-          return (
-            <div key={i} className="grid grid-cols-2 items-stretch gap-4">
-              {a ? (
-                <PlayerCard player={a} highlight={searchParams.highlight === a.playerId} />
-              ) : (
-                <div />
-              )}
-              {b ? (
-                <PlayerCard player={b} highlight={searchParams.highlight === b.playerId} />
-              ) : (
-                <div />
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {/* 데스크탑: 1팀·2팀을 행 단위로 같은 높이로 정렬 */}
+                <div className="hidden space-y-3 lg:block">
+                  <div className="grid grid-cols-2 gap-4">
+                    {teamA ? <TeamHeaderBar team={teamA} index={0} /> : <div />}
+                    {teamB ? <TeamHeaderBar team={teamB} index={1} /> : <div />}
+                  </div>
+                  {Array.from({ length: rowCount }).map((_, i) => {
+                    const a = teamA?.players[i];
+                    const b = teamB?.players[i];
+                    return (
+                      <div key={i} className="grid grid-cols-2 items-stretch gap-4">
+                        {a ? (
+                          <PlayerCard player={a} highlight={searchParams.highlight === a.playerId} />
+                        ) : (
+                          <div />
+                        )}
+                        {b ? (
+                          <PlayerCard player={b} highlight={searchParams.highlight === b.playerId} />
+                        ) : (
+                          <div />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: "analysis",
+            label: "분석",
+            content: <MatchAnalysis teams={teams} highlightPlayerId={searchParams.highlight} />,
+          },
+        ]}
+      />
     </div>
   );
 }

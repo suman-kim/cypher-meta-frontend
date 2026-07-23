@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Avatar } from "@/components/CharacterAvatar";
 import type { RosterEntry, RoleCode } from "@/lib/votes";
@@ -13,17 +13,7 @@ const SECTIONS: { key: RoleCode | "etc"; label: string; color: string }[] = [
   { key: "etc", label: "미분류", color: "#9aa7b4" },
 ];
 
-/** 캐릭터 랭킹용 캐릭터 선택 — 포지션별 그룹 그리드 */
-export default function RankingCharacterPicker({
-  characters,
-  rankingType,
-  selectedId,
-}: {
-  characters: RosterEntry[];
-  rankingType: string;
-  selectedId?: string;
-}) {
-  const router = useRouter();
+export default function CharacterRoster({ characters }: { characters: RosterEntry[] }) {
   const [q, setQ] = useState("");
 
   const grouped = useMemo(() => {
@@ -40,13 +30,10 @@ export default function RankingCharacterPicker({
 
   const total = SECTIONS.reduce((n, s) => n + (grouped[s.key]?.length ?? 0), 0);
 
-  function pick(id: string) {
-    router.push(`/ranking/characters?characterId=${id}&rankingType=${rankingType}`);
-  }
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2">
+      {/* 검색 */}
+      <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2">
         <svg className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="7" />
           <path d="m21 21-4.3-4.3" />
@@ -74,30 +61,23 @@ export default function RankingCharacterPicker({
                 <span className="chip bg-surface-2 text-gray-500">{list.length}</span>
               </div>
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-                {list.map((c) => {
-                  const active = c.characterId === selectedId;
-                  return (
-                    <button
-                      key={c.characterId}
-                      type="button"
-                      onClick={() => pick(c.characterId)}
-                      className={`group flex flex-col items-center gap-1.5 rounded-lg border p-2 transition-all hover:-translate-y-0.5 ${
-                        active
-                          ? "border-primary bg-primary/10"
-                          : "border-line bg-surface hover:border-primary/60 hover:bg-surface-2"
-                      }`}
-                    >
-                      <Avatar characterId={c.characterId} characterName={c.characterName ?? undefined} size={56} zoom={2} />
-                      <span
-                        className={`w-full truncate text-center text-xs font-medium ${
-                          active ? "text-primary" : "text-gray-300 group-hover:text-gray-100"
-                        }`}
-                      >
-                        {c.characterName ?? c.characterId}
-                      </span>
-                    </button>
-                  );
-                })}
+                {list.map((c) => (
+                  <Link
+                    key={c.characterId}
+                    href={`/characters/${c.characterId}`}
+                    className="group flex flex-col items-center gap-1.5 rounded-lg border border-line bg-surface p-2 transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:bg-surface-2"
+                  >
+                    <Avatar
+                      characterId={c.characterId}
+                      characterName={c.characterName ?? undefined}
+                      size={56}
+                      zoom={2}
+                    />
+                    <span className="w-full truncate text-center text-xs font-medium text-gray-300 group-hover:text-gray-100">
+                      {c.characterName ?? c.characterId}
+                    </span>
+                  </Link>
+                ))}
               </div>
             </section>
           );

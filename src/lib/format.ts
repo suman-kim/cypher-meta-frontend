@@ -72,18 +72,98 @@ export function relativeTime(dateStr?: string): string {
   return formatKoreanDateTime(dateStr);
 }
 
+/**
+ * 최근 전적 목록용 짧은 날짜: 상대 시간(방금 전/N분 전/N시간 전/N일 전),
+ * 7일이 넘으면 'M월 D일'(다른 해면 연도 포함). KST 기준.
+ */
+export function formatMatchListDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  const d = new Date(String(dateStr).replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return String(dateStr);
+  const now = new Date();
+  const sec = Math.floor((now.getTime() - d.getTime()) / 1000);
+  if (sec >= 0) {
+    const min = Math.floor(sec / 60);
+    const hr = Math.floor(min / 60);
+    const day = Math.floor(hr / 24);
+    if (sec < 60) return "방금 전";
+    if (min < 60) return `${min}분 전`;
+    if (hr < 24) return `${hr}시간 전`;
+    if (day < 7) return `${day}일 전`;
+  }
+  // 7일 이전(또는 시계 오차로 미래) → 'M월 D일' (다른 해면 연도 포함), KST
+  const ymd = (date: Date) => {
+    const p = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    }).formatToParts(date);
+    const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+    return { y: g("year"), m: g("month"), day: g("day") };
+  };
+  const a = ymd(d);
+  const b = ymd(now);
+  return a.y === b.y ? `${a.m}월 ${a.day}일` : `${a.y}년 ${a.m}월 ${a.day}일`;
+}
+
 export function formatNumber(n?: number): string {
   if (n === undefined || n === null) return "-";
   return n.toLocaleString("ko-KR");
 }
 
-/** YYYY-MM-DD (오늘 기준 n일 전) */
-export function dateNDaysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+/**
+ * KST(Asia/Seoul) 기준 날짜 문자열(YYYY-MM-DD). offsetDays 만큼 이전 날짜 반환(0 = 오늘).
+ * 서버 타임존과 무관하게 한국 날짜로 계산한다. (이전에는 UTC 날짜를 써서,
+ * KST 자정~오전 9시 사이엔 endDate 가 '어제'로 잡혀 당일 경기가 조회에서 빠지는 버그가 있었다.)
+ * KST 는 DST 가 없어 UTC 앵커로 일수를 가감해도 안전하다.
+ */
+function kstDateString(offsetDays = 0): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const g = (t: string) => Number(parts.find((x) => x.type === t)?.value);
+  const anchor = new Date(Date.UTC(g("year"), g("month") - 1, g("day")));
+  anchor.setUTCDate(anchor.getUTCDate() - offsetDays);
+  return anchor.toISOString().slice(0, 10);
 }
 
+/** YYYY-MM-DD (KST 오늘 기준 n일 전) */
+export function dateNDaysAgo(n: number): string {
+  return kstDateString(n);
+}
+
+/** YYYY-MM-DD (KST 오늘) */
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return kstDateString(0);
+}
+
+/**
+ * KST(Asia/Seoul) 기준 요일(0=일~6=토)·시(0~23)를 추출.
+ * 주 플레이 시간대 히트맵용. 표시용 formatKoreanDateTime 과 동일한 파싱을 써서
+ * 매치 시간 표기와 버킷이 어긋나지 않게 한다.
+ */
+export function kstDateParts(dateStr?: string): { weekday: number; hour: number } | null {
+  if (!dateStr) return null;
+  const d = new Date(String(dateStr).replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const g = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? "", 10);
+  const y = g("year");
+  const m = g("month");
+  const day = g("day");
+  const hour = g("hour");
+  if (!y || !m || !day || Number.isNaN(hour)) return null;
+  const weekday = new Date(Date.UTC(y, m - 1, day)).getUTCDay();
+  return { weekday, hour: hour % 24 };
 }

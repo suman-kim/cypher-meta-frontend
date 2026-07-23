@@ -204,6 +204,9 @@ export type TsjRankingResponse = ApiResponse<TsjRankingRow>;
 export interface CharacterRow {
   characterId: string;
   characterName: string;
+  /** 공격 타입: "근거리" | "원거리" (플레이 스타일 분류에 사용) */
+  attackType?: string;
+  position?: Position;
 }
 export type CharactersResponse = ApiResponse<CharacterRow>;
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCharacters, getCharacterRanking, NeopleApiError } from "@/lib/neople";
+import { getRoster, type RosterEntry } from "@/lib/votes";
 import RankingTabs from "@/components/RankingTabs";
 import Pagination from "@/components/Pagination";
 import { EmptyState, ErrorState, LinkTabs } from "@/components/ui";
@@ -9,7 +10,7 @@ import { Avatar } from "@/components/CharacterAvatar";
 import RankingCharacterPicker from "@/components/ranking/RankingCharacterPicker";
 import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants";
 import { formatNumber, winRate } from "@/lib/format";
-import type { CharacterRow, CharacterRankingRow } from "@/lib/types";
+import type { CharacterRankingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "캐릭터 랭킹" };
@@ -39,18 +40,27 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
     : "winCount";
   const offset = Math.max(0, parseInt(searchParams.offset ?? "0", 10) || 0);
 
-  let characters: CharacterRow[] = [];
+  let characters: RosterEntry[] = [];
   let charError: NeopleApiError | null = null;
   try {
-    const res = await getCharacters();
-    characters = (res.rows ?? []).sort((a, b) =>
-      a.characterName.localeCompare(b.characterName, "ko"),
-    );
-  } catch (e) {
-    charError = e as NeopleApiError;
+    characters = await getRoster();
+  } catch {
+    characters = [];
+  }
+  if (characters.length === 0) {
+    try {
+      const res = await getCharacters();
+      characters = (res.rows ?? []).map((c) => ({
+        characterId: c.characterId,
+        characterName: c.characterName,
+        role: "etc" as const,
+      }));
+    } catch (e) {
+      charError = e as NeopleApiError;
+    }
   }
 
-  const charName = characters.find((c) => c.characterId === characterId)?.characterName;
+  const charName = characters.find((c) => c.characterId === characterId)?.characterName ?? undefined;
 
   if (charError) {
     return (

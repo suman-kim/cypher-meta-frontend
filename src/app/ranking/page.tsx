@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getRatingRanking, NeopleApiError } from "@/lib/neople";
 import { enrichPlayer, mapLimit, type PlayerMeta } from "@/lib/ranking-enrich";
+import { PLAYSTYLE_SAMPLE } from "@/lib/badges";
 import RankingTabs from "@/components/RankingTabs";
 import Pagination from "@/components/Pagination";
 import { EmptyState, ErrorState } from "@/components/ui";
@@ -113,12 +114,20 @@ export default async function RatingRankingPage({ searchParams }: Props) {
     );
   }
 
-  // 각 랭커의 최근 공식전 기록으로 승률·픽·태그 계산 (상위 10위는 표본 넉넉히)
-  const metas = await mapLimit(rows, 8, (r, i) => {
-    const rank = offset + i + 1;
-    return enrichPlayer(r.player.playerId, rank <= 10 ? 30 : 12);
-  });
-  const metaMap = new Map<string, PlayerMeta>(metas.map((m) => [m.playerId, m]));
+  // 상위 100위까지만 최근 공식전 기록으로 승률·픽·성향 태그 계산 (10위 이내는 표본 넉넉히)
+  // enrich 실패는 페이지 렌더를 막지 않는다(랭킹 자체는 항상 표시).
+  let metaMap = new Map<string, PlayerMeta>();
+  try {
+    const enrichTargets = rows
+      .map((r, i) => ({ r, rank: offset + i + 1 }))
+      .filter((x) => x.rank <= 100);
+    const metas = await mapLimit(enrichTargets, 8, (x) =>
+      enrichPlayer(x.r.player.playerId, PLAYSTYLE_SAMPLE),
+    );
+    metaMap = new Map<string, PlayerMeta>(metas.map((m) => [m.playerId, m]));
+  } catch {
+    metaMap = new Map<string, PlayerMeta>();
+  }
 
   const showTop = offset === 0 && rows.length >= 3;
   const podium = showTop ? rows.slice(0, 3) : [];
@@ -189,6 +198,8 @@ export default async function RatingRankingPage({ searchParams }: Props) {
               <tr className="border-b border-line bg-surface-2 text-xs font-semibold text-gray-500">
                 <th className="w-16 px-4 py-3 text-left">순위</th>
                 <th className="px-4 py-3 text-left">플레이어</th>
+                <th className="hidden px-4 py-3 text-left md:table-cell">성향</th>
+                <th className="hidden px-4 py-3 text-center lg:table-cell">픽 TOP3</th>
                 <th className="px-4 py-3 text-center">승률</th>
                 <th className="px-4 py-3 text-right">RP 점수</th>
               </tr>
@@ -228,6 +239,18 @@ export default async function RatingRankingPage({ searchParams }: Props) {
                           <span className="text-xs font-normal text-gray-500">{row.player.clanName}</span>
                         )}
                       </Link>
+                    </td>
+                    <td className="hidden px-4 py-3 align-middle md:table-cell">
+                      {meta && meta.tags.length > 0 ? (
+                        <TagChips tags={meta.tags} />
+                      ) : (
+                        <span className="text-xs text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="hidden px-4 py-3 align-middle lg:table-cell">
+                      <div className="flex justify-center">
+                        <PickList picks={meta?.picks ?? []} compact />
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="mx-auto max-w-[180px]">

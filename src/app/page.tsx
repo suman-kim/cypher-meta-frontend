@@ -156,7 +156,7 @@ export default async function HomePage() {
             닉네임으로 전적을 검색하고 랭킹·티어·조합 메타를 한눈에 확인하세요.
           </p>
           <div className="mx-auto mt-6 max-w-xl">
-            <SearchBar size="lg" autoFocus />
+            <SearchBar size="lg" />
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {[

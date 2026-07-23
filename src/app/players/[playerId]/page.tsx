@@ -1,15 +1,35 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { getPlayer, getPlayerMatches, getRatingRanking, NeopleApiError } from "@/lib/neople";
+import {
+  getPlayer,
+  getPlayerMatches,
+  getRatingRanking,
+  getCharacters,
+  NeopleApiError,
+} from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import MatchRow from "@/components/MatchRow";
 import SafeImage from "@/components/SafeImage";
+import PlayStyleCard from "@/components/player/PlayStyleCard";
+import TopCharactersCard from "@/components/player/TopCharactersCard";
+import PlayTimeHeatmap from "@/components/player/PlayTimeHeatmap";
+import PartyMembersCard, { PartyMembersSkeleton } from "@/components/player/PartyMembersCard";
 import { EmptyState, ErrorState, LinkTabs, Stat, TierBadge } from "@/components/ui";
 import { readRecord, winRate, calcKDA } from "@/lib/format";
+import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat } from "@/lib/profile";
+import { computePlaystyleTags, PLAYSTYLE_SAMPLE } from "@/lib/badges";
+import TagChips from "@/components/ranking/TagChips";
 import { positionAttributeImage } from "@/lib/images";
 import { gameTypeLabel } from "@/lib/constants";
 import type { MatchRow as MatchRowType, PlayerDetail } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+/** 프로필 분석 표본 크기(게임타입별 최근 N게임). 파티원은 이 중 앞 PARTY_SAMPLE 건의 상세로 계산. */
+const ANALYTICS_LIMIT = 100;
+const PARTY_SAMPLE = 20;
+/** 최근 전적 목록에 표시할 개수 */
+const DISPLAY_LIMIT = 20;
 
 interface Props {
   params: { playerId: string };
@@ -31,20 +51,11 @@ interface TaggedMatch {
   gameTypeId: string;
 }
 
-async function loadMatches(playerId: string, gameTypeId?: string): Promise<TaggedMatch[]> {
-  // 전체(미지정)면 공식전+일반전을 각각 불러와 합침
-  const types = gameTypeId ? [gameTypeId] : ["rating", "normal"];
-  const results = await Promise.all(
-    types.map(async (gt) => {
-      try {
-        const res = await getPlayerMatches(playerId, { gameTypeId: gt, limit: 15 });
-        return (res.matches?.rows ?? []).map((m) => ({ match: m, gameTypeId: gt }));
-      } catch {
-        return [] as TaggedMatch[];
-      }
-    }),
-  );
-  return results.flat();
+function tag(rows: MatchRowType[], gt: string): TaggedMatch[] {
+  return rows.map((m) => ({ match: m, gameTypeId: gt }));
+}
+function byDateDesc(a: TaggedMatch, b: TaggedMatch): number {
+  return (b.match.date ?? "").localeCompare(a.match.date ?? "");
 }
 
 function isResolved(m: TaggedMatch): boolean {
@@ -57,21 +68,49 @@ function hasKda(m: TaggedMatch): boolean {
 }
 
 export default async function PlayerPage({ params, searchParams }: Props) {
-  const gameTypeId = searchParams.gameTypeId;
+  const gameTypeId = searchParams.gameTypeId; // undefined(전체) | "rating" | "normal"
 
   let player: PlayerDetail | undefined;
-  let matches: TaggedMatch[] = [];
   let error: NeopleApiError | null = null;
 
+  // 현재 탭 기준 매치(목록+분석 공용) & 일반전 판수
+  let matches: TaggedMatch[] = [];
+  let analyticsMatches: MatchRowType[] = [];
+  let normalCount = 0;
+  let badgeMatches: MatchRowType[] = [];
+  const attackTypeByName = new Map<string, string>();
+
   try {
-    // 기본 정보 + 평점 랭킹 행(티어/RP/공식전 전적) + 매치 목록 병렬 조회
-    const [p, ratingRes, loaded] = await Promise.all([
+    // 공식전·일반전 각 최근 100게임 + 기본정보 + 랭킹행 + 캐릭터표 병렬 조회
+    const [p, ratingRes, ratingMatchesRes, normalMatchesRes, charsRes] = await Promise.all([
       getPlayer(params.playerId),
       getRatingRanking({ playerId: params.playerId, limit: 5 }).catch(() => null),
-      loadMatches(params.playerId, gameTypeId),
+      getPlayerMatches(params.playerId, { gameTypeId: "rating", limit: ANALYTICS_LIMIT }).catch(
+        () => null,
+      ),
+      getPlayerMatches(params.playerId, { gameTypeId: "normal", limit: ANALYTICS_LIMIT }).catch(
+        () => null,
+      ),
+      getCharacters().catch(() => null),
     ]);
     player = p;
-    matches = loaded;
+
+    const ratingRows = ratingMatchesRes?.matches.rows ?? [];
+    const normalRows = normalMatchesRes?.matches.rows ?? [];
+    normalCount = normalRows.length;
+    badgeMatches = ratingRows;
+
+    // 선택 탭에 맞는 매치 집합 구성 (전체=합쳐서 최신순)
+    if (gameTypeId === "rating") matches = tag(ratingRows, "rating");
+    else if (gameTypeId === "normal") matches = tag(normalRows, "normal");
+    else matches = [...tag(ratingRows, "rating"), ...tag(normalRows, "normal")].sort(byDateDesc);
+    analyticsMatches = matches.map((t) => t.match);
+
+    if (charsRes) {
+      for (const r of charsRes.rows) {
+        if (r.characterName && r.attackType) attackTypeByName.set(r.characterName, r.attackType);
+      }
+    }
 
     // 평점 랭킹에서 이 플레이어의 행을 찾아 티어/RP/전적 보강
     const row = ratingRes?.rows.find((r) => r.player.playerId === params.playerId);
@@ -99,12 +138,18 @@ export default async function PlayerPage({ params, searchParams }: Props) {
     );
   }
 
+  // 선택 탭 기준 파생 분석 (탭 변경 시 함께 바뀜)
+  const topChars = buildTopCharacters(analyticsMatches, 5);
+  const heat = buildPlayTimeHeat(analyticsMatches);
+  const playStyle = buildPlayStyle(analyticsMatches, attackTypeByName);
+  const tags = computePlaystyleTags(badgeMatches.slice(0, PLAYSTYLE_SAMPLE));
+
   // 공식전 통산 전적 (records 의 rating 항목)
   const ratingRecord = (player.records ?? []).find((r) => r.gameTypeId === "rating");
   const rt = readRecord(ratingRecord);
   const overallWinRate = winRate(rt.win, rt.lose);
 
-  // 현재 탭의 최근 전적 (불러온 매치 기준) — 일반전은 승패/KDA 미제공이라 제외하고 계산
+  // 현재 탭의 최근 전적 — 일반전은 승패/KDA 미제공이라 제외하고 계산
   const recent = matches.slice(0, 40);
   const resolved = recent.filter(isResolved);
   const recentWinRate =
@@ -121,6 +166,9 @@ export default async function PlayerPage({ params, searchParams }: Props) {
         ) / kdaMatches.length
       : null;
   const recentLabel = gameTypeId ? `최근 ${gameTypeLabel(gameTypeId)}` : "최근 전체";
+  const basisLabel = gameTypeId ? gameTypeLabel(gameTypeId) : "전체";
+  const normalCountLabel =
+    normalCount > 0 ? `${normalCount}${normalCount >= ANALYTICS_LIMIT ? "+" : ""}판` : "-";
 
   const tabs = [
     { href: `/players/${params.playerId}`, label: "전체", active: !gameTypeId },
@@ -128,105 +176,137 @@ export default async function PlayerPage({ params, searchParams }: Props) {
     { href: `/players/${params.playerId}?gameTypeId=normal`, label: "일반전", active: gameTypeId === "normal" },
   ];
 
+  const hasAnalytics = analyticsMatches.length > 0;
+  const displayMatches = matches.slice(0, DISPLAY_LIMIT);
+
   return (
     <div className="space-y-5">
-      {/* 프로필 헤더 */}
-      <div className="card overflow-hidden">
-        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-          <Avatar
-            characterId={player.represent?.characterId}
-            characterName={player.represent?.characterName ?? player.nickname}
-            size={72}
-            zoom={2}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-black text-gray-50">{player.nickname}</h1>
-              {player.clanName && (
-                <span className="chip bg-bg-hover text-gray-400">클랜 · {player.clanName}</span>
-              )}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+        {/* 좌측: 프로필 분석 사이드바 (선택 탭 기준) */}
+        {hasAnalytics && (
+          <aside className="order-2 space-y-4 lg:order-1">
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-xs font-semibold text-gray-400">프로필 분석</span>
+              <span className="chip bg-surface-2 text-[11px] text-gray-500">{basisLabel} 기준</span>
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-              <TierBadge tierName={player.tierName} rp={player.ratingPoint} />
-              {player.maxRatingPoint !== undefined && (
-                <span className="text-gray-500">최고 점수 {player.maxRatingPoint.toLocaleString()} RP</span>
-              )}
-            </div>
-            {player.represent && (
-              <div className="mt-1.5 flex items-center gap-2 text-xs text-gray-500">
-                <span>대표 캐릭터 · {player.represent.characterName}</span>
-                {player.represent.position?.name && (
-                  <span className="chip bg-bg-hover text-gray-400">{player.represent.position.name}</span>
+            {playStyle && <PlayStyleCard style={playStyle} />}
+            <TopCharactersCard characters={topChars} />
+            <Suspense fallback={<PartyMembersSkeleton />}>
+              <PartyMembersCard
+                playerId={params.playerId}
+                matches={analyticsMatches}
+                sample={PARTY_SAMPLE}
+              />
+            </Suspense>
+          </aside>
+        )}
+
+        {/* 우측: 본문 (분석 표본이 없으면 전체 폭) */}
+        <div className={`order-1 space-y-5 lg:order-2 ${hasAnalytics ? "" : "lg:col-span-2"}`}>
+          {/* 프로필 헤더 */}
+          <div className="card overflow-hidden">
+            <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+              <Avatar
+                characterId={player.represent?.characterId}
+                characterName={player.represent?.characterName ?? player.nickname}
+                size={72}
+                zoom={2}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-black text-gray-50">{player.nickname}</h1>
+                  {player.clanName && (
+                    <span className="chip bg-bg-hover text-gray-400">클랜 · {player.clanName}</span>
+                  )}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  <TierBadge tierName={player.tierName} rp={player.ratingPoint} />
+                  {player.maxRatingPoint !== undefined && (
+                    <span className="text-gray-500">최고 점수 {player.maxRatingPoint.toLocaleString()} RP</span>
+                  )}
+                </div>
+                {player.represent && (
+                  <div className="mt-1.5 flex items-center gap-2 text-xs text-gray-500">
+                    <span>대표 캐릭터 · {player.represent.characterName}</span>
+                    {player.represent.position?.name && (
+                      <span className="chip bg-bg-hover text-gray-400">{player.represent.position.name}</span>
+                    )}
+                    {player.represent.position?.attribute?.map((a) => (
+                      <span key={a.id} title={a.name} className="inline-flex">
+                        <SafeImage
+                          src={positionAttributeImage(a.id)}
+                          alt={a.name}
+                          fallbackText={a.name.slice(0, 1)}
+                          className="h-4 w-4 rounded"
+                        />
+                      </span>
+                    ))}
+                  </div>
                 )}
-                {player.represent.position?.attribute?.map((a) => (
-                  <span key={a.id} title={a.name} className="inline-flex">
-                    <SafeImage
-                      src={positionAttributeImage(a.id)}
-                      alt={a.name}
-                      fallbackText={a.name.slice(0, 1)}
-                      className="h-4 w-4 rounded"
-                    />
-                  </span>
+                <TagChips tags={tags} className="mt-2.5 flex flex-wrap gap-1.5" />
+              </div>
+            </div>
+
+            {/* 스탯 요약 */}
+            <div className="grid grid-cols-2 gap-2 border-t border-bg-border p-4 sm:grid-cols-3 lg:grid-cols-5">
+              <Stat
+                label="공식전 승률"
+                value={rt.win + rt.lose > 0 ? `${overallWinRate}%` : "-"}
+                accent={overallWinRate >= 50 ? "#4f8ff0" : "#9aa7b4"}
+              />
+              <Stat label="공식전 전적" value={rt.win + rt.lose > 0 ? `${rt.win}승 ${rt.lose}패` : "-"} />
+              <Stat label="일반전 (최근)" value={normalCountLabel} />
+              <Stat
+                label={`${recentLabel} 승률`}
+                value={recentWinRate !== null ? `${recentWinRate}%` : "-"}
+              />
+              <Stat
+                label={`${recentLabel} 평균 평점`}
+                value={avgKDA !== null ? avgKDA.toFixed(2) : "-"}
+                accent="#4fbf6b"
+              />
+            </div>
+          </div>
+
+          {/* 주 플레이 시간대 */}
+          {heat && heat.total > 0 && <PlayTimeHeatmap heat={heat} />}
+
+          {/* 매치 리스트 */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-100">최근 전적</h2>
+              <LinkTabs tabs={tabs} />
+            </div>
+
+            {displayMatches.length === 0 ? (
+              <EmptyState
+                title={`${gameTypeId ? gameTypeLabel(gameTypeId) : ""} 매치 기록이 없습니다`.trim()}
+                description="최근 90일 이내 기록만 조회됩니다. 데이터는 약 1시간 주기로 갱신됩니다."
+                icon="🎮"
+              />
+            ) : (
+              <div className="space-y-2">
+                {displayMatches.map((m) => (
+                  <MatchRow
+                    key={`${m.gameTypeId}-${m.match.matchId}`}
+                    match={m.match}
+                    gameTypeId={m.gameTypeId}
+                    highlightPlayerId={params.playerId}
+                  />
                 ))}
               </div>
             )}
+
+            {gameTypeId === "normal" && displayMatches.length > 0 && (
+              <p className="text-center text-xs text-gray-500">
+                일반전은 Neople API가 승패·KDA를 제공하지 않습니다. 대신 전적을 펼치면 캐릭터·맵·팀 구성과 아이템 빌드를 확인할 수 있습니다.
+              </p>
+            )}
+            <p className="text-center text-xs text-gray-500">
+              전적을 클릭하면 요약이 펼쳐지고, 상세 보기로 매치 상세 페이지로 이동합니다.
+            </p>
           </div>
         </div>
-
-        {/* 스탯 요약 */}
-        <div className="grid grid-cols-2 gap-2 border-t border-bg-border p-4 sm:grid-cols-4">
-          <Stat
-            label="공식전 승률"
-            value={rt.win + rt.lose > 0 ? `${overallWinRate}%` : "-"}
-            accent={overallWinRate >= 50 ? "#4f8ff0" : "#9aa7b4"}
-          />
-          <Stat label="공식전 전적" value={rt.win + rt.lose > 0 ? `${rt.win}승 ${rt.lose}패` : "-"} />
-          <Stat
-            label={`${recentLabel} 승률`}
-            value={recentWinRate !== null ? `${recentWinRate}%` : "-"}
-          />
-          <Stat
-            label={`${recentLabel} 평균 평점`}
-            value={avgKDA !== null ? avgKDA.toFixed(2) : "-"}
-            accent="#4fbf6b"
-          />
-        </div>
-      </div>
-
-      {/* 매치 리스트 */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-100">최근 전적</h2>
-          <LinkTabs tabs={tabs} />
-        </div>
-
-        {matches.length === 0 ? (
-          <EmptyState
-            title={`${gameTypeId ? gameTypeLabel(gameTypeId) : ""} 매치 기록이 없습니다`.trim()}
-            description="최근 90일 이내 기록만 조회됩니다. 데이터는 약 1시간 주기로 갱신됩니다."
-            icon="🎮"
-          />
-        ) : (
-          <div className="space-y-2">
-            {matches.map((m) => (
-              <MatchRow
-                key={`${m.gameTypeId}-${m.match.matchId}`}
-                match={m.match}
-                gameTypeId={m.gameTypeId}
-                highlightPlayerId={params.playerId}
-              />
-            ))}
-          </div>
-        )}
-
-        {gameTypeId === "normal" && matches.length > 0 && (
-          <p className="text-center text-xs text-gray-500">
-            일반전은 Neople API가 승패·KDA를 제공하지 않습니다. 대신 전적을 펼치면 캐릭터·맵·팀 구성과 아이템 빌드를 확인할 수 있습니다.
-          </p>
-        )}
-        <p className="text-center text-xs text-gray-500">
-          전적을 클릭하면 요약이 펼쳐지고, 상세 보기로 매치 상세 페이지로 이동합니다.
-        </p>
       </div>
 
       <div className="pt-2 text-center">

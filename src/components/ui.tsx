@@ -79,9 +79,18 @@ export function LinkTabs({
   tabs: { href: string; label: string; active: boolean }[];
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-bg-border bg-bg-soft p-1">
+    <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-line bg-surface-2 p-1">
       {tabs.map((t) => (
-        <Link key={t.href} href={t.href} className={`tab ${t.active ? "tab-active" : ""}`}>
+        <Link
+          key={t.href}
+          href={t.href}
+          aria-current={t.active ? "page" : undefined}
+          className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
+            t.active
+              ? "bg-surface text-primary shadow-sm ring-1 ring-line"
+              : "text-gray-500 hover:text-gray-300"
+          }`}
+        >
           {t.label}
         </Link>
       ))}

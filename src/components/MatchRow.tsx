@@ -8,10 +8,10 @@ import ItemIcon from "./ItemIcon";
 import {
   calcKDA,
   formatKDA,
+  formatMatchListDate,
   formatNumber,
   formatPlayTime,
   kdaColor,
-  relativeTime,
 } from "@/lib/format";
 import { gameTypeLabel } from "@/lib/constants";
 
@@ -92,7 +92,6 @@ export default function MatchRow({
   gameTypeId?: string;
   highlightPlayerId?: string;
 }) {
-  console.log("match.playInfo", match.playInfo);
   const p = match.playInfo;
   const resultKnown = p.result === "win" || p.result === "lose";
   const win = p.result === "win";
@@ -170,7 +169,7 @@ export default function MatchRow({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold text-gray-100">{p.characterName ?? "-"}</div>
           <div className="truncate text-xs text-gray-500">
-            {[p.playTypeName, p.playTime ? formatPlayTime(p.playTime) : "", relativeTime(match.date)]
+            {[p.playTime ? formatPlayTime(p.playTime) : "", formatMatchListDate(match.date)]
               .filter(Boolean)
               .join(" · ")}
           </div>

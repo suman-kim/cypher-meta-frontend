@@ -8,6 +8,8 @@ import {
   type CharacterItemMeta,
 } from "@/lib/meta";
 import { Avatar } from "@/components/CharacterAvatar";
+import CypherProfileView from "@/components/characters/CypherProfile";
+import { getCypherProfile } from "@/lib/cypher-profiles";
 import ItemIcon from "@/components/ItemIcon";
 import { EmptyState, ErrorState, LinkTabs, Stat } from "@/components/ui";
 import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants";
@@ -41,6 +43,7 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
     : "winCount";
 
   const name = await resolveName(params.characterId);
+  const profile = getCypherProfile(name);
 
   // 메타 통계(자체 픽률·승률·KDA)와 아이템 채택률 — 백엔드가 없거나 데이터가 없으면 조용히 생략.
   const [selfMeta, itemMeta] = await Promise.all([
@@ -95,6 +98,9 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
           </div>
         )}
       </div>
+
+      {/* 능력치 & 스킬 (공식 사이트 기준) */}
+      {profile && <CypherProfileView profile={profile} />}
 
       {/* 메타 아이템 빌드 (슬롯별) */}
       {slots.length > 0 && (

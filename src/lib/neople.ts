@@ -148,6 +148,8 @@ export async function getPlayerMatches(
 ): Promise<PlayerMatchesResponse> {
   // 날짜 범위를 지정하지 않으면 기본으로 최근 90일(API 최대)을 조회.
   // 일반전 등 최근 경기가 드문 타입도 최대한 잡히도록 함.
+  // KST 기준 최근 90일. Neople API 는 한국 시간으로 동작하므로 endDate 는 KST '오늘'까지만(미래 날짜는
+  // 거부됨). todayStr 가 KST 기준이라 새벽(KST 00~09시)에도 당일 경기가 범위에 포함된다.
   const startDate = opts.startDate ?? dateNDaysAgo(90);
   const endDate = opts.endDate ?? todayStr();
   const raw = await neopleFetch<unknown>(`/players/${seg(playerId)}/matches`, {

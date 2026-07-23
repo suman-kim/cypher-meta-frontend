@@ -1,112 +1,57 @@
-import Link from "next/link";
-import { getCharacters, searchItems, NeopleApiError } from "@/lib/neople";
-import ItemSearchControls from "@/components/ItemSearchControls";
-import ItemIcon from "@/components/ItemIcon";
-import { EmptyState, ErrorState } from "@/components/ui";
-import { rarityMeta } from "@/lib/constants";
-import type { CharacterRow, ItemRow } from "@/lib/types";
+import {
+  getCharacterMeta,
+  getCharacterItemMeta,
+  type CharacterItemMeta,
+} from "@/lib/meta";
+import ItemExplorer, { type CharItem } from "@/components/items/ItemExplorer";
+import { EmptyState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "아이템 빌드",
+  description: "캐릭터별로 부위별 채택 아이템과 채택률을 확인하세요.",
+};
 
-export const metadata = { title: "아이템 검색" };
-
-interface Props {
-  searchParams: { itemName?: string; rarityCode?: string; characterId?: string };
-}
-
-export default async function ItemsPage({ searchParams }: Props) {
-  const itemName = (searchParams.itemName ?? "").trim();
-  const rarityCode = searchParams.rarityCode ?? "";
-  const characterId = searchParams.characterId ?? "";
-
-  // 캐릭터 필터용 목록
-  let characters: CharacterRow[] = [];
+export default async function ItemsPage() {
+  let chars: CharItem[] = [];
   try {
-    const res = await getCharacters();
-    characters = (res.rows ?? []).sort((a, b) => a.characterName.localeCompare(b.characterName, "ko"));
-  } catch {
-    characters = [];
+    const meta = await getCharacterMeta("rating");
+    chars = meta
+      .map((c) => ({
+        characterId: c.characterId,
+        characterName: c.characterName,
+        role: c.role,
+        pickRate: c.pickRate,
+        winRate: c.winRate,
+        matchCount: c.matchCount,
+      }))
+      .sort((a, b) => b.pickRate - a.pickRate);
+  } catch {}
+
+  let initial: { characterId: string; data: CharacterItemMeta } | null = null;
+  if (chars[0]) {
+    try {
+      initial = { characterId: chars[0].characterId, data: await getCharacterItemMeta(chars[0].characterId) };
+    } catch {}
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-black text-gray-50">아이템 검색</h1>
-
-      <ItemSearchControls
-        characters={characters}
-        itemName={itemName}
-        rarityCode={rarityCode}
-        characterId={characterId}
-      />
-
-      {!itemName ? (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-black tracking-tight text-gray-50">아이템 빌드</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          캐릭터를 선택하면 부위별로 자주 채택되는 아이템과 채택률을 보여줍니다.
+        </p>
+      </div>
+      {chars.length === 0 ? (
         <EmptyState
-          title="아이템 이름을 입력하세요"
-          description="배틀 아이템을 이름으로 검색하고 등급·캐릭터로 필터링할 수 있습니다."
+          title="수집된 데이터가 아직 없습니다"
+          description="상위 랭커 매치 수집 후 캐릭터별 아이템 통계가 표시됩니다."
           icon="🎒"
         />
       ) : (
-        <ItemResults itemName={itemName} rarityCode={rarityCode} characterId={characterId} />
+        <ItemExplorer characters={chars} initial={initial} />
       )}
     </div>
-  );
-}
-
-async function ItemResults({
-  itemName,
-  rarityCode,
-  characterId,
-}: {
-  itemName: string;
-  rarityCode: string;
-  characterId: string;
-}) {
-  let rows: ItemRow[] = [];
-  try {
-    const res = await searchItems(itemName, {
-      wordType: "match",
-      rarityCode: rarityCode || undefined,
-      characterId: characterId || undefined,
-      limit: 40,
-    });
-    rows = res.rows ?? [];
-  } catch (e) {
-    const err = e as NeopleApiError;
-    return <ErrorState message={err.message} hint={`code: ${err.code}`} />;
-  }
-
-  if (rows.length === 0) {
-    return <EmptyState title="검색 결과가 없습니다" description="다른 키워드로 시도해보세요." icon="🔍" />;
-  }
-
-  return (
-    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      {rows.map((it) => {
-        const rarity = rarityMeta(it.rarityCode);
-        return (
-          <li key={it.itemId}>
-            <Link
-              href={`/items/${it.itemId}`}
-              className="card flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-bg-hover"
-            >
-              <ItemIcon
-                itemId={it.itemId}
-                itemName={it.itemName}
-                rarityCode={it.rarityCode}
-                size={40}
-                linkable={false}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-semibold text-gray-100">{it.itemName}</div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  {rarity && <span style={{ color: rarity.color }}>{rarity.name}</span>}
-                  {it.slotName && <span>· {it.slotName}</span>}
-                </div>
-              </div>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

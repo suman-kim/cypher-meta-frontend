@@ -25,6 +25,7 @@ import {
 } from "@/lib/votes";
 import { Avatar } from "@/components/CharacterAvatar";
 import MetaTable from "@/components/MetaTable";
+import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
 
@@ -32,7 +33,6 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "캐릭터 티어" };
 
 const GAME_TABS = [{ key: "rating", label: "공식전" }] as const;
-
 const BASIS_TABS: { key: TierBasis; label: string }[] = [
   { key: "score", label: "종합" },
   { key: "win", label: "승률" },
@@ -47,11 +47,106 @@ function metaHref(gameType: string, tierBy: TierBasis, role: RoleFilter): string
   return p.length ? `/meta?${p.join("&")}` : "/meta";
 }
 
+function renderHeader(tab: "data" | "vote") {
+  const desc =
+    tab === "vote"
+      ? "유저가 직접 역할별 최고 캐릭터를 뽑는 커뮤니티 투표입니다."
+      : "상위 랭커 매치를 집계한 캐릭터 티어입니다.";
+  return (
+    <div>
+      <h1 className="text-2xl font-black tracking-tight text-gray-50">캐릭터 티어</h1>
+      <p className="mt-1 text-sm text-gray-500">{desc}</p>
+    </div>
+  );
+}
+
 interface Props {
-  searchParams: { gameType?: string; tierBy?: string; role?: string };
+  searchParams: { gameType?: string; tierBy?: string; role?: string; tab?: string };
 }
 
 export default async function MetaPage({ searchParams }: Props) {
+  const tab = searchParams.tab === "vote" ? "vote" : "data";
+
+  /* ───────── 커뮤니티 투표 탭 ───────── */
+  if (tab === "vote") {
+    let roster: RosterEntry[] = [];
+    let tierVotes: TierVotesResult | null = null;
+    try {
+      [roster, tierVotes] = await Promise.all([getRoster(), getTierVotes()]);
+    } catch {
+      roster = [];
+      tierVotes = null;
+    }
+    const rmap = rosterMapOf(roster);
+
+    return (
+      <div className="space-y-5">
+        {renderHeader("vote")}
+        <MetaViewTabs base="/meta" active="vote" dataLabel="데이터 티어" />
+
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-bold text-gray-100">커뮤니티 티어 투표</h2>
+            <span className="text-xs text-gray-500">
+              역할별 최고 캐릭터 1명씩 선택{" "}
+              {tierVotes ? `· 총 ${tierVotes.totalBallots.toLocaleString()}표` : ""}
+            </span>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* 결과: 역할별 득표 1~5위 */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {VOTE_ROLES.map((r) => {
+                const list = tierVotes?.roles?.[r] ?? [];
+                return (
+                  <div key={r} className="card p-3">
+                    <div className="mb-2 text-sm font-semibold text-gray-200">{ROLE_LABELS[r]}</div>
+                    {list.length === 0 ? (
+                      <div className="py-3 text-center text-xs text-gray-500">아직 투표가 없습니다</div>
+                    ) : (
+                      <ol className="space-y-1.5">
+                        {list.map((e, i) => {
+                          const c = rmap.get(e.characterId);
+                          return (
+                            <li key={e.characterId} className="flex items-center gap-2">
+                              <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500">
+                                {i + 1}
+                              </span>
+                              <Avatar
+                                characterId={e.characterId}
+                                characterName={c?.characterName ?? undefined}
+                                size={26}
+                                zoom={1}
+                              />
+                              <span className="flex-1 truncate text-xs text-gray-200">
+                                {c?.characterName ?? e.characterId}
+                              </span>
+                              <span className="shrink-0 text-xs font-semibold text-primary">{e.votes}표</span>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 투표 폼 */}
+            {roster.length > 0 ? (
+              <TierVote roster={roster} />
+            ) : (
+              <div className="card grid place-items-center p-6 text-center text-sm text-gray-500">
+                투표 기능을 사용하려면 백엔드(투표 API)가 실행/배포되어 있어야 합니다.
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  /* ───────── 데이터 티어 탭 (기본) ───────── */
   const gameType = GAME_TABS.some((t) => t.key === searchParams.gameType)
     ? (searchParams.gameType as string)
     : "rating";
@@ -65,28 +160,16 @@ export default async function MetaPage({ searchParams }: Props) {
   let summary: MetaSummary | null = null;
   let failed = false;
   try {
-    [rows, summary] = await Promise.all([
-      getCharacterMeta(gameType || undefined),
-      getMetaSummary(),
-    ]);
+    [rows, summary] = await Promise.all([getCharacterMeta(gameType || undefined), getMetaSummary()]);
   } catch {
     failed = true;
   }
 
-  // 투표 데이터/로스터는 실패해도 페이지를 막지 않음(백엔드 미배포 대비)
-  let roster: RosterEntry[] = [];
-  let tierVotes: TierVotesResult | null = null;
-  try {
-    [roster, tierVotes] = await Promise.all([getRoster(), getTierVotes()]);
-  } catch {
-    roster = [];
-    tierVotes = null;
-  }
-  const rmap = rosterMapOf(roster);
-
   if (failed) {
     return (
       <div className="space-y-5">
+        {renderHeader("data")}
+        <MetaViewTabs base="/meta" active="data" dataLabel="데이터 티어" />
         <ErrorState
           message="메타 데이터를 불러오지 못했습니다."
           hint="백엔드 서버(:4000)가 실행 중인지 확인하세요."
@@ -102,14 +185,8 @@ export default async function MetaPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-gray-50">캐릭터 티어</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            상위 랭커 매치 집계 + 커뮤니티 투표. 픽률은 판 기준 등장률, 티어는 점수 상대 평가입니다.
-          </p>
-        </div>
-      </div>
+      {renderHeader("data")}
+      <MetaViewTabs base="/meta" active="data" dataLabel="데이터 티어" />
 
       {summary && (
         <div className="flex flex-wrap gap-2 text-sm">
@@ -146,7 +223,6 @@ export default async function MetaPage({ searchParams }: Props) {
         />
       ) : (
         <>
-          {/* 역할 필터 */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-gray-500">역할</span>
             <div className="inline-flex flex-wrap gap-1 rounded-lg border border-line bg-surface-2 p-1">
@@ -162,7 +238,6 @@ export default async function MetaPage({ searchParams }: Props) {
             </div>
           </div>
 
-          {/* 데이터 티어 리스트 */}
           <section>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -219,66 +294,6 @@ export default async function MetaPage({ searchParams }: Props) {
             )}
           </section>
 
-          {/* 커뮤니티 티어 투표 */}
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-bold text-gray-100">커뮤니티 티어</h2>
-              <span className="text-xs text-gray-500">
-                유저 투표 · 역할별 최고 캐릭터 {tierVotes ? `· ${tierVotes.totalBallots.toLocaleString()}표` : ""}
-              </span>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              {/* 결과: 역할별 득표 1~5위 */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                {VOTE_ROLES.map((r) => {
-                  const list = tierVotes?.roles?.[r] ?? [];
-                  return (
-                    <div key={r} className="card p-3">
-                      <div className="mb-2 text-sm font-semibold text-gray-200">{ROLE_LABELS[r]}</div>
-                      {list.length === 0 ? (
-                        <div className="py-3 text-center text-xs text-gray-500">아직 투표가 없습니다</div>
-                      ) : (
-                        <ol className="space-y-1.5">
-                          {list.map((e, i) => {
-                            const c = rmap.get(e.characterId);
-                            return (
-                              <li key={e.characterId} className="flex items-center gap-2">
-                                <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500">
-                                  {i + 1}
-                                </span>
-                                <Avatar
-                                  characterId={e.characterId}
-                                  characterName={c?.characterName ?? undefined}
-                                  size={26}
-                                  zoom={1}
-                                />
-                                <span className="flex-1 truncate text-xs text-gray-200">
-                                  {c?.characterName ?? e.characterId}
-                                </span>
-                                <span className="shrink-0 text-xs font-semibold text-primary">{e.votes}표</span>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* 투표 폼 */}
-              {roster.length > 0 ? (
-                <TierVote roster={roster} />
-              ) : (
-                <div className="card grid place-items-center p-6 text-center text-sm text-gray-500">
-                  투표 기능을 사용하려면 백엔드(투표 API)가 실행/배포되어 있어야 합니다.
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* 데이터 상세 표 */}
           <section>
             <div className="mb-2 flex items-center gap-2">
               <h2 className="text-lg font-bold text-gray-100">캐릭터 상세</h2>
