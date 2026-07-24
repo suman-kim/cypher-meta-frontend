@@ -36,18 +36,17 @@ export default function RankerSlider({ items }: { items: RankerCardData[] }) {
     const el = track.current;
     if (!el) return;
     drag.current = { active: true, startX: e.clientX, startLeft: el.scrollLeft, moved: false };
-    el.setPointerCapture?.(e.pointerId);
+    // setPointerCapture 미사용: click 이 트랙으로 넘어가 카드 링크 이동이 막히는 문제 방지
   };
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const el = track.current;
     if (!el || !drag.current.active) return;
     const dx = e.clientX - drag.current.startX;
-    if (Math.abs(dx) > 4) drag.current.moved = true;
+    if (Math.abs(dx) > 8) drag.current.moved = true;
     el.scrollLeft = drag.current.startLeft - dx;
   };
-  const onUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+  const onUp = () => {
     drag.current.active = false;
-    track.current?.releasePointerCapture?.(e.pointerId);
   };
   // 드래그 후 실수로 카드 링크가 눌리지 않게 클릭 차단
   const onClickCapture = (e: ReactMouseEvent<HTMLDivElement>) => {
@@ -70,7 +69,7 @@ export default function RankerSlider({ items }: { items: RankerCardData[] }) {
         onPointerCancel={onUp}
         onClickCapture={onClickCapture}
         style={{ touchAction: "pan-y" }}
-        className="flex cursor-grab select-none gap-3 overflow-x-auto overscroll-x-contain pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_img]:pointer-events-none"
+        className="flex cursor-grab select-none gap-1 overflow-x-auto overscroll-x-contain pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_img]:pointer-events-none"
       >
         {items.map((it) => {
           const top3 = it.ranking <= 3;

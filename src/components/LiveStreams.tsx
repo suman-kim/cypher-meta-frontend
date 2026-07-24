@@ -20,7 +20,7 @@ import type { LivePlatform, LiveStream } from "@/lib/live";
 
 /** 플랫폼별 뱃지 색/이름 */
 const PLATFORM: Record<LivePlatform, { label: string; bg: string; fg: string }> = {
-  chzzk: { label: "치지직", bg: "#00E19C", fg: "#053a2b" },
+  chzzk: { label: "CHZZK", bg: "#00E19C", fg: "#053a2b" },
   youtube: { label: "YouTube", bg: "#FF0033", fg: "#ffffff" },
   soop: { label: "SOOP", bg: "#1f6fff", fg: "#ffffff" },
 };
@@ -30,7 +30,7 @@ const PLATFORM_ORDER: LivePlatform[] = ["chzzk", "soop", "youtube"];
 
 /** 가로 레일 공통 클래스(좌우 끝 페이드 마스크 없음) */
 const RAIL_CLASS =
-  "flex cursor-grab select-none gap-3 overflow-x-auto overscroll-x-contain pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_img]:pointer-events-none";
+  "flex cursor-grab select-none gap-1 overflow-x-auto overscroll-x-contain pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_img]:pointer-events-none";
 
 /** 시청자수를 한국식(만/천)으로 축약 */
 function fmtViewers(n: number): string {
@@ -66,6 +66,7 @@ function LiveCard({ s, tick, active }: { s: LiveStream; tick: number; active?: b
 
   const [hover, setHover] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [ytReady, setYtReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // 미리보기 트리거: 데스크톱=hover, 터치=부모가 넘긴 active
@@ -152,6 +153,19 @@ function LiveCard({ s, tick, active }: { s: LiveStream; tick: number; active?: b
     };
   }, [preview, s.platform, s.id]);
 
+  // 호버/활성 시 유튜브 iframe 임베드 미리보기(220ms 디바운스). 음소거 자동재생.
+  useEffect(() => {
+    if (!preview || s.platform !== "youtube") {
+      setYtReady(false);
+      return;
+    }
+    const t = setTimeout(() => setYtReady(true), 220);
+    return () => {
+      clearTimeout(t);
+      setYtReady(false);
+    };
+  }, [preview, s.platform]);
+
   return (
     <a
       href={s.url}
@@ -161,7 +175,7 @@ function LiveCard({ s, tick, active }: { s: LiveStream; tick: number; active?: b
       data-id={s.id}
       onMouseEnter={() => hoverCapable() && setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="card group w-[240px] shrink-0 overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-float lg:w-[264px]"
+      className="card group w-[240px] shrink-0 overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-float lg:w-[300px]"
     >
       <div className="relative aspect-video overflow-hidden bg-surface-3">
         <SafeImage
@@ -183,6 +197,16 @@ function LiveCard({ s, tick, active }: { s: LiveStream; tick: number; active?: b
             style={{ pointerEvents: "none" }}
           />
         )}
+        {s.platform === "youtube" && preview && ytReady && (
+          <iframe
+            src={`https://www.youtube.com/embed/${s.id.replace(/^youtube:/, "")}?autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3&fs=0&disablekb=1`}
+            title={s.title}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            loading="lazy"
+            className="absolute inset-0 z-[1] h-full w-full border-0"
+            style={{ pointerEvents: "none" }}
+          />
+        )}
         {/* 상단 좌: LIVE + 시청자수(명) */}
         <div className="absolute left-2 top-2 z-10 flex items-center gap-1">
           <span className="inline-flex items-center gap-1 rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
@@ -194,9 +218,12 @@ function LiveCard({ s, tick, active }: { s: LiveStream; tick: number; active?: b
             {fmtViewers(s.viewerCount)}명
           </span>
         </div>
-        {/* 상단 우: 방송 시간 */}
+        {/* 상단 우: 방송 시간 (시간 의존값—SSR/하이드레이션 불일치 가능 → 경고 억제) */}
         {up && (
-          <span className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm">
+          <span
+            suppressHydrationWarning
+            className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm"
+          >
             {up}
           </span>
         )}
@@ -248,18 +275,17 @@ function PlatformRail({
     const el = track.current;
     if (!el) return;
     drag.current = { active: true, startX: e.clientX, startLeft: el.scrollLeft, moved: false };
-    el.setPointerCapture?.(e.pointerId);
+    // setPointerCapture 미사용: click 이 트랙으로 넘어가 카드 링크 이동이 막히는 문제 방지
   };
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const el = track.current;
     if (!el || !drag.current.active) return;
     const dx = e.clientX - drag.current.startX;
-    if (Math.abs(dx) > 4) drag.current.moved = true;
+    if (Math.abs(dx) > 8) drag.current.moved = true; // 트랙패드 미세 움직임을 드래그로 오인하지 않도록
     el.scrollLeft = drag.current.startLeft - dx;
   };
-  const onUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+  const onUp = () => {
     drag.current.active = false;
-    track.current?.releasePointerCapture?.(e.pointerId);
   };
   const onClickCapture = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (drag.current.moved) {
@@ -271,15 +297,17 @@ function PlatformRail({
 
   return (
     <div>
-      {/* 플랫폼 태그 타이틀 */}
-      <div className="mb-2 flex items-center gap-2">
+      {/* 플랫폼 태그 타이틀 (섹션 타이틀보다 작게) */}
+      <div className="mb-2.5 flex items-center gap-1.5">
         <span
-          className="rounded-md px-2 py-0.5 text-xs font-black shadow-sm"
+          className="rounded-md px-2.5 py-1 text-[13px] font-black shadow-sm"
           style={{ backgroundColor: p.bg, color: p.fg }}
         >
           {p.label}
         </span>
-        <span className="text-xs font-semibold text-gray-500">{items.length}</span>
+        <span className="rounded-full bg-surface-3 px-2 py-0.5 text-xs font-bold text-gray-500">
+          {items.length}개
+        </span>
       </div>
       <div
         ref={track}

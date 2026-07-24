@@ -5,6 +5,7 @@
  * 자동으로 같은 레일에 '시청자수 내림차순'으로 합쳐진다.
  */
 import { getCyphersLives, type ChzzkLive } from "@/lib/chzzk";
+import { getYoutubeLives, type YoutubeLive } from "@/lib/youtube";
 
 /** 지원 플랫폼 */
 export type LivePlatform = "chzzk" | "youtube" | "soop";
@@ -47,6 +48,23 @@ export function mapChzzk(l: ChzzkLive): LiveStream {
   };
 }
 
+/** 유튜브 라이브 → 표준 LiveStream */
+export function mapYoutube(l: YoutubeLive): LiveStream {
+  return {
+    platform: "youtube",
+    id: `youtube:${l.liveId}`,
+    title: l.title,
+    thumbnailUrl: l.thumbnailUrl,
+    viewerCount: l.concurrentUserCount,
+    channelName: l.channelName,
+    channelImageUrl: l.channelImageUrl,
+    url: l.url,
+    category: null,
+    openDate: l.openDate,
+    verified: false,
+  };
+}
+
 /**
  * 모든 플랫폼의 현재 라이브를 합쳐 시청자수 내림차순으로 반환한다.
  * 한 소스가 실패해도 나머지는 그대로 노출된다(allSettled).
@@ -58,10 +76,12 @@ export function mapChzzk(l: ChzzkLive): LiveStream {
 export async function getLiveStreams(limit = 20): Promise<LiveStream[]> {
   const sources: Array<Promise<LiveStream[]>> = [
     getCyphersLives(limit).then((r) => r.lives.map(mapChzzk)),
-    // TODO(유튜브): getYoutubeCyphersLives(limit).then((r) => r.map(mapYoutube)),
-    // TODO(SOOP):  getSoopCyphersLives(limit).then((r) => r.map(mapSoop)),
+    getYoutubeLives(limit).then((r) => r.map(mapYoutube)),
+    // TODO(SOOP): getSoopLives(limit).then((r) => r.map(mapSoop)),
   ];
   const settled = await Promise.allSettled(sources);
   const all = settled.flatMap((s) => (s.status === "fulfilled" ? s.value : []));
-  return all.sort((a, b) => b.viewerCount - a.viewerCount).slice(0, limit);
+  // 전역 컷 없이 반환(각 소스가 이미 limit 로 제한됨). 프론트가 플랫폼별로 그룹핑하므로
+  // 여기서 자르면 저시청자 플랫폼(유튜브 등) 방송이 치지직에 밀려 사라질 수 있다.
+  return all.sort((a, b) => b.viewerCount - a.viewerCount);
 }
