@@ -1,6 +1,6 @@
 /** 앱 전역 상수 및 라벨 매핑 */
 
-export const SITE_NAME = "Cypher Meta";
+export const SITE_NAME = "Cyphers Meta";
 export const SITE_TAGLINE = "사이퍼즈 전적 검색";
 
 /** 게임 타입 */

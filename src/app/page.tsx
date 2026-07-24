@@ -143,7 +143,7 @@ export default async function HomePage() {
         <div className="relative mx-auto max-w-2xl px-4 py-10 text-center sm:py-14">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold tracking-wide text-primary">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-            CYPHER META
+            CYPHERS META
           </span>
           <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-gray-50 sm:text-[2.75rem]">
             사이퍼즈{" "}

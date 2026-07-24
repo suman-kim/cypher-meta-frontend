@@ -41,26 +41,55 @@ export function formatPlayTime(seconds?: number): string {
   return `${m}분 ${s.toString().padStart(2, "0")}초`;
 }
 
-/** KST 기준 "2026년 7월 24일 오전 12시 18분" 형식으로 통일. */
+/* ──────────────────────────────────────────────────────────────────────────
+ * 매치 시각 파싱 — 중요.
+ * Neople 오픈 API 의 date 는 "YYYY-MM-DD HH:MM(:SS)" 형식이며 타임존 표기가 없는
+ * KST(Asia/Seoul) '벽시계' 시각이다. 예전에는 new Date(str) 로 파싱했는데,
+ * 타임존이 없는 date-time 문자열은 JS 가 '서버 로컬 타임존'으로 해석한다.
+ *   - 로컬 개발(KST) → 로컬=KST 라 우연히 맞음
+ *   - Vercel(UTC)   → 문자열을 UTC 로 해석한 뒤 Asia/Seoul 로 다시 표기하며 +9h 밀림
+ * → 그래서 '주 플레이 시간대'가 로컬과 운영에서 달랐다.
+ * 아래처럼 문자열 성분을 '직접' 뽑으면 서버 타임존과 무관하게 항상 KST 로 동일하다.
+ * ────────────────────────────────────────────────────────────────────────── */
+interface KstParts {
+  year: number;
+  month: number; // 1~12
+  day: number;
+  hour: number; // 0~23
+  minute: number;
+  second: number;
+}
+
+/** "YYYY-MM-DD HH:MM(:SS)" (또는 T 구분) 를 성분 그대로 파싱. 타임존 변환 없음. */
+export function parseKstParts(dateStr?: string): KstParts | null {
+  if (!dateStr) return null;
+  const mt = String(dateStr).match(
+    /(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/,
+  );
+  if (!mt) return null;
+  return {
+    year: +mt[1],
+    month: +mt[2],
+    day: +mt[3],
+    hour: +mt[4],
+    minute: +mt[5],
+    second: mt[6] ? +mt[6] : 0,
+  };
+}
+
+/** KST 벽시계 성분 → 절대 시각(Date). KST=UTC+9, DST 없음. 상대시간 계산용. */
+function kstToInstant(p: KstParts): Date {
+  return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour - 9, p.minute, p.second));
+}
+
+/** KST 기준 "2026년 7월 24일 오전 12시 18분" 형식으로 통일. (서버 타임존 무관) */
 export function formatKoreanDateTime(dateStr?: string): string {
   if (!dateStr) return "";
-  const d = new Date(String(dateStr).replace(" ", "T"));
-  if (Number.isNaN(d.getTime())) return String(dateStr);
-  // Asia/Seoul 기준 24시간 성분을 뽑아, 오전/오후·12시간은 직접 계산(로컬 dayPeriod가 AM/PM으로 나오는 환경 대응).
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(d);
-  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  const hour24 = parseInt(g("hour"), 10) || 0;
-  const period = hour24 < 12 ? "오전" : "오후";
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-  return `${g("year")}년 ${parseInt(g("month"), 10)}월 ${parseInt(g("day"), 10)}일 ${period} ${hour12}시 ${g("minute")}분`;
+  const p = parseKstParts(dateStr);
+  if (!p) return String(dateStr);
+  const period = p.hour < 12 ? "오전" : "오후";
+  const hour12 = p.hour % 12 === 0 ? 12 : p.hour % 12;
+  return `${p.year}년 ${p.month}월 ${p.day}일 ${period} ${hour12}시 ${String(p.minute).padStart(2, "0")}분`;
 }
 
 export function formatDate(dateStr?: string): string {
@@ -74,12 +103,13 @@ export function relativeTime(dateStr?: string): string {
 
 /**
  * 최근 전적 목록용 짧은 날짜: 상대 시간(방금 전/N분 전/N시간 전/N일 전),
- * 7일이 넘으면 'M월 D일'(다른 해면 연도 포함). KST 기준.
+ * 7일이 넘으면 'M월 D일'(다른 해면 연도 포함). KST 기준 · 서버 타임존 무관.
  */
 export function formatMatchListDate(dateStr?: string): string {
   if (!dateStr) return "";
-  const d = new Date(String(dateStr).replace(" ", "T"));
-  if (Number.isNaN(d.getTime())) return String(dateStr);
+  const p = parseKstParts(dateStr);
+  if (!p) return String(dateStr);
+  const d = kstToInstant(p); // 정확한 절대 시각 (KST=UTC+9)
   const now = new Date();
   const sec = Math.floor((now.getTime() - d.getTime()) / 1000);
   if (sec >= 0) {
@@ -91,20 +121,17 @@ export function formatMatchListDate(dateStr?: string): string {
     if (hr < 24) return `${hr}시간 전`;
     if (day < 7) return `${day}일 전`;
   }
-  // 7일 이전(또는 시계 오차로 미래) → 'M월 D일' (다른 해면 연도 포함), KST
-  const ymd = (date: Date) => {
-    const p = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    }).formatToParts(date);
-    const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
-    return { y: g("year"), m: g("month"), day: g("day") };
-  };
-  const a = ymd(d);
-  const b = ymd(now);
-  return a.y === b.y ? `${a.m}월 ${a.day}일` : `${a.y}년 ${a.m}월 ${a.day}일`;
+  // 7일 이전(또는 시계 오차로 미래) → 'M월 D일' (다른 해면 연도 포함)
+  const nowParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(now);
+  const gn = (t: string) => nowParts.find((x) => x.type === t)?.value ?? "";
+  return String(p.year) === gn("year")
+    ? `${p.month}월 ${p.day}일`
+    : `${p.year}년 ${p.month}월 ${p.day}일`;
 }
 
 export function formatNumber(n?: number): string {
@@ -142,28 +169,14 @@ export function todayStr(): string {
 }
 
 /**
- * KST(Asia/Seoul) 기준 요일(0=일~6=토)·시(0~23)를 추출.
- * 주 플레이 시간대 히트맵용. 표시용 formatKoreanDateTime 과 동일한 파싱을 써서
- * 매치 시간 표기와 버킷이 어긋나지 않게 한다.
+ * KST(Asia/Seoul) 기준 요일(0=일~6=토)·시(0~23)를 추출. 주 플레이 시간대 히트맵용.
+ * Neople date 는 타임존 없는 KST 벽시계이므로 성분을 '직접' 파싱한다.
+ * (new Date() 로 파싱하면 서버 로컬 타임존으로 해석돼 Vercel(UTC)에서 +9h 밀린다.)
  */
 export function kstDateParts(dateStr?: string): { weekday: number; hour: number } | null {
-  if (!dateStr) return null;
-  const d = new Date(String(dateStr).replace(" ", "T"));
-  if (Number.isNaN(d.getTime())) return null;
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(d);
-  const g = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? "", 10);
-  const y = g("year");
-  const m = g("month");
-  const day = g("day");
-  const hour = g("hour");
-  if (!y || !m || !day || Number.isNaN(hour)) return null;
-  const weekday = new Date(Date.UTC(y, m - 1, day)).getUTCDay();
-  return { weekday, hour: hour % 24 };
+  const p = parseKstParts(dateStr);
+  if (!p) return null;
+  // 요일은 타임존과 무관하게 UTC 앵커로 계산 (날짜 성분만 사용)
+  const weekday = new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
+  return { weekday, hour: p.hour % 24 };
 }

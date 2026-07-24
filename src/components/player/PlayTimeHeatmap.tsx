@@ -16,7 +16,10 @@ export default function PlayTimeHeatmap({ heat }: { heat: PlayTimeHeat }) {
   return (
     <div className="card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-100">주 플레이 시간대</h3>
+        <h3 className="text-sm font-bold text-gray-100">
+          주 플레이 시간대
+          <span className="ml-1.5 align-middle text-[10px] font-normal text-gray-500">KST 기준</span>
+        </h3>
         <span className="text-xs text-gray-500">최근 {heat.total}게임</span>
       </div>
 

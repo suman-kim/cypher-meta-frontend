@@ -4,6 +4,7 @@ import { Avatar } from "@/components/CharacterAvatar";
 import ItemHoverCard from "@/components/ItemHoverCard";
 import MatchTabs from "@/components/match/MatchTabs";
 import MatchAnalysis from "@/components/match/MatchAnalysis";
+import MatchAiSummary from "@/components/match/MatchAiSummary";
 import SafeImage from "@/components/SafeImage";
 import { ErrorState } from "@/components/ui";
 import { characterImage } from "@/lib/images";
@@ -306,6 +307,8 @@ export default async function MatchPage({ params, searchParams }: Props) {
           {match.matchId.slice(0, 12)}…
         </span>
       </div>
+
+      <MatchAiSummary match={match} highlightPlayerId={searchParams.highlight} />
 
       <MatchTabs
         tabs={[

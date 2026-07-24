@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/constants";
+import Logo from "@/components/Logo";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -11,9 +12,8 @@ export default function Footer() {
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
           {/* 브랜드 */}
           <div className="text-center sm:text-left">
-            <div className="flex items-center justify-center text-base font-extrabold tracking-tight sm:justify-start">
-              <span className="text-primary">Cypher</span>
-              <span className="text-gray-100">&nbsp;Meta</span>
+            <div className="flex justify-center sm:justify-start">
+              <Logo size="sm" />
             </div>
             <p className="mt-1 text-xs text-gray-500">
               사이퍼즈 전적 · 랭킹 · 메타 통계 · 비공식 팬 사이트

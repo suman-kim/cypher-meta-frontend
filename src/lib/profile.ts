@@ -212,15 +212,21 @@ export function buildRecentSummary(
   matches: MatchRow[],
   gameTypeId: string | undefined,
   basisLabel: string,
+  sample = 30,
+  formMatches?: MatchRow[],
 ): RecentSummary {
-  const recent = matches.slice(0, 30);
+  const recent = matches.slice(0, sample);
   const isRes = (m: MatchRow) => m.playInfo?.result === "win" || m.playInfo?.result === "lose";
   const hasK = (m: MatchRow) => {
     const p = m.playInfo;
     return !!p && (p.killCount !== undefined || p.deathCount !== undefined || p.assistCount !== undefined);
   };
-  const resolved = recent.filter(isRes);
-  const kdaRows = recent.filter(hasK);
+  // 승패·KDA·연승/흐름 지표는 공식전에서만 산출 가능하다. formMatches(공식전 최근 표본)가 주어지면
+  // 그것으로 계산해, 상단 타일의 '최근 공식전 N판' 기준과 승률·평점이 항상 일치하게 한다.
+  // 픽 빈도·플레이타임 등은 recent(탭 문맥, 전체 탭이면 혼합)로 그대로 집계한다.
+  const form = (formMatches ?? recent).slice(0, sample);
+  const resolved = form.filter(isRes);
+  const kdaRows = form.filter(hasK);
 
   // 픽 집계
   const pickMap = new Map<string, { name: string; count: number; wins: number; decided: number }>();

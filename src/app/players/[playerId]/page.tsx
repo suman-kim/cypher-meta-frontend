@@ -150,14 +150,19 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   const rt = readRecord(ratingRecord);
   const overallWinRate = winRate(rt.win, rt.lose);
 
-  // 현재 탭의 최근 전적 — 일반전은 승패/KDA 미제공이라 제외하고 계산
-  const recent = matches.slice(0, 40);
-  const resolved = recent.filter(isResolved);
+  // 최근 승률·평점은 승패·KDA가 있는 '공식전'에서만 산출 가능하다. 따라서 '전체'/'공식전' 탭
+  // 모두 최근 공식전 RECENT_SAMPLE판으로 동일하게 계산한다. (일반전 탭은 공식전 경기가 없어 '-')
+  // 예전엔 전체 탭이 '공식+일반 혼합 최근 30판' 중 공식만 집계해, 공식전 탭과 표본이 어긋나 값이 달랐다.
+  const RECENT_SAMPLE = 30;
+  const officialRecent = matches
+    .filter((m) => m.gameTypeId === "rating")
+    .slice(0, RECENT_SAMPLE);
+  const resolved = officialRecent.filter(isResolved);
   const recentWinRate =
     resolved.length > 0
       ? Math.round((resolved.filter((m) => m.match.playInfo.result === "win").length / resolved.length) * 100)
       : null;
-  const kdaMatches = recent.filter(hasKda);
+  const kdaMatches = officialRecent.filter(hasKda);
   const avgKDA =
     kdaMatches.length > 0
       ? kdaMatches.reduce(
@@ -170,6 +175,22 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   const basisLabel = gameTypeId ? gameTypeLabel(gameTypeId) : "전체";
   const normalCountLabel =
     normalCount > 0 ? `${normalCount}${normalCount >= ANALYTICS_LIMIT ? "+" : ""}판` : "-";
+
+  // 각 지표 산정 기준 (Stat 툴팁 · 하단 안내용). 탭에 따라 문구가 바뀐다.
+  const OVERALL_WR_HINT =
+    "Neople 공식전 통산 전적(누적 승·패) 기준입니다. 탭과 무관하게 항상 동일합니다.";
+  const OVERALL_REC_HINT = "공식전 통산 누적 승-패입니다.";
+  const NORMAL_RECENT_HINT = `최근 수집된 일반전 판수입니다(최대 ${ANALYTICS_LIMIT}판). 일반전은 승패·KDA가 없어 판수만 집계됩니다.`;
+  const RECENT_WR_HINT =
+    gameTypeId === "normal"
+      ? "일반전은 Neople API가 승패를 제공하지 않아 승률을 표시할 수 없습니다."
+      : gameTypeId === "rating"
+        ? "최근 공식전 30판 중 승패가 확정된 경기만으로 계산합니다."
+        : "승률은 승패가 있는 공식전에서만 집계됩니다. 최근 공식전 30판 기준이라 ‘공식전’ 탭과 값이 같습니다.";
+  const RECENT_KDA_HINT =
+    gameTypeId === "normal"
+      ? "일반전은 KDA를 제공하지 않아 평균 평점을 표시할 수 없습니다."
+      : "평균 평점은 (킬+어시)÷데스입니다. 공식전에서만 집계되며 최근 공식전 30판 기준이라 ‘전체’·‘공식전’ 탭에서 값이 같습니다.";
 
   const tabs = [
     { href: `/players/${params.playerId}`, label: "전체", active: !gameTypeId },
@@ -255,32 +276,97 @@ export default async function PlayerPage({ params, searchParams }: Props) {
                 label="공식전 승률"
                 value={rt.win + rt.lose > 0 ? `${overallWinRate}%` : "-"}
                 accent={overallWinRate >= 50 ? "#4f8ff0" : "#9aa7b4"}
+                hint={OVERALL_WR_HINT}
               />
-              <Stat label="공식전 전적" value={rt.win + rt.lose > 0 ? `${rt.win}승 ${rt.lose}패` : "-"} />
-              <Stat label="일반전 (최근)" value={normalCountLabel} />
+              <Stat
+                label="공식전 전적"
+                value={rt.win + rt.lose > 0 ? `${rt.win}승 ${rt.lose}패` : "-"}
+                hint={OVERALL_REC_HINT}
+              />
+              <Stat label="일반전 (최근)" value={normalCountLabel} hint={NORMAL_RECENT_HINT} />
               <Stat
                 label={`${recentLabel} 승률`}
                 value={recentWinRate !== null ? `${recentWinRate}%` : "-"}
+                hint={RECENT_WR_HINT}
               />
               <Stat
                 label={`${recentLabel} 평균 평점`}
                 value={avgKDA !== null ? avgKDA.toFixed(2) : "-"}
                 accent="#4fbf6b"
+                hint={RECENT_KDA_HINT}
               />
             </div>
+
+            {/* 지표 산정 기준 안내 (탭별로 문구가 달라지는 이유 설명) */}
+            <details className="group border-t border-bg-border px-4 py-2.5">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-gray-300 [&::-webkit-details-marker]:hidden">
+                <span className="grid h-3.5 w-3.5 place-items-center rounded-full border border-gray-600/70 text-[9px] font-semibold leading-none">
+                  i
+                </span>
+                <span>지표 산정 기준</span>
+                <span className="ml-auto text-gray-600 transition-transform group-open:rotate-180">▾</span>
+              </summary>
+              <dl className="mt-2.5 space-y-2 text-xs leading-relaxed text-gray-400">
+                <div>
+                  <dt className="font-semibold text-gray-300">공식전 승률 · 전적</dt>
+                  <dd>Neople 공식전 통산(누적) 승·패 기준입니다. 탭을 바꿔도 값이 동일합니다.</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-gray-300">{recentLabel} 승률</dt>
+                  <dd>
+                    승률은 승패가 있는 공식전에서만 집계됩니다. 최근 공식전 30판 기준이라 전체·공식전 탭의
+                    값이 같고, 일반전 탭은 “-”로 표시됩니다.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-gray-300">{recentLabel} 평균 평점</dt>
+                  <dd>
+                    평균 평점(KDA)도 공식전에서만 집계됩니다. 최근 공식전 30판 중 KDA가 있는 경기의 평균
+                    (킬+어시)÷데스이며, 전체·공식전 탭의 값이 같습니다.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-gray-300">AI 전적 분석</dt>
+                  <dd>
+                    현재 탭(<span className="text-gray-300">{basisLabel}</span>)의 최근 30판을 분석합니다.
+                    탭을 바꾸면 표본과 기준이 함께 바뀝니다.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-gray-300">주 플레이 시간대</dt>
+                  <dd>매치 시각을 KST(한국 표준시) 기준 요일·시간대로 집계합니다.</dd>
+                </div>
+              </dl>
+            </details>
+          </div>
+
+          {/* 게임 타입 탭 — 페이지 전체(스탯·AI 분석·전적)의 기준. AI 분석 위로 배치. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <LinkTabs tabs={tabs} />
+            <span className="hidden text-xs text-gray-500 sm:inline">
+              선택 탭 기준으로 분석·전적이 표시됩니다
+            </span>
           </div>
 
           {/* 최근 전적 요약 (탭별) */}
           {hasAnalytics && (
-            <RecentSummaryCard summary={buildRecentSummary(analyticsMatches, gameTypeId, basisLabel)} />
+            <RecentSummaryCard
+              summary={buildRecentSummary(
+                analyticsMatches,
+                gameTypeId,
+                basisLabel,
+                RECENT_SAMPLE,
+                officialRecent.map((t) => t.match),
+              )}
+              basisLabel={basisLabel}
+            />
           )}
 
           {/* 매치 리스트 */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-100">최근 전적</h2>
-              <LinkTabs tabs={tabs} />
-            </div>
+            <h2 className="text-lg font-bold text-gray-100">
+              최근 전적 <span className="text-sm font-normal text-gray-500">· {basisLabel}</span>
+            </h2>
 
             {displayMatches.length === 0 ? (
               <EmptyState

@@ -14,6 +14,8 @@ import {
   kdaColor,
 } from "@/lib/format";
 import { gameTypeLabel } from "@/lib/constants";
+import { buildMatchSummary } from "@/lib/match-summary";
+import MvpCriteria from "@/components/match/MvpCriteria";
 
 function hasKdaFields(pi: {
   killCount?: number;
@@ -23,12 +25,44 @@ function hasKdaFields(pi: {
   return pi.killCount !== undefined || pi.deathCount !== undefined || pi.assistCount !== undefined;
 }
 
-function MiniStat({ label, value }: { label: string; value: ReactNode }) {
+function MiniStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: ReactNode;
+  accent?: string;
+}) {
   return (
-    <div className="rounded-md bg-surface-2 px-2 py-1.5 text-center">
-      <div className="truncate text-sm font-bold text-gray-100">{value}</div>
-      <div className="mt-0.5 text-[10px] text-gray-500">{label}</div>
+    <div className="rounded-lg bg-surface-2 px-2 py-2.5 text-center">
+      <div
+        className="truncate text-base font-black tabular-nums text-gray-100"
+        style={accent ? { color: accent } : undefined}
+      >
+        {value}
+      </div>
+      <div className="mt-0.5 text-[11px] text-gray-500">{label}</div>
     </div>
+  );
+}
+
+/** 수상 뱃지 — MVP(자체 분석, 금색) / ACE·JOKER(게임 공식 표식) */
+function AwardChip({ kind }: { kind: "MVP" | "ACE" | "JOKER" }) {
+  const style =
+    kind === "MVP"
+      ? { color: "#e3b23c", backgroundColor: "#e3b23c20" }
+      : kind === "ACE"
+        ? { color: "#ff5470", backgroundColor: "#ff547020" }
+        : { color: "#a15bf0", backgroundColor: "#a15bf020" };
+  return (
+    <span
+      className="chip shrink-0 px-1 py-0 text-[9px] font-bold leading-none"
+      style={style}
+      title={kind === "MVP" ? "자체 분석 팀 MVP" : `게임 공식 ${kind}`}
+    >
+      {kind}
+    </span>
   );
 }
 
@@ -36,10 +70,12 @@ function TeamBlock({
   team,
   index,
   highlightPlayerId,
+  mvpIds,
 }: {
   team: MatchDetailTeam;
   index: number;
   highlightPlayerId?: string;
+  mvpIds: Set<string>;
 }) {
   const known = team.result === "win" || team.result === "lose";
   const win = team.result === "win";
@@ -59,21 +95,37 @@ function TeamBlock({
           return (
             <li
               key={pl.playerId}
-              className={`flex items-center gap-2 rounded px-1 py-0.5 ${me ? "bg-primary/10" : ""}`}
+              className={`flex items-center gap-2 rounded px-1.5 py-1 ${me ? "bg-primary/10" : ""}`}
             >
-              <Avatar characterId={pi.characterId} characterName={pi.characterName} size={22} zoom={1} />
-              <Link
-                href={`/players/${pl.playerId}`}
-                className={`min-w-0 flex-1 truncate text-xs ${
-                  me ? "font-bold text-primary" : "text-gray-300 hover:text-primary"
-                }`}
-              >
-                {pl.nickname || pi.characterName}
-              </Link>
+              <Avatar characterId={pi.characterId} characterName={pi.characterName} size={24} zoom={1} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/players/${pl.playerId}`}
+                    className={`min-w-0 truncate text-xs ${
+                      me ? "font-bold text-primary" : "text-gray-300 hover:text-primary"
+                    }`}
+                  >
+                    {pl.nickname || pi.characterName}
+                  </Link>
+                  {mvpIds.has(pl.playerId) && <AwardChip kind="MVP" />}
+                  {pi.aceInfo?.name === "ACE" && <AwardChip kind="ACE" />}
+                  {pi.aceInfo?.name === "JOKER" && <AwardChip kind="JOKER" />}
+                </div>
+                {hasKdaFields(pi) && (
+                  <div className="mt-0.5 flex items-center gap-2 text-[10px] tabular-nums">
+                    <span style={{ color: "#4f8ff0" }}>가한 {formatNumber(pi.attackPoint)}</span>
+                    <span style={{ color: "#ff5470" }}>받은 {formatNumber(pi.damagePoint)}</span>
+                  </div>
+                )}
+              </div>
               {hasKdaFields(pi) && (
-                <span className="shrink-0 text-[11px] text-gray-500">
-                  {pi.killCount ?? 0}/{pi.deathCount ?? 0}/{pi.assistCount ?? 0}
-                </span>
+                <div className="shrink-0 text-right">
+                  <div className="text-[9px] font-medium tracking-wide text-gray-500">K/D/A</div>
+                  <div className="text-[11px] font-semibold tabular-nums text-gray-300">
+                    {pi.killCount ?? 0}/{pi.deathCount ?? 0}/{pi.assistCount ?? 0}
+                  </div>
+                </div>
               )}
             </li>
           );
@@ -140,6 +192,13 @@ export default function MatchRow({
     .slice()
     .sort((a, b) => (a.equipSlotCode ?? "").localeCompare(b.equipSlotCode ?? ""));
 
+  // 팀별 MVP(자체 분석) — buildMatchSummary 재사용. 일반전/무스탯이면 빈 배열.
+  const mvpIds = new Set(
+    (detail ? buildMatchSummary(detail, highlightPlayerId).mvps : [])
+      .map((mv) => mv.playerId)
+      .filter(Boolean),
+  );
+
   return (
     <div className={`overflow-hidden rounded-lg border border-l-4 border-line bg-surface ${borderClass}`}>
       <button
@@ -178,6 +237,7 @@ export default function MatchRow({
         <div className="w-24 shrink-0 text-center">
           {hasKDA ? (
             <>
+              <div className="text-[9px] font-medium tracking-wide text-gray-500">K / D / A</div>
               <div className="text-sm font-bold text-gray-100">
                 {p.killCount ?? 0} <span className="text-gray-500">/</span>{" "}
                 <span className="text-red-400">{p.deathCount ?? 0}</span>{" "}
@@ -211,12 +271,12 @@ export default function MatchRow({
           {detail && (
             <div className="space-y-3">
               {hasKDA ? (
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                <div className="grid grid-cols-3 gap-2">
                   <MiniStat label="레벨" value={p.level ?? "-"} />
-                  <MiniStat label="피해" value={formatNumber(p.damagePoint)} />
-                  <MiniStat label="전투" value={formatNumber(p.battlePoint)} />
-                  <MiniStat label="타워" value={formatNumber(p.towerAttackPoint)} />
-                  <MiniStat label="시야" value={formatNumber(p.sightPoint)} />
+                  <MiniStat label="가한 피해" value={formatNumber(p.attackPoint)} accent="#4f8ff0" />
+                  <MiniStat label="받은 피해" value={formatNumber(p.damagePoint)} accent="#ff5470" />
+                  <MiniStat label="시야" value={formatNumber(p.sightPoint)} accent="#4fbf6b" />
+                  <MiniStat label="타워 공격" value={formatNumber(p.towerAttackPoint)} accent="#e3b23c" />
                   <MiniStat label="백어택" value={formatNumber(p.backAttackCount)} />
                 </div>
               ) : (
@@ -251,15 +311,36 @@ export default function MatchRow({
               )}
 
               {detail.teams.length > 0 && (
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  {detail.teams.map((team, ti) => (
-                    <TeamBlock
-                      key={team.teamId ?? ti}
-                      team={team}
-                      index={ti}
-                      highlightPlayerId={highlightPlayerId}
-                    />
-                  ))}
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {detail.teams.map((team, ti) => (
+                      <TeamBlock
+                        key={team.teamId ?? ti}
+                        team={team}
+                        index={ti}
+                        highlightPlayerId={highlightPlayerId}
+                        mvpIds={mvpIds}
+                      />
+                    ))}
+                  </div>
+                  {(mvpIds.size > 0 ||
+                    detail.teams.some((t) => t.players.some((pl) => pl.playInfo.aceInfo?.name))) && (
+                    <p className="text-center text-[10px] leading-relaxed text-gray-500">
+                      <span className="font-bold" style={{ color: "#e3b23c" }}>
+                        MVP
+                      </span>{" "}
+                      자체 분석(팀당 1명) ·{" "}
+                      <span className="font-bold" style={{ color: "#ff5470" }}>
+                        ACE
+                      </span>
+                      ·
+                      <span className="font-bold" style={{ color: "#a15bf0" }}>
+                        JOKER
+                      </span>{" "}
+                      게임 공식 표식
+                    </p>
+                  )}
+                  {mvpIds.size > 0 && <MvpCriteria />}
                 </div>
               )}
 

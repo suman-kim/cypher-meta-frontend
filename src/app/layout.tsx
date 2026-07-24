@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="flex min-h-screen flex-col bg-bg">
+      <body className="flex min-h-[100dvh] flex-col bg-bg">
         <AnalyticsTracker />
         <Header />
         <main className="container-app flex-1 py-6">{children}</main>

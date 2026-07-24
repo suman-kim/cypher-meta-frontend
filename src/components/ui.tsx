@@ -98,14 +98,35 @@ export function LinkTabs({
   );
 }
 
-/** 통계 스탯 박스 */
-export function Stat({ label, value, accent }: { label: string; value: ReactNode; accent?: string }) {
+/** 통계 스탯 박스 (hint 지정 시 라벨 옆에 ⓘ 툴팁 표시 — 산정 기준 안내) */
+export function Stat({
+  label,
+  value,
+  accent,
+  hint,
+}: {
+  label: string;
+  value: ReactNode;
+  accent?: string;
+  hint?: string;
+}) {
   return (
     <div className="rounded-md bg-bg-soft px-3 py-2 text-center">
       <div className="text-lg font-bold" style={accent ? { color: accent } : undefined}>
         {value}
       </div>
-      <div className="mt-0.5 text-xs text-gray-500">{label}</div>
+      <div className="mt-0.5 flex items-center justify-center gap-1 text-xs text-gray-500">
+        <span>{label}</span>
+        {hint && (
+          <span
+            title={hint}
+            aria-label={hint}
+            className="grid h-3.5 w-3.5 shrink-0 cursor-help place-items-center rounded-full border border-gray-600/70 text-[9px] font-semibold leading-none text-gray-500 transition-colors hover:border-primary/60 hover:text-primary"
+          >
+            i
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
 import MetaMenu from "./MetaMenu";
+import Logo from "./Logo";
 
 /** 메타는 하위 페이지(캐릭터 티어 / 조합 티어)를 드롭다운으로 선택 */
 const META_SUB = [
@@ -34,11 +35,10 @@ export default function Header() {
     href === "/meta" ? pathname === "/meta" : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-line bg-surface lg:bg-surface/80 lg:backdrop-blur">
       <div className="container-app flex h-16 items-center gap-4">
-        <Link href="/" className="flex shrink-0 items-center text-xl font-extrabold tracking-tight">
-          <span className="text-primary">Cypher</span>
-          <span className="text-gray-100">&nbsp;Meta</span>
+        <Link href="/" aria-label="Cyphers Meta 홈" className="flex shrink-0 items-center">
+          <Logo />
         </Link>
 
         {/* 데스크톱 네비게이션 */}
