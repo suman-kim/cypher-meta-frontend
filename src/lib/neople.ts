@@ -63,9 +63,15 @@ export class NeopleApiError extends Error {
 interface FetchOptions {
   params?: Record<string, string | number | undefined>;
   revalidate?: number;
+  /** true 면 모든 캐시 무시(Next fetch 캐시 + 백엔드 캐시) */
+  fresh?: boolean;
 }
 
-async function neopleFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+async function neopleFetch<T>(
+  path: string,
+  opts: FetchOptions = {},
+  meta?: { cachedAt?: string | null },
+): Promise<T> {
   const url = new URL(BASE_URL + path);
 
   if (opts.params) {
@@ -74,10 +80,14 @@ async function neopleFetch<T>(path: string, opts: FetchOptions = {}): Promise<T>
     }
   }
 
+  if (opts.fresh) url.searchParams.set("nocache", "1"); // 백엔드 캐시 우회 신호
+
   let res: Response;
   try {
     res = await fetch(url.toString(), {
-      next: { revalidate: opts.revalidate ?? 60 },
+      ...(opts.fresh
+        ? { cache: "no-store" as const }
+        : { next: { revalidate: opts.revalidate ?? 60 } }),
       headers: { Accept: "application/json" },
     });
   } catch (e) {
@@ -87,6 +97,8 @@ async function neopleFetch<T>(path: string, opts: FetchOptions = {}): Promise<T>
       `백엔드 API 요청 실패 — 백엔드 서버(:4000)가 실행 중인지 확인하세요. (${(e as Error).message})`,
     );
   }
+
+  if (meta) meta.cachedAt = res.headers.get("x-data-cached-at"); // 데이터 마지막 갱신 시각
 
   const text = await res.text();
   let body: unknown;
@@ -130,10 +142,15 @@ export async function searchPlayers(
   return normalizePlayerSearch(raw);
 }
 
-export async function getPlayer(playerId: string): Promise<PlayerDetail> {
-  const raw = await neopleFetch<unknown>(`/players/${seg(playerId)}`, {
-    revalidate: TTL.playerInfo,
-  });
+export async function getPlayer(
+  playerId: string,
+  opts: { fresh?: boolean; meta?: { cachedAt?: string | null } } = {},
+): Promise<PlayerDetail> {
+  const raw = await neopleFetch<unknown>(
+    `/players/${seg(playerId)}`,
+    { revalidate: TTL.playerInfo, fresh: opts.fresh },
+    opts.meta,
+  );
   return normalizePlayerDetail(raw);
 }
 
@@ -141,10 +158,12 @@ export async function getPlayer(playerId: string): Promise<PlayerDetail> {
 async function fetchMatchesPage(
   playerId: string,
   params: Record<string, string | number | undefined>,
+  fresh = false,
 ): Promise<PlayerMatchesResponse> {
   const raw = await neopleFetch<unknown>(`/players/${seg(playerId)}/matches`, {
     params,
     revalidate: TTL.playerMatches,
+    fresh,
   });
   return normalizePlayerMatches(raw);
 }
@@ -171,6 +190,7 @@ export async function getPlayerMatches(
     endDate?: string;
     limit?: number;
     next?: string;
+    fresh?: boolean;
   } = {},
 ): Promise<PlayerMatchesResponse> {
   const gameTypeId = opts.gameTypeId ?? "rating";
@@ -178,24 +198,27 @@ export async function getPlayerMatches(
 
   // 날짜 명시 또는 next 페이지 요청 → 단일 조회(기존 동작)
   if (opts.startDate || opts.endDate || opts.next) {
-    return fetchMatchesPage(playerId, {
-      gameTypeId,
-      startDate: opts.startDate,
-      endDate: opts.endDate,
-      limit,
-      next: opts.next,
-    });
+    return fetchMatchesPage(
+      playerId,
+      {
+        gameTypeId,
+        startDate: opts.startDate,
+        endDate: opts.endDate,
+        limit,
+        next: opts.next,
+      },
+      opts.fresh,
+    );
   }
 
   // 기본: 신선(무날짜, 당일 포함) + 깊이(90일 범위) 병합
   const [fresh, deep] = await Promise.all([
-    fetchMatchesPage(playerId, { gameTypeId, limit }),
-    fetchMatchesPage(playerId, {
-      gameTypeId,
-      startDate: dateNDaysAgo(90),
-      endDate: todayStr(),
-      limit,
-    }),
+    fetchMatchesPage(playerId, { gameTypeId, limit }, opts.fresh),
+    fetchMatchesPage(
+      playerId,
+      { gameTypeId, startDate: dateNDaysAgo(90), endDate: todayStr(), limit },
+      opts.fresh,
+    ),
   ]);
 
   const byId = new Map<string, MatchRow>();
@@ -232,11 +255,12 @@ export async function getMatch(matchId: string): Promise<MatchDetail> {
 /* ------------------------------------------------------------------ */
 
 export async function getRatingRanking(
-  opts: { playerId?: string; offset?: number; limit?: number } = {},
+  opts: { playerId?: string; offset?: number; limit?: number; fresh?: boolean } = {},
 ): Promise<RatingRankingResponse> {
   const raw = await neopleFetch<unknown>("/ranking/ratingpoint", {
     params: { playerId: opts.playerId, offset: opts.offset ?? 0, limit: opts.limit ?? 50 },
     revalidate: TTL.ranking,
+    fresh: opts.fresh,
   });
   return normalizeRatingRanking(raw);
 }

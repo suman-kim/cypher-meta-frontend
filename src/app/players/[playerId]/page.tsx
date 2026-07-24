@@ -16,6 +16,7 @@ import PlayTimeHeatmap from "@/components/player/PlayTimeHeatmap";
 import RecentSummaryCard from "@/components/player/RecentSummaryCard";
 import PartyMembersCard, { PartyMembersSkeleton } from "@/components/player/PartyMembersCard";
 import { RankBadge } from "@/components/player/RankBadge";
+import { RefreshStatsButton } from "@/components/player/RefreshStatsButton";
 import { EmptyState, ErrorState, LinkTabs, Stat, TierBadge } from "@/components/ui";
 import { readRecord, winRate, calcKDA } from "@/lib/format";
 import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat, buildRecentSummary } from "@/lib/profile";
@@ -35,7 +36,7 @@ const DISPLAY_LIMIT = 20;
 
 interface Props {
   params: { playerId: string };
-  searchParams: { gameTypeId?: string };
+  searchParams: { gameTypeId?: string; refresh?: string };
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -71,6 +72,8 @@ function hasKda(m: TaggedMatch): boolean {
 
 export default async function PlayerPage({ params, searchParams }: Props) {
   const gameTypeId = searchParams.gameTypeId; // undefined(전체) | "rating" | "normal"
+  const fresh = Boolean(searchParams.refresh); // 전적 갱신 버튼 → 캐시 완전 무시
+  const dataMeta: { cachedAt?: string | null } = {}; // 마지막 갱신 시각 캡처
 
   let player: PlayerDetail | undefined;
   let error: NeopleApiError | null = null;
@@ -86,14 +89,18 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   try {
     // 공식전·일반전 각 최근 100게임 + 기본정보 + 랭킹행 + 캐릭터표 병렬 조회
     const [p, ratingRes, ratingMatchesRes, normalMatchesRes, charsRes] = await Promise.all([
-      getPlayer(params.playerId),
-      getRatingRanking({ playerId: params.playerId, limit: 5 }).catch(() => null),
-      getPlayerMatches(params.playerId, { gameTypeId: "rating", limit: ANALYTICS_LIMIT }).catch(
-        () => null,
-      ),
-      getPlayerMatches(params.playerId, { gameTypeId: "normal", limit: ANALYTICS_LIMIT }).catch(
-        () => null,
-      ),
+      getPlayer(params.playerId, { fresh, meta: dataMeta }),
+      getRatingRanking({ playerId: params.playerId, limit: 5, fresh }).catch(() => null),
+      getPlayerMatches(params.playerId, {
+        gameTypeId: "rating",
+        limit: ANALYTICS_LIMIT,
+        fresh,
+      }).catch(() => null),
+      getPlayerMatches(params.playerId, {
+        gameTypeId: "normal",
+        limit: ANALYTICS_LIMIT,
+        fresh,
+      }).catch(() => null),
       getCharacters().catch(() => null),
     ]);
     player = p;
@@ -281,6 +288,10 @@ export default async function PlayerPage({ params, searchParams }: Props) {
                 )}
                 <TagChips tags={tags} className="mt-2.5 flex flex-wrap gap-1.5" />
               </div>
+              <RefreshStatsButton
+                cachedAt={dataMeta.cachedAt}
+                className="shrink-0 self-start sm:self-center"
+              />
             </div>
 
             {/* 스탯 요약 */}

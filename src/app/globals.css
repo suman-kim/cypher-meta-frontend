@@ -10,7 +10,7 @@
    값은 "R G B" 채널 (투명도 유틸 지원)
    ───────────────────────────────────────────── */
 :root {
-  --bg: 240 242 245;
+  --bg: 250 251 253;
   --surface: 255 255 255;
   --surface-2: 247 248 250;
   --surface-3: 238 241 245;
@@ -130,5 +130,25 @@ body {
   }
   100% {
     transform: translateX(120%);
+  }
+}
+
+/* 진입 애니메이션 (히어로 등) */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-up {
+  animation: fadeUp 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-up {
+    animation: none;
   }
 }
