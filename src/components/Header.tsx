@@ -19,6 +19,7 @@ const NAV = [
   { href: "/characters", label: "캐릭터" },
   { href: "/items", label: "아이템" },
   { href: "/costumes", label: "코스튬" },
+  { href: "/videos", label: "동영상" },
   { href: "/community", label: "커뮤니티" },
 ];
 

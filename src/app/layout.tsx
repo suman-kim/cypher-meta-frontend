@@ -36,8 +36,15 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
-  // Google Search Console '메타 태그' 인증을 쓸 때: Vercel 환경변수 GOOGLE_SITE_VERIFICATION 설정
-  verification: { google: process.env.GOOGLE_SITE_VERIFICATION },
+  // 사이트 소유확인 '메타 태그' 인증 (Vercel/.env 환경변수로 값 주입)
+  //  - Google Search Console : GOOGLE_SITE_VERIFICATION
+  //  - 네이버 서치어드바이저   : NAVER_SITE_VERIFICATION (네이버 전용 필드가 없어 other 로 넣는다)
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    ...(process.env.NAVER_SITE_VERIFICATION
+      ? { other: { "naver-site-verification": process.env.NAVER_SITE_VERIFICATION } }
+      : {}),
+  },
 };
 
 // FOUC 방지: 렌더 전에 저장된 테마를 적용 (라이트 기본, 'dark' 저장 시 다크)

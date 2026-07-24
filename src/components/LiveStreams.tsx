@@ -175,77 +175,74 @@ function LiveCard({ s, tick, active }: { s: LiveStream; tick: number; active?: b
       data-id={s.id}
       onMouseEnter={() => hoverCapable() && setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="card group w-[240px] shrink-0 overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-float lg:w-[300px]"
+      className="group relative h-[200px] w-[240px] shrink-0 overflow-hidden rounded-xl border border-line bg-surface-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-float lg:h-[236px] lg:w-[430px]"
     >
-      <div className="relative aspect-video overflow-hidden bg-surface-3">
-        <SafeImage
-          src={thumb}
-          alt={s.title}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          fallbackText={initial}
+      <SafeImage
+        src={thumb}
+        alt={s.title}
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        fallbackText={initial}
+      />
+      {s.platform === "chzzk" && preview && (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          autoPlay
+          className={`absolute inset-0 h-full w-full bg-black object-cover transition-opacity duration-300 ${
+            playing ? "opacity-100" : "opacity-0"
+          }`}
+          style={{ pointerEvents: "none" }}
         />
-        {s.platform === "chzzk" && preview && (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            autoPlay
-            className={`absolute inset-0 h-full w-full bg-black object-cover transition-opacity duration-300 ${
-              playing ? "opacity-100" : "opacity-0"
-            }`}
-            style={{ pointerEvents: "none" }}
-          />
-        )}
-        {s.platform === "youtube" && preview && ytReady && (
-          <iframe
-            src={`https://www.youtube.com/embed/${s.id.replace(/^youtube:/, "")}?autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3&fs=0&disablekb=1`}
-            title={s.title}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            loading="lazy"
-            className="absolute inset-0 z-[1] h-full w-full border-0"
-            style={{ pointerEvents: "none" }}
-          />
-        )}
-        {/* 상단 좌: LIVE + 시청자수(명) */}
-        <div className="absolute left-2 top-2 z-10 flex items-center gap-1">
-          <span className="inline-flex items-center gap-1 rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
-            LIVE
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm backdrop-blur-sm">
-            {/*<span className="h-1.5 w-1.5 rounded-full bg-red-500" />*/}
-            {fmtViewers(s.viewerCount)}명
-          </span>
-        </div>
-        {/* 상단 우: 방송 시간 (시간 의존값—SSR/하이드레이션 불일치 가능 → 경고 억제) */}
-        {up && (
-          <span
-            suppressHydrationWarning
-            className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm"
-          >
-            {up}
-          </span>
-        )}
-      </div>
-      <div className="p-2.5">
-        <p
-          className="truncate text-sm font-semibold text-gray-100 transition-colors group-hover:text-primary"
+      )}
+      {s.platform === "youtube" && preview && ytReady && (
+        <iframe
+          src={`https://www.youtube.com/embed/${s.id.replace(/^youtube:/, "")}?autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3&fs=0&disablekb=1`}
           title={s.title}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          loading="lazy"
+          className="absolute inset-0 z-[1] h-full w-full border-0"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+      {/* 영상 위 텍스트 가독성용 하단 그라데이션 */}
+      <div className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+      {/* 상단 좌: LIVE + 시청자수(명) */}
+      <div className="absolute left-2 top-2 z-10 flex items-center gap-1">
+        <span className="inline-flex items-center gap-1 rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+          LIVE
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm backdrop-blur-sm">
+          {fmtViewers(s.viewerCount)}명
+        </span>
+      </div>
+      {/* 상단 우: 방송 시간 (시간 의존값—하이드레이션 경고 억제) */}
+      {up && (
+        <span
+          suppressHydrationWarning
+          className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm"
         >
+          {up}
+        </span>
+      )}
+      {/* 하단: 제목 + 채널 (영상 안) */}
+      <div className="absolute inset-x-0 bottom-0 z-10 p-2.5">
+        <p className="truncate text-sm font-semibold text-white drop-shadow" title={s.title}>
           {s.title || "제목 없음"}
         </p>
-        <div className="mt-1.5 flex items-center gap-1.5">
+        <div className="mt-1 flex items-center gap-1.5">
           <SafeImage
             src={s.channelImageUrl ?? ""}
             alt={s.channelName}
-            className="h-5 w-5 shrink-0 rounded-full object-cover"
+            className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-white/25"
             fallbackClassName="rounded-full"
             fallbackText={initial}
           />
-          <span className="flex min-w-0 items-center gap-1 truncate text-xs text-gray-500">
+          <span className="flex min-w-0 items-center gap-1 truncate text-xs font-medium text-white/85">
             <span className="truncate">{s.channelName}</span>
-            {s.verified && <span className="shrink-0 text-primary">✔</span>}
+            {s.verified && <span className="shrink-0 text-sky-300">✔</span>}
           </span>
         </div>
       </div>
@@ -272,6 +269,7 @@ function PlatformRail({
   const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: false });
 
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse") return; // 터치/펜은 브라우저 네이티브 가로 스크롤(관성) 사용
     const el = track.current;
     if (!el) return;
     drag.current = { active: true, startX: e.clientX, startLeft: el.scrollLeft, moved: false };
@@ -316,7 +314,6 @@ function PlatformRail({
         onPointerUp={onUp}
         onPointerCancel={onUp}
         onClickCapture={onClickCapture}
-        style={{ touchAction: "pan-y" }}
         className={RAIL_CLASS}
       >
         {items.map((s) => (

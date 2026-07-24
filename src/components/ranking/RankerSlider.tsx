@@ -33,6 +33,7 @@ export default function RankerSlider({ items }: { items: RankerCardData[] }) {
   const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: false });
 
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse") return; // 터치/펜은 브라우저 네이티브 가로 스크롤(관성) 사용
     const el = track.current;
     if (!el) return;
     drag.current = { active: true, startX: e.clientX, startLeft: el.scrollLeft, moved: false };
@@ -68,7 +69,6 @@ export default function RankerSlider({ items }: { items: RankerCardData[] }) {
         onPointerUp={onUp}
         onPointerCancel={onUp}
         onClickCapture={onClickCapture}
-        style={{ touchAction: "pan-y" }}
         className="flex cursor-grab select-none gap-1 overflow-x-auto overscroll-x-contain pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_img]:pointer-events-none"
       >
         {items.map((it) => {
