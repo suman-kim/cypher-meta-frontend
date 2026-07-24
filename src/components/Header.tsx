@@ -18,6 +18,7 @@ const NAV = [
   { href: "/ranking", label: "랭킹" },
   { href: "/characters", label: "캐릭터" },
   { href: "/items", label: "아이템" },
+  { href: "/costumes", label: "코스튬" },
   { href: "/community", label: "커뮤니티" },
 ];
 

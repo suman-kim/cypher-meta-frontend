@@ -26,6 +26,7 @@ import {
 import { Avatar } from "@/components/CharacterAvatar";
 import MetaTable from "@/components/MetaTable";
 import { TierPickCell } from "@/components/meta/TierPickCell";
+import { StatChip } from "@/components/meta/StatChip";
 import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
@@ -52,7 +53,7 @@ function renderHeader(tab: "data" | "vote") {
   const desc =
     tab === "vote"
       ? "유저가 직접 역할별 최고 캐릭터를 뽑는 커뮤니티 투표입니다."
-      : "상위 랭커 매치를 집계한 캐릭터 티어입니다.";
+      : "사이퍼즈 공식전(레이팅) 랭킹 상위권 플레이어들의 경기를 매일 수집해 집계한 캐릭터 티어입니다.";
   return (
     <div>
       <h1 className="text-2xl font-black tracking-tight text-gray-50">캐릭터 티어</h1>
@@ -181,7 +182,7 @@ export default async function MetaPage({ searchParams }: Props) {
 
   const tieredAll = withTiers(rows, tierBy);
   const tiered = role === "all" ? tieredAll : tieredAll.filter((r) => r.role === role);
-  const grouped = groupByTier(tiered);
+  const grouped = groupByTier(tiered, tierBy);
   const activeTiers = TIER_ORDER.filter((t) => grouped[t].length > 0);
 
   return (
@@ -189,20 +190,67 @@ export default async function MetaPage({ searchParams }: Props) {
       {renderHeader("data")}
       <MetaViewTabs base="/meta" active="data" dataLabel="데이터 티어" />
 
-      {summary && (
-        <div className="flex flex-wrap gap-2 text-sm">
-          <span className="chip bg-surface-2 text-gray-300">표본 매치 {summary.matches.toLocaleString()}</span>
-          <span className="chip bg-surface-2 text-gray-300">
-            플레이어 기록 {summary.playerRecords.toLocaleString()}
-          </span>
-          <span className="chip bg-surface-2 text-gray-300">캐릭터 {summary.characters}종</span>
-          {summary.lastCollect?.lastRun && (
-            <span className="chip bg-surface-2 text-gray-500">
-              최근 수집 {new Date(summary.lastCollect.lastRun).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
-            </span>
-          )}
-        </div>
-      )}
+      {summary &&
+        (() => {
+          // 정확한 집계 상한(scope.rankTop)이 있을 때만 노출한다.
+          // (구버전 백엔드의 lastCollect.rankers 는 회전 수집의 1회 window 값이라 오해 소지가 있어 폴백하지 않음)
+          const sc = summary.scope;
+          const rankTop = sc?.rankTop ?? null;
+          const gt = sc?.gameType ?? summary.lastCollect?.gameTypeId ?? "rating";
+          const gtLabel = gt === "rating" ? "공식전" : gt;
+
+          // 회전 수집이면 순회 진행도(방금 갱신한 순위 구간·순회 %)를 계산한다.
+          const rotating = !!sc?.rotating && sc?.window != null && rankTop != null;
+          let rangeValue = rankTop != null ? `${gtLabel} 랭킹 상위 ${rankTop.toLocaleString()}위` : "";
+          let rangeSub: string | undefined;
+          let rangeTip =
+            rankTop != null
+              ? `사이퍼즈 ${gtLabel}(레이팅) 랭킹 상위 ${rankTop.toLocaleString()}위 플레이어들이 최근 플레이한 경기를 표본으로 집계합니다.`
+              : "";
+          if (rotating && rankTop != null && sc?.window != null) {
+            const win = sc.window;
+            const lastOff = sc.lastCollectedOffset ?? 0;
+            const from = lastOff + 1;
+            const to = Math.min(lastOff + win, rankTop);
+            const pct = Math.min(100, Math.max(0, Math.round((to / rankTop) * 100)));
+            rangeValue = `${gtLabel} 랭킹 상위 ${rankTop.toLocaleString()}위 순회 중`;
+            rangeSub = `· 순회 ${pct}%`;
+            rangeTip = `사이퍼즈 ${gtLabel}(레이팅) 랭킹 상위 ${rankTop.toLocaleString()}위를 매일 ${win}명씩 순위 구간을 이동하며 수집합니다. 방금 ${from.toLocaleString()}~${to.toLocaleString()}위 구간을 갱신했어요(순회 ${pct}%). 상위 ${rankTop.toLocaleString()}위를 한 바퀴 도는 데 시간이 걸려 순위 구간별로 데이터 신선도가 다를 수 있습니다.`;
+          }
+
+          return (
+            <div className="flex flex-wrap items-start gap-2 text-sm">
+              {rankTop != null && (
+                <StatChip label="집계 범위" value={rangeValue} sub={rangeSub} tip={rangeTip} />
+              )}
+              <StatChip
+                label="표본 매치"
+                value={summary.matches.toLocaleString()}
+                tip="상위 랭커들이 최근 플레이한 경기를 중복 없이 모은 수예요. 이 경기들이 티어 계산의 표본이 됩니다."
+              />
+              <StatChip
+                label="플레이어 기록"
+                value={summary.playerRecords.toLocaleString()}
+                tip="표본 매치에 참여한 모든 플레이어(양 팀 전원)의 캐릭터 픽 1건이 1기록이에요. 픽률·승률·KDA는 이 기록을 집계해 계산합니다."
+              />
+              <StatChip
+                label="캐릭터"
+                value={`${summary.characters}종`}
+                tip="표본 경기에 한 번 이상 등장한 서로 다른 캐릭터 수예요."
+              />
+              {summary.lastCollect?.lastRun && (
+                <StatChip
+                  muted
+                  label="최근 수집"
+                  value={new Date(summary.lastCollect.lastRun).toLocaleString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                  })}
+                  tip="표본 데이터를 마지막으로 갱신한 시각이에요. 하루 한 번 자동으로 새 경기를 수집합니다."
+                />
+              )}
+            </div>
+          );
+        })()}
 
       <div className="inline-flex gap-1 rounded-lg border border-line bg-surface-2 p-1">
         {GAME_TABS.map((t) => (
@@ -246,9 +294,6 @@ export default async function MetaPage({ searchParams }: Props) {
                 {role !== "all" && <span className="chip bg-surface-3 text-gray-300">{roleLabel(role)}</span>}
                 <span className="text-xs text-gray-500">
                   {TIER_BASIS_LABEL[tierBy]} 기준 상대 평가 · 상위 10% S / 25% A / 50% B / 80% C
-                </span>
-                <span className="hidden text-[11px] text-gray-600 sm:inline">
-                  이미지·이름=상세 · &lsquo;경기 기록&rsquo;=표본 경기 보기
                 </span>
               </div>
               <div className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">

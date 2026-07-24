@@ -1,4 +1,9 @@
-import { getCompositions, type CompositionsResult } from "@/lib/meta";
+import {
+  getCompositions,
+  getMetaSummary,
+  type CompositionsResult,
+  type MetaSummary,
+} from "@/lib/meta";
 import {
   getRoster,
   getCompVotes,
@@ -10,6 +15,7 @@ import {
 import { Avatar } from "@/components/CharacterAvatar";
 import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import CompositionSection from "@/components/meta/CompositionSection";
+import { StatChip } from "@/components/meta/StatChip";
 import CompVote from "@/components/meta/CompVote";
 
 export const dynamic = "force-dynamic";
@@ -125,16 +131,69 @@ export default async function CompMetaPage({ searchParams }: Props) {
 
   /* ───────── 데이터 조합 탭 (기본) ───────── */
   let comps: CompositionsResult | null = null;
+  let summary: MetaSummary | null = null;
   try {
     comps = await getCompositions({ gameTypeId: "rating", limit: 6, minGames: 3 });
   } catch {
     comps = null;
+  }
+  try {
+    summary = await getMetaSummary();
+  } catch {
+    summary = null;
   }
 
   return (
     <div className="space-y-5">
       {renderHeader("data")}
       <MetaViewTabs base="/meta/comp" active="data" dataLabel="데이터 조합" />
+
+      {comps && comps.totalTeams > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-start gap-2 text-sm">
+            {summary?.scope?.rankTop != null && (
+              <StatChip
+                label="집계 범위"
+                value={`${
+                  (summary.scope.gameType ?? "rating") === "rating" ? "공식전" : summary.scope.gameType
+                } 랭킹 상위 ${summary.scope.rankTop.toLocaleString()}위`}
+                tip={`사이퍼즈 공식전(레이팅) 랭킹 상위 ${summary.scope.rankTop.toLocaleString()}위 플레이어들의 경기에서 팀 조합을 집계합니다.`}
+              />
+            )}
+            <StatChip
+              label="표본 경기"
+              value={(comps.sampledMatches ?? Math.round(comps.totalTeams / 2)).toLocaleString()}
+              tip="이 조합 통계가 도출된 경기 수예요. 한 경기에서 승/패 두 팀이 나옵니다."
+            />
+            <StatChip
+              label="표본 팀"
+              value={comps.totalTeams.toLocaleString()}
+              tip="집계에 쓰인 팀 수(경기당 양 팀). 각 팀의 5인 구성 하나가 '조합' 한 종이 됩니다."
+            />
+            <StatChip
+              label="서로 다른 조합"
+              value={`${comps.distinctCombos.toLocaleString()}종`}
+              tip="'조합'은 5명 전원이 정확히 같은 팀을 뜻해요. 캐릭터 종류가 많아 5인 세트가 정확히 겹치는 경우가 드물어, 대부분의 조합은 1~2판만 등장합니다(빈도가 낮은 이유)."
+            />
+            {comps.maxGames != null && (
+              <StatChip
+                muted
+                label="최다 반복"
+                value={`${comps.maxGames}판`}
+                tip={`가장 많이 등장한 조합도 ${comps.maxGames}판입니다.${
+                  comps.repeatedCombos != null
+                    ? ` 2판 이상 반복된 조합은 ${comps.repeatedCombos.toLocaleString()}종뿐이에요.`
+                    : ""
+                } 그래서 빈도 순위가 낮은 판수로 형성됩니다.`}
+              />
+            )}
+          </div>
+          <p className="text-[11px] leading-relaxed text-gray-500">
+            &lsquo;조합&rsquo;은 5명 전원이 정확히 일치하는 팀 기준이라, 표본이 늘어도 똑같은 5인 구성이 반복되는 경우는
+            드뭅니다. 그래서 대부분의 조합이 1~2판으로 집계돼요.
+          </p>
+        </div>
+      )}
 
       {comps && comps.totalTeams > 0 ? (
         <CompositionSection data={comps} />

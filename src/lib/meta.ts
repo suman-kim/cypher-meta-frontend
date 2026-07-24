@@ -29,6 +29,15 @@ export interface MetaSummary {
     perPlayer?: number;
     gameTypeId?: string;
   } | null;
+  scope?: {
+    gameType?: string;
+    perPlayer?: number | null;
+    rankTop?: number | null;
+    rotating?: boolean;
+    window?: number | null;
+    cursorOffset?: number | null;
+    lastCollectedOffset?: number | null;
+  };
 }
 
 export interface ItemAdoption {
@@ -218,10 +227,18 @@ export function withTiers(
   return scored;
 }
 
-export function groupByTier(rows: TieredCharacter[]): Record<Tier, TieredCharacter[]> {
+export function groupByTier(
+  rows: TieredCharacter[],
+  by: TierBasis = "score",
+): Record<Tier, TieredCharacter[]> {
   const g: Record<Tier, TieredCharacter[]> = { S: [], A: [], B: [], C: [], D: [] };
   for (const r of rows) g[r.tier].push(r);
-  for (const t of TIER_ORDER) g[t].sort((a, b) => b.score - a.score || b.picks - a.picks);
+  // 각 티어 내부도 선택한 기준(종합/픽률/승률) 내림차순으로 정렬한다.
+  // (티어 순서 S→D + 티어 내부 기준 내림차순 = 전체가 기준값 높은 순으로 나열됨)
+  for (const t of TIER_ORDER)
+    g[t].sort(
+      (a, b) => basisValue(b, by) - basisValue(a, by) || b.matchCount - a.matchCount || b.picks - a.picks,
+    );
   return g;
 }
 
@@ -271,6 +288,12 @@ export interface CompositionsResult {
   teamSize: number;
   totalTeams: number;
   distinctCombos: number;
+  /** 2판 이상 반복 등장한 서로 다른 조합 수 */
+  repeatedCombos?: number;
+  /** 가장 많이 나온 조합의 판수 */
+  maxGames?: number;
+  /** 이 통계가 도출된 표본 경기 수(고유 매치) */
+  sampledMatches?: number;
   minGames: number;
   byFrequency: Composition[];
   byWinRate: Composition[];
