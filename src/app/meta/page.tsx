@@ -25,6 +25,7 @@ import {
 } from "@/lib/votes";
 import { Avatar } from "@/components/CharacterAvatar";
 import MetaTable from "@/components/MetaTable";
+import { TierPickCell } from "@/components/meta/TierPickCell";
 import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
@@ -246,6 +247,9 @@ export default async function MetaPage({ searchParams }: Props) {
                 <span className="text-xs text-gray-500">
                   {TIER_BASIS_LABEL[tierBy]} 기준 상대 평가 · 상위 10% S / 25% A / 50% B / 80% C
                 </span>
+                <span className="hidden text-[11px] text-gray-600 sm:inline">
+                  이미지·이름=상세 · &lsquo;경기 기록&rsquo;=표본 경기 보기
+                </span>
               </div>
               <div className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">
                 <span className="px-1.5 text-xs font-medium text-gray-500">기준</span>
@@ -275,17 +279,14 @@ export default async function MetaPage({ searchParams }: Props) {
                     </div>
                     <div className="flex flex-1 flex-wrap gap-2">
                       {grouped[t].map((c) => (
-                        <Link
+                        <TierPickCell
                           key={c.characterId}
-                          href={`/characters/${c.characterId}`}
-                          className="flex w-[68px] flex-col items-center gap-1 rounded-md p-1 transition-colors hover:bg-surface-2"
-                          title={`${c.characterName ?? c.characterId} · 픽률 ${c.pickRate}% · 승률 ${c.winRate}%`}
-                        >
-                          <Avatar characterId={c.characterId} characterName={c.characterName ?? undefined} size={44} />
-                          <span className="w-full truncate text-center text-[11px] font-medium text-gray-300">
-                            {c.characterName ?? c.characterId}
-                          </span>
-                        </Link>
+                          characterId={c.characterId}
+                          characterName={c.characterName ?? null}
+                          pickRate={c.pickRate}
+                          winRate={c.winRate}
+                          gameTypeId={gameType || undefined}
+                        />
                       ))}
                     </div>
                   </div>
@@ -298,7 +299,7 @@ export default async function MetaPage({ searchParams }: Props) {
             <div className="mb-2 flex items-center gap-2">
               <h2 className="text-lg font-bold text-gray-100">캐릭터 상세</h2>
               {role !== "all" && <span className="chip bg-surface-3 text-gray-300">{roleLabel(role)}</span>}
-              <span className="text-xs text-gray-500">헤더를 눌러 정렬</span>
+              <span className="text-xs text-gray-500">카드를 눌러 표본 픽 보기</span>
             </div>
             <MetaTable rows={tiered} />
           </section>

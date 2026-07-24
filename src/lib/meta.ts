@@ -293,3 +293,70 @@ export async function getCompositions(opts?: {
   return res.json();
 }
 
+
+/* ------------------------------------------------------------------ */
+/* 드릴다운: 표본 픽 / 조합 매치 (클라이언트 fetch — 상대경로 프록시)     */
+/* ------------------------------------------------------------------ */
+
+export interface CharacterPick {
+  matchId: string;
+  playerId: string;
+  nickname: string | null;
+  result: string;
+  killCount: number;
+  deathCount: number;
+  assistCount: number;
+  playedAt: string | null;
+  mapName: string | null;
+}
+export interface CharacterPicksResult {
+  characterId: string;
+  total: number;
+  picks: CharacterPick[];
+}
+
+/** 특정 캐릭터를 픽한 표본 기록(누가·어떤 경기). 클라이언트 컴포넌트에서 호출. */
+export async function getCharacterPicks(
+  characterId: string,
+  gameTypeId?: string,
+): Promise<CharacterPicksResult> {
+  const qs = new URLSearchParams({ limit: "30" });
+  if (gameTypeId) qs.set("gameTypeId", gameTypeId);
+  const res = await fetch(`/api/meta/characters/${encodeURIComponent(characterId)}/picks?${qs.toString()}`);
+  if (!res.ok) throw new Error(`picks ${res.status}`);
+  return res.json();
+}
+
+export interface CompMatchPlayer {
+  playerId: string;
+  nickname: string | null;
+  characterId: string;
+  characterName: string | null;
+  killCount: number;
+  deathCount: number;
+  assistCount: number;
+}
+export interface CompMatch {
+  matchId: string;
+  result: string;
+  playedAt: string | null;
+  mapName: string | null;
+  players: CompMatchPlayer[];
+}
+export interface CompMatchesResult {
+  ids: string[];
+  gameTypeId: string;
+  matches: CompMatch[];
+}
+
+/** 특정 조합이 등장한 표본 매치 목록. 클라이언트 컴포넌트에서 호출. */
+export async function getCompositionMatches(
+  ids: string[],
+  gameTypeId?: string,
+): Promise<CompMatchesResult> {
+  const qs = new URLSearchParams({ ids: ids.join(","), limit: "20" });
+  if (gameTypeId) qs.set("gameTypeId", gameTypeId);
+  const res = await fetch(`/api/meta/compositions/matches?${qs.toString()}`);
+  if (!res.ok) throw new Error(`comp matches ${res.status}`);
+  return res.json();
+}

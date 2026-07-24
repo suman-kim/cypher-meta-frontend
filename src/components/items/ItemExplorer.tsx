@@ -37,6 +37,7 @@ export default function ItemExplorer({
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [role, setRole] = useState<"all" | RoleOrEtc>("all");
+  const [pickerOpen, setPickerOpen] = useState(true); // 모바일/태블릿 캐릭터 선택 섹션 접기/펼치기
 
   useEffect(() => {
     if (!selected || cache[selected]) return;
@@ -69,10 +70,38 @@ export default function ItemExplorer({
   const slots = current ? orderSlots(current.slots) : [];
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
       {/* 캐릭터 선택 사이드바 */}
       <aside className="lg:sticky lg:top-20 lg:self-start">
         <div className="card overflow-hidden">
+          {/* 모바일/태블릿 토글 헤더 (lg 이상은 항상 펼쳐 표시) */}
+          <button
+            type="button"
+            onClick={() => setPickerOpen((v) => !v)}
+            aria-expanded={pickerOpen}
+            className="flex w-full items-center justify-between gap-2 border-b border-line px-3 py-2.5 text-left lg:hidden"
+          >
+            <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-gray-100">
+              캐릭터 선택
+              {selectedChar && (
+                <span className="truncate text-xs font-normal text-gray-500">
+                  · {selectedChar.characterName ?? selectedChar.characterId}
+                </span>
+              )}
+            </span>
+            <svg
+              className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          <div className={pickerOpen ? "block" : "hidden lg:block"}>
           <div className="border-b border-line p-3">
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">🔍</span>
@@ -107,7 +136,7 @@ export default function ItemExplorer({
             </div>
           </div>
 
-          <div className="max-h-[520px] space-y-0.5 overflow-y-auto p-2">
+          <div className="max-h-[320px] space-y-0.5 overflow-y-auto p-2 lg:max-h-[520px]">
             {filtered.length === 0 ? (
               <div className="p-6 text-center text-xs text-gray-500">검색 결과가 없습니다</div>
             ) : (
@@ -140,6 +169,7 @@ export default function ItemExplorer({
                 );
               })
             )}
+          </div>
           </div>
         </div>
       </aside>
