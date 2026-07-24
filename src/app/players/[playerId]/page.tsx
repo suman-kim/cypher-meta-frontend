@@ -15,6 +15,7 @@ import TopCharactersCard from "@/components/player/TopCharactersCard";
 import PlayTimeHeatmap from "@/components/player/PlayTimeHeatmap";
 import RecentSummaryCard from "@/components/player/RecentSummaryCard";
 import PartyMembersCard, { PartyMembersSkeleton } from "@/components/player/PartyMembersCard";
+import { RankBadge } from "@/components/player/RankBadge";
 import { EmptyState, ErrorState, LinkTabs, Stat, TierBadge } from "@/components/ui";
 import { readRecord, winRate, calcKDA } from "@/lib/format";
 import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat, buildRecentSummary } from "@/lib/profile";
@@ -78,6 +79,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   let matches: TaggedMatch[] = [];
   let analyticsMatches: MatchRowType[] = [];
   let normalCount = 0;
+  let playerRank: number | null = null; // 전체(레이팅) 순위
   let badgeMatches: MatchRowType[] = [];
   const attackTypeByName = new Map<string, string>();
 
@@ -115,6 +117,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
 
     // 평점 랭킹에서 이 플레이어의 행을 찾아 티어/RP/전적 보강
     const row = ratingRes?.rows.find((r) => r.player.playerId === params.playerId);
+    playerRank = row?.ranking ?? null;
     if (row) {
       player = {
         ...player,
@@ -229,18 +232,28 @@ export default async function PlayerPage({ params, searchParams }: Props) {
           {/* 프로필 헤더 */}
           <div className="card overflow-hidden">
             <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-              <Avatar
-                characterId={player.represent?.characterId}
-                characterName={player.represent?.characterName ?? player.nickname}
-                size={72}
-                zoom={2}
-              />
+              <div className="flex items-center justify-between gap-3 lg:block lg:shrink-0">
+                <Avatar
+                  characterId={player.represent?.characterId}
+                  characterName={player.represent?.characterName ?? player.nickname}
+                  size={72}
+                  zoom={2}
+                />
+                {/* 모바일·태블릿: 아바타 이미지 우측에 순위 배치 */}
+                <span className="lg:hidden">
+                  <RankBadge rank={playerRank} />
+                </span>
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-black text-gray-50">{player.nickname}</h1>
                   {player.clanName && (
                     <span className="chip bg-bg-hover text-gray-400">클랜 · {player.clanName}</span>
                   )}
+                  {/* 데스크톱: 이름 옆에 순위 배치 */}
+                  <span className="hidden lg:inline-flex">
+                    <RankBadge rank={playerRank} />
+                  </span>
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                   <TierBadge tierName={player.tierName} rp={player.ratingPoint} />

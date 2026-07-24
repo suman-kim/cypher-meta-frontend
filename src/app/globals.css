@@ -121,3 +121,14 @@ body {
     @apply bg-primary text-white hover:text-white;
   }
 }
+
+/* 순위 뱃지(1~3위) 반짝임 스윕 */
+@keyframes rankShine {
+  0%,
+  55% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
