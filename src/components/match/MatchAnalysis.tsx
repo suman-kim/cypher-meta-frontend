@@ -11,6 +11,8 @@ type MetricKey = keyof MatchPlayInfo;
 
 const METRICS: { key: MetricKey; label: string }[] = [
   { key: "killCount", label: "킬" },
+  { key: "deathCount", label: "데스" },
+  { key: "battlePoint", label: "전투 점수" },
   { key: "getCoin", label: "골드 획득량" },
   { key: "attackPoint", label: "가한 피해량" },
   { key: "damagePoint", label: "받은 피해량" },

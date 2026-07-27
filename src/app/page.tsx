@@ -15,6 +15,8 @@ import { CountUp } from "@/components/CountUp";
 import RankerSlider from "@/components/ranking/RankerSlider";
 import LiveStreams from "@/components/LiveStreams";
 import { getLiveStreams } from "@/lib/live";
+import { getLatestUpdate } from "@/lib/updates";
+import LatestUpdateCard from "@/components/updates/LatestUpdateCard";
 import {
   getNotices,
   getRecentPosts,
@@ -176,6 +178,7 @@ export default async function HomePage() {
   } catch {}
 
   const liveStreams = await getLiveStreams(20);
+  const latestUpdate = await getLatestUpdate();
 
   return (
     <div className="space-y-10">
@@ -205,7 +208,7 @@ export default async function HomePage() {
           <p className="fade-up mx-auto mt-3 max-w-md text-sm text-gray-500 sm:text-base" style={{ animationDelay: "0.14s" }}>
             닉네임으로 전적을 검색하고 랭킹·티어·조합 메타를 한눈에 확인하세요.
           </p>
-          <div className="fade-up mx-auto mt-6 max-w-xl" style={{ animationDelay: "0.21s" }}>
+          <div className="fade-up relative z-30 mx-auto mt-6 max-w-xl" style={{ animationDelay: "0.21s" }}>
             <SearchBar size="lg" />
           </div>
           <div className="fade-up mt-4 flex flex-wrap items-center justify-center gap-2" style={{ animationDelay: "0.28s" }}>
@@ -236,6 +239,8 @@ export default async function HomePage() {
           )}
         </div>
       </section>
+
+      {latestUpdate && <LatestUpdateCard update={latestUpdate} />}
 
       {/* 지금 방송 중 (치지직·유튜브·SOOP 라이브, 시청자수 순) */}
       <LiveStreams initial={liveStreams} limit={20} />

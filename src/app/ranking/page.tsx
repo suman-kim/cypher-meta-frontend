@@ -40,7 +40,10 @@ function HighlightRow({
   const hasRecord = (meta?.total ?? 0) > 0;
   const loses = (meta?.total ?? 0) - (meta?.wins ?? 0);
   return (
-    <div className="card flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+    <Link
+      href={`/players/${row.player.playerId}`}
+      className="card flex flex-col gap-3 p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-float sm:flex-row sm:items-center"
+    >
       <div className="flex items-center gap-3 sm:w-52 sm:shrink-0">
         <div className="flex w-7 shrink-0 flex-col items-center gap-0.5">
           <span className="text-lg font-black text-gray-400">{rank}</span>
@@ -54,12 +57,7 @@ function HighlightRow({
           zoom={2}
         />
         <div className="min-w-0">
-          <Link
-            href={`/players/${row.player.playerId}`}
-            className="block truncate font-bold text-gray-100 hover:text-primary"
-          >
-            {row.player.nickname}
-          </Link>
+          <div className="truncate font-bold text-gray-100">{row.player.nickname}</div>
           {row.player.clanName && (
             <span className="block truncate text-xs text-gray-500">{row.player.clanName}</span>
           )}
@@ -90,7 +88,7 @@ function HighlightRow({
           <div className="text-[11px] text-gray-500">RP</div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -192,84 +190,75 @@ export default async function RatingRankingPage({ searchParams }: Props) {
       {rows.length === 0 ? (
         <EmptyState title="랭킹 데이터가 없습니다" icon="🏆" />
       ) : tableRows.length > 0 ? (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line bg-surface-2 text-xs font-semibold text-gray-500">
-                <th className="w-16 px-4 py-3 text-left">순위</th>
-                <th className="px-4 py-3 text-left">플레이어</th>
-                <th className="hidden px-4 py-3 text-left md:table-cell">성향</th>
-                <th className="hidden px-4 py-3 text-center lg:table-cell">픽 TOP3</th>
-                <th className="px-4 py-3 text-center">승률</th>
-                <th className="px-4 py-3 text-right">RP 점수</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((row) => {
-                const meta = metaMap.get(row.player.playerId);
-                const wr = meta?.winRate ?? 0;
-                const hasRecord = (meta?.total ?? 0) > 0;
-                return (
-                  <tr
-                    key={row.player.playerId}
-                    className="border-b border-line transition-colors last:border-0 hover:bg-surface-2"
+        <div className="card divide-y divide-line overflow-hidden">
+          {tableRows.map((row) => {
+            const meta = metaMap.get(row.player.playerId);
+            const wr = meta?.winRate ?? 0;
+            const hasRecord = (meta?.total ?? 0) > 0;
+            return (
+              <Link
+                key={row.player.playerId}
+                href={`/players/${row.player.playerId}`}
+                className="flex items-start gap-3 px-3 py-3 transition-colors hover:bg-surface-2 sm:px-4"
+              >
+                {/* 순위 + 변동 */}
+                <div className="flex w-10 shrink-0 flex-col items-center gap-0.5 pt-0.5">
+                  <span
+                    className={`text-sm font-black ${row.ranking <= 3 ? "text-primary" : "text-gray-400"}`}
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-bold ${row.ranking <= 3 ? "text-primary" : "text-gray-400"}`}>
-                          {row.ranking}
-                        </span>
-                        <RankChange rank={row.ranking} beforeRank={row.beforeRank} />
+                    {row.ranking}
+                  </span>
+                  <RankChange rank={row.ranking} beforeRank={row.beforeRank} />
+                </div>
+
+                {/* 아바타 */}
+                <RankAvatar
+                  characterId={meta?.topChar?.characterId}
+                  characterName={meta?.topChar?.characterName}
+                  nickname={row.player.nickname}
+                  size={40}
+                  zoom={2}
+                />
+
+                {/* 이름/클랜 + 성향 태그 + 픽 TOP3 (모든 화면에서 노출) */}
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div>
+                    <div className="truncate font-bold leading-tight text-gray-100">
+                      {row.player.nickname}
+                    </div>
+                    {row.player.clanName && (
+                      <div className="truncate text-xs text-gray-500">{row.player.clanName}</div>
+                    )}
+                  </div>
+                  {meta && meta.picks.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="shrink-0 text-[10px] font-semibold text-gray-500">픽</span>
+                      <PickList picks={meta.picks} compact />
+                    </div>
+                  )}
+                </div>
+
+                {/* RP + 승률/승패 — 우측 한 칼럼으로 세로 정렬(모바일 폭 확보). 101위+ 는 RP만 */}
+                <div className="flex w-[4.5rem] shrink-0 flex-col items-end gap-0.5 pt-0.5 sm:w-24">
+                  <div className="whitespace-nowrap font-bold text-primary">
+                    <span className="text-sm">{(row.ratingPoint ?? 0).toLocaleString()}</span>
+                    <span className="ml-0.5 text-[10px] font-semibold text-gray-400">RP</span>
+                  </div>
+                  {hasRecord && (
+                    <>
+                      <div className="mt-1 h-1.5 w-12 overflow-hidden rounded-full bg-surface-3 sm:w-20">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${wr}%` }} />
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/players/${row.player.playerId}`}
-                        className="inline-flex items-center gap-2.5 font-semibold text-gray-100 hover:text-primary"
-                      >
-                        <RankAvatar
-                          characterId={meta?.topChar?.characterId}
-                          characterName={meta?.topChar?.characterName}
-                          nickname={row.player.nickname}
-                          size={32}
-                          zoom={2}
-                        />
-                        {row.player.nickname}
-                        {row.player.clanName && (
-                          <span className="text-xs font-normal text-gray-500">{row.player.clanName}</span>
-                        )}
-                      </Link>
-                    </td>
-                    <td className="hidden px-4 py-3 align-middle md:table-cell">
-                      {meta && meta.tags.length > 0 ? (
-                        <TagChips tags={meta.tags} />
-                      ) : (
-                        <span className="text-xs text-gray-500">-</span>
-                      )}
-                    </td>
-                    <td className="hidden px-4 py-3 align-middle lg:table-cell">
-                      <div className="flex justify-center">
-                        <PickList picks={meta?.picks ?? []} compact />
+                      <div className="text-xs font-bold text-gray-100">{wr}%</div>
+                      <div className="whitespace-nowrap text-[11px] text-gray-500">
+                        {meta?.wins ?? 0}승 {(meta?.total ?? 0) - (meta?.wins ?? 0)}패
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="mx-auto max-w-[180px]">
-                        <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-                          <div className="h-full rounded-full bg-primary" style={{ width: `${wr}%` }} />
-                        </div>
-                        <div className="mt-1 text-center text-xs font-medium text-gray-500">
-                          {hasRecord ? `${wr}%` : "-"}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-primary">
-                      {(row.ratingPoint ?? 0).toLocaleString()}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       ) : null}
 

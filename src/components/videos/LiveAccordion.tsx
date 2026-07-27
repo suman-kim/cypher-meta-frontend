@@ -44,17 +44,24 @@ function bust(url: string | null, tick: number): string {
   return `${url}${url.includes("?") ? "&" : "?"}_t=${tick}`;
 }
 
+/** 이 기기가 마우스 호버를 지원하는지(모바일/태블릿 터치 제외) */
+function hoverCapable(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+}
+
 /** 아코디언 패널 1개 */
 function Panel({
   s,
   tick,
   active,
   onEnter,
+  touch,
 }: {
   s: LiveStream;
   tick: number;
   active?: boolean;
   onEnter?: () => void;
+  touch?: boolean;
 }) {
   const p = PLATFORM[s.platform];
   const initial = s.channelName?.trim()?.[0] ?? "?";
@@ -64,10 +71,16 @@ function Panel({
       href={s.url}
       target="_blank"
       rel="noopener noreferrer"
-      onMouseEnter={onEnter}
-      className={`group relative h-[240px] w-[82vw] shrink-0 overflow-hidden rounded-2xl border border-line bg-surface-3 shadow-sm transition-all duration-500 ease-out sm:h-[520px] sm:w-0 sm:min-w-[60px] sm:shrink ${
-        active ? "sm:flex-[6.5]" : "sm:flex-1"
-      }`}
+      onMouseEnter={touch ? undefined : onEnter}
+      className={
+        touch
+          ? // 터치(모바일/태블릿): 고정폭 카드를 가로로 스와이프
+            "group relative h-[240px] w-[82vw] shrink-0 overflow-hidden rounded-2xl border border-line bg-surface-3 shadow-sm sm:h-[380px] sm:w-[480px]"
+          : // 데스크톱(호버): 아코디언 확대/축소
+            `group relative h-[240px] w-[82vw] shrink-0 overflow-hidden rounded-2xl border border-line bg-surface-3 shadow-sm transition-all duration-500 ease-out sm:h-[520px] sm:w-0 sm:min-w-[60px] sm:shrink ${
+              active ? "sm:flex-[6.5]" : "sm:flex-1"
+            }`
+      }
     >
       <SafeImage
         src={bust(s.thumbnailUrl, tick)}
@@ -96,9 +109,15 @@ function Panel({
 
       {/* 하단 정보: 모바일은 항상, 데스크톱은 호버 시 노출 */}
       <div
-        className={`absolute inset-x-0 bottom-0 p-3 opacity-100 transition-opacity duration-300 ${
-          active ? "sm:opacity-100" : "sm:opacity-0"
-        }`}
+        className={
+          touch
+            ? // 터치: 정보 항상 노출
+              "absolute inset-x-0 bottom-0 p-3"
+            : // 데스크톱: 확대된 패널만 정보 노출
+              `absolute inset-x-0 bottom-0 p-3 opacity-100 transition-opacity duration-300 ${
+                active ? "sm:opacity-100" : "sm:opacity-0"
+              }`
+        }
       >
         {up && <span className="text-[11px] font-medium text-white/75">{up} 방송 중</span>}
         <h3 className="mt-0.5 text-sm font-bold leading-snug text-white drop-shadow" style={clamp2} title={s.title}>
@@ -170,6 +189,12 @@ export default function LiveAccordion({ initial, limit = 20 }: { initial: LiveSt
   const [streams, setStreams] = useState<LiveStream[]>(initial);
   const [tick, setTick] = useState(0);
   const [activeIdx, setActiveIdx] = useState(0); // 아코디언 확대 대상(기본=첫 번째, 벗어나면 다시 첫 번째)
+  const [touch, setTouch] = useState(false); // hover 미지원(모바일/태블릿) → 아코디언 대신 가로 스와이프
+
+  // 기기 판별(마운트 후 1회). 호버 불가(터치)면 스와이프 캐러셀로 전환.
+  useEffect(() => {
+    setTouch(!hoverCapable());
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -211,11 +236,24 @@ export default function LiveAccordion({ initial, limit = 20 }: { initial: LiveSt
         <div className="space-y-3">
           {/* 상위 5개 아코디언(호버 확대) */}
           <div
-            onMouseLeave={() => setActiveIdx(0)}
-            className="flex overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:overflow-visible"
+            onMouseLeave={touch ? undefined : () => setActiveIdx(0)}
+            className={
+              touch
+                ? // 터치: 가로 스와이프(관성) 캐러셀
+                  "flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                : // 데스크톱: 호버 아코디언
+                  "flex overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:overflow-visible"
+            }
           >
             {streams.slice(0, 5).map((s, i) => (
-              <Panel key={s.id} s={s} tick={tick} active={i === activeIdx} onEnter={() => setActiveIdx(i)} />
+              <Panel
+                key={s.id}
+                s={s}
+                tick={tick}
+                touch={touch}
+                active={i === activeIdx}
+                onEnter={() => setActiveIdx(i)}
+              />
             ))}
           </div>
           {/* 나머지 라이브 — 카드 그리드로 이어붙임 */}

@@ -5,6 +5,7 @@ import BoardManager from "./BoardManager";
 import NoticeManager from "./NoticeManager";
 import CollectionManager from "./CollectionManager";
 import CostumeManager from "./CostumeManager";
+import UpdateManager from "./UpdateManager";
 
 /* ── 타입 ── */
 interface Stats {
@@ -333,7 +334,9 @@ export default function AdminDashboard() {
   const [recent, setRecent] = useState<RecentVisit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"analytics" | "board" | "notice" | "collect" | "costume">("analytics");
+  const [view, setView] = useState<
+    "analytics" | "board" | "notice" | "update" | "collect" | "costume"
+  >("analytics");
 
   const load = useCallback(async (tk: string, d: number) => {
     setLoading(true);
@@ -453,6 +456,7 @@ export default function AdminDashboard() {
           ["analytics", "분석"],
           ["board", "게시판"],
           ["notice", "공지사항"],
+          ["update", "업데이트"],
           ["collect", "수집 관리"],
           ["costume", "코스튬"],
         ] as const).map(([key, label]) => (
@@ -589,6 +593,7 @@ export default function AdminDashboard() {
 
       {view === "board" && <BoardManager token={token} />}
       {view === "notice" && <NoticeManager token={token} />}
+      {view === "update" && <UpdateManager token={token} />}
       {view === "collect" && <CollectionManager token={token} />}
       {view === "costume" && <CostumeManager token={token} />}
     </div>

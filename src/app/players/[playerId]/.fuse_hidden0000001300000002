@@ -18,7 +18,6 @@ import PartyMembersCard, { PartyMembersSkeleton } from "@/components/player/Part
 import { RankBadge } from "@/components/player/RankBadge";
 import { RefreshStatsButton } from "@/components/player/RefreshStatsButton";
 import TrackOnView from "@/components/player/TrackOnView";
-import PlayerAnalysis from "@/components/player/PlayerAnalysis";
 import { EmptyState, ErrorState, LinkTabs, Stat, TierBadge } from "@/components/ui";
 import { readRecord, winRate, calcKDA } from "@/lib/format";
 import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat, buildRecentSummary } from "@/lib/profile";
@@ -215,7 +214,6 @@ export default async function PlayerPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-5">
-      <TrackOnView playerId={params.playerId} nickname={player.nickname} />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* 좌측: 프로필 분석 사이드바 (선택 탭 기준) */}
         {hasAnalytics && (
@@ -366,9 +364,6 @@ export default async function PlayerPage({ params, searchParams }: Props) {
               </dl>
             </details>
           </div>
-
-          {/* 개인 분석 (누적 전적 기반) */}
-          <PlayerAnalysis playerId={params.playerId} nickname={player.nickname} />
 
           {/* 게임 타입 탭 — 페이지 전체(스탯·AI 분석·전적)의 기준. AI 분석 위로 배치. */}
           <div className="flex flex-wrap items-center justify-between gap-2">

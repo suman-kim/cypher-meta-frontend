@@ -7,6 +7,7 @@ import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
 import MetaMenu from "./MetaMenu";
 import Logo from "./Logo";
+import { useUnseenUpdate } from "@/lib/updates-client";
 
 /** 메타는 하위 페이지(캐릭터 티어 / 조합 티어)를 드롭다운으로 선택 */
 const META_SUB = [
@@ -21,12 +22,14 @@ const NAV = [
   { href: "/costumes", label: "코스튬" },
   { href: "/videos", label: "동영상" },
   { href: "/community", label: "커뮤니티" },
+  { href: "/updates", label: "업데이트" },
 ];
 
 export default function Header() {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hasUnseenUpdate = !!useUnseenUpdate(); // 헤더 '업데이트' NEW 표시용
 
   // 경로가 바뀌면 모바일 메뉴 자동 닫기
   useEffect(() => {
@@ -58,6 +61,12 @@ export default function Header() {
               }`}
             >
               {item.label}
+              {item.href === "/updates" && hasUnseenUpdate && (
+                <span
+                  aria-label="새 업데이트"
+                  className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                />
+              )}
             </Link>
           ))}
         </nav>
@@ -125,7 +134,14 @@ export default function Header() {
                   pathname.startsWith(item.href) ? "bg-surface-2 text-primary" : "text-gray-200 hover:bg-surface-2"
                 }`}
               >
-                {item.label}
+                <span className="inline-flex items-center gap-1.5">
+                  {item.label}
+                  {item.href === "/updates" && hasUnseenUpdate && (
+                    <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold text-red-400">
+                      NEW
+                    </span>
+                  )}
+                </span>
               </Link>
             ))}
 

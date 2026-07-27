@@ -28,7 +28,8 @@ export default function MvpCriteria() {
         <p className="mb-2.5 text-[11px] leading-relaxed text-gray-500">
           게임 공식 ACE/JOKER 와 별개인 자체 지표입니다. 매치 안에서 각 항목을 최고값 대비 0~100%로
           정규화한 뒤 아래 가중치로 합산해, 점수가 가장 높은 선수를 팀당 1명 MVP로 뽑습니다. 특정
-          역할(딜러)에 치우치지 않도록 탱킹·어시·시야·힐 비중을 높였습니다.
+          역할(딜러)에 치우치지 않도록 전투 참여·시야 비중을 가장 높게 두고 킬·가한 피해 비중을
+          낮췄습니다.
         </p>
         <ul className="space-y-1.5">
           {MVP_CRITERIA.map((c) => {

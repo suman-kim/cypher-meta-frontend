@@ -63,6 +63,7 @@ export interface CommunityPost {
 export interface CommunityComment {
   id: string;
   postId: string;
+  parentId: string | null;
   authorId: string | null;
   authorName: string | null;
   content: string;

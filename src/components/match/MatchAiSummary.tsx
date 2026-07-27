@@ -86,7 +86,7 @@ export default function MatchAiSummary({
         </ul>
 
         <p className="text-[11px] text-gray-500">
-          ※ 경기 지표를 자체 분석해 자동 생성한 요약입니다. MVP는 킬·딜·어시·생존·시야·힐을 가중 합산해 팀별로 선정됩니다.
+          ※ 경기 지표를 자체 분석해 자동 생성한 요약입니다. MVP는 시야·어시·킬·전투 참여·탱킹·딜·생존·힐·백어택을 가중 합산해 팀별로 선정됩니다.
         </p>
       </div>
     </CollapsibleCard>

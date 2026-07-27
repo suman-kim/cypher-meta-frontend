@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
+import WhatsNewPopup from "@/components/updates/WhatsNewPopup";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site";
 
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <main className="container-app flex-1 py-6">{children}</main>
         <Footer />
+        <WhatsNewPopup />
       </body>
     </html>
   );
