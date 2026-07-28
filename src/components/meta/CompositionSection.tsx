@@ -5,10 +5,15 @@ import Link from "next/link";
 import { Avatar } from "@/components/CharacterAvatar";
 import {
   getCompositionMatches,
+  ROLE_LABELS,
   type Composition,
   type CompositionsResult,
+  type RoleCompositionsResult,
   type CompMatch,
+  type RoleOrEtc,
 } from "@/lib/meta";
+
+/* ------------------------------------------------------------------ 상수/유틸 */
 
 type Basis = "freq" | "win" | "both";
 
@@ -17,6 +22,23 @@ const BASIS_TABS: { key: Basis; label: string }[] = [
   { key: "win", label: "승률" },
   { key: "both", label: "빈도+승률" },
 ];
+
+/** 카테고리 탭: 역할 기반 듀오/트리오 + 기존 5인 풀팀. */
+const CAT_TABS: { key: string; label: string }[] = [
+  { key: "dealerduo", label: "딜러 듀오" },
+  { key: "dealertrio", label: "딜러 트리오" },
+  { key: "tanktrio", label: "탱커 트리오" },
+  { key: "full", label: "5인 풀팀" },
+];
+
+/** 역할별 강조색(포지션 칩). */
+const ROLE_COLORS: Record<string, string> = {
+  tank: "#3b82f6",
+  melee: "#f97316",
+  ranged: "#a855f7",
+  support: "#10b981",
+  etc: "#94a3b8",
+};
 
 function rankColor(rank: number): string {
   if (rank === 1) return "bg-primary text-white";
@@ -38,19 +60,25 @@ function fmtMatchDate(iso: string | null): string {
   });
 }
 
+/* ------------------------------------------------------------------ 조합 카드 */
+
+/** 조합 카드 — 5인 풀팀·듀오 공용. roles 가 있으면 캐릭터 아래에 포지션 칩 표시. */
 function ComboCard({
   combo,
   rank,
   gameTypeId,
+  roles,
 }: {
   combo: Composition;
   rank: number;
   gameTypeId: string;
+  roles?: string[];
 }) {
   const wr = combo.winRate;
   const [open, setOpen] = useState(false);
   const [matches, setMatches] = useState<CompMatch[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const duo = combo.ids.length <= 3;
 
   async function toggle() {
     const next = !open;
@@ -80,15 +108,29 @@ function ComboCard({
         >
           {rank}
         </span>
-        <div className="flex flex-1 flex-wrap items-center gap-1.5">
-          {combo.ids.map((id, i) => (
-            <span key={`${id}-${i}`} className="flex flex-col items-center gap-0.5" title={combo.names[i]}>
-              <Avatar characterId={id} characterName={combo.names[i]} size={34} zoom={1} />
-              <span className="w-10 truncate text-center text-[9px] leading-tight text-gray-500">
-                {combo.names[i]}
+        <div className={`flex flex-1 flex-wrap items-center ${duo ? "gap-3" : "gap-1.5"}`}>
+          {combo.ids.map((id, i) => {
+            const role = roles?.[i];
+            const color = role ? (ROLE_COLORS[role] ?? ROLE_COLORS.etc) : undefined;
+            return (
+              <span key={`${id}-${i}`} className="flex flex-col items-center gap-0.5" title={combo.names[i]}>
+                <Avatar characterId={id} characterName={combo.names[i]} size={duo ? 42 : 34} zoom={1} />
+                <span
+                  className={`${duo ? "w-14" : "w-10"} truncate text-center text-[9px] leading-tight text-gray-500`}
+                >
+                  {combo.names[i]}
+                </span>
+                {role && (
+                  <span
+                    className="rounded-full px-1.5 text-[8px] font-bold leading-4"
+                    style={{ color, background: `${color}22` }}
+                  >
+                    {ROLE_LABELS[role as RoleOrEtc] ?? role}
+                  </span>
+                )}
               </span>
-            </span>
-          ))}
+            );
+          })}
         </div>
         <div className="shrink-0 text-right">
           <div className="text-sm font-bold" style={{ color: wr >= 50 ? "rgb(var(--primary))" : "#9aa7b4" }}>
@@ -171,12 +213,18 @@ function ComboCard({
   );
 }
 
+/* ------------------------------------------------------------------ 목록/섹션 */
+
+interface ComboWithRoles extends Composition {
+  roles?: string[];
+}
+
 function ComboList({
   combos,
   empty,
   gameTypeId,
 }: {
-  combos: Composition[];
+  combos: ComboWithRoles[];
   empty: string;
   gameTypeId: string;
 }) {
@@ -186,23 +234,47 @@ function ComboList({
   return (
     <div className="space-y-2">
       {combos.map((c, i) => (
-        <ComboCard key={c.ids.join("-")} combo={c} rank={i + 1} gameTypeId={gameTypeId} />
+        <ComboCard key={`${c.ids.join("-")}-${(c.roles ?? []).join("-")}`} combo={c} rank={i + 1} gameTypeId={gameTypeId} roles={c.roles} />
       ))}
     </div>
   );
 }
 
-export default function CompositionSection({ data }: { data: CompositionsResult }) {
+/**
+ * 조합 티어 섹션 — 역할 기반 듀오(딜러/탱폿/탱딜/폿딜) 탭 + 기존 5인 풀팀 탭.
+ * 듀오는 팀 내 2인 조합이라 표본이 풍부해 승률이 통계적으로 유의미하다.
+ * 포지션은 그 판의 판별값(목걸이·스탯·캐릭터 3단 판별) 기준.
+ */
+export default function CompositionSection({
+  data,
+  roleData,
+}: {
+  data: CompositionsResult;
+  roleData?: RoleCompositionsResult | null;
+}) {
+  const hasDuo = !!roleData && roleData.categories.some((c) => c.distinctCombos > 0);
+  const [cat, setCat] = useState<string>(hasDuo ? "dealerduo" : "full");
   const [basis, setBasis] = useState<Basis>("freq");
   const size = data.teamSize;
+
+  const activeDuo = cat !== "full" ? roleData?.categories.find((c) => c.key === cat) : undefined;
+  const gameTypeId = cat !== "full" && roleData ? roleData.gameTypeId : data.gameTypeId;
+  const minGames = cat !== "full" && roleData ? roleData.minGames : data.minGames;
+
+  const byFrequency: ComboWithRoles[] = activeDuo ? activeDuo.byFrequency : data.byFrequency;
+  const byWinRate: ComboWithRoles[] = activeDuo ? activeDuo.byWinRate : data.byWinRate;
+
+  const catTabs = hasDuo ? CAT_TABS : CAT_TABS.filter((t) => t.key === "full");
 
   return (
     <section>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-2">
-          <h2 className="text-lg font-bold text-gray-100">{size}인 조합 추천</h2>
+          <h2 className="text-lg font-bold text-gray-100">조합 티어</h2>
           <span className="text-xs text-gray-500">
-            상위 랭커 매치의 팀 조합 집계 · 팀 {data.totalTeams.toLocaleString()}개 · 조합 {data.distinctCombos.toLocaleString()}종
+            {cat === "full"
+              ? `상위 랭커 매치의 ${size}인 풀팀 집계 · 팀 ${data.totalTeams.toLocaleString()}개 · 조합 ${data.distinctCombos.toLocaleString()}종`
+              : `상위 랭커 매치의 팀 내 조합 집계 · ${activeDuo ? `${activeDuo.label} ${activeDuo.distinctCombos.toLocaleString()}종` : ""}`}
           </span>
         </div>
         <div className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">
@@ -220,27 +292,49 @@ export default function CompositionSection({ data }: { data: CompositionsResult 
         </div>
       </div>
 
+      {/* 카테고리 탭 */}
+      {catTabs.length > 1 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {catTabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setCat(t.key)}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                cat === t.key
+                  ? "bg-primary text-white"
+                  : "border border-line bg-surface text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {basis === "both" ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <h3 className="mb-2 text-sm font-semibold text-gray-300">가장 많이 나온 조합</h3>
-            <ComboList combos={data.byFrequency} empty="아직 반복 등장한 조합이 없습니다." gameTypeId={data.gameTypeId} />
+            <ComboList combos={byFrequency} empty="아직 반복 등장한 조합이 없습니다." gameTypeId={gameTypeId} />
           </div>
           <div>
             <h3 className="mb-2 text-sm font-semibold text-gray-300">
-              승률 높은 조합 <span className="font-normal text-gray-500">({data.minGames}판 이상)</span>
+              승률 높은 조합 <span className="font-normal text-gray-500">({minGames}판 이상)</span>
             </h3>
-            <ComboList combos={data.byWinRate} empty={`${data.minGames}판 이상 반복된 조합이 아직 없습니다.`} gameTypeId={data.gameTypeId} />
+            <ComboList combos={byWinRate} empty={`${minGames}판 이상 반복된 조합이 아직 없습니다.`} gameTypeId={gameTypeId} />
           </div>
         </div>
       ) : basis === "freq" ? (
-        <ComboList combos={data.byFrequency} empty="아직 반복 등장한 조합이 없습니다." gameTypeId={data.gameTypeId} />
+        <ComboList combos={byFrequency} empty="아직 반복 등장한 조합이 없습니다." gameTypeId={gameTypeId} />
       ) : (
-        <ComboList combos={data.byWinRate} empty={`${data.minGames}판 이상 반복된 조합이 아직 없습니다.`} gameTypeId={data.gameTypeId} />
+        <ComboList combos={byWinRate} empty={`${minGames}판 이상 반복된 조합이 아직 없습니다.`} gameTypeId={gameTypeId} />
       )}
 
       <p className="mt-2 text-[11px] text-gray-500">
-        * 팀은 같은 매치에서 승패가 같은 {size}인으로 구성됩니다. 정확히 같은 {size}인이 반복되는 경우는 수집 데이터로는 적을 수 있어, 판수가 낮으면 참고용입니다.
+        {cat === "full"
+          ? `* 팀은 같은 매치에서 승패가 같은 ${size}인으로 구성됩니다. 정확히 같은 ${size}인이 반복되는 경우는 드물어, 판수가 낮으면 참고용입니다.`
+          : "* 듀오/트리오는 같은 팀(승패 동일) 안의 2·3인 조합입니다. 포지션은 그 판의 운용(목걸이·스탯·캐릭터)으로 판별합니다. 탱커 트리오는 탱커 3인 또는 탱커 2인+서포터 1인 구성입니다."}
       </p>
     </section>
   );

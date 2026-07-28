@@ -163,12 +163,22 @@ export const TIER_META: Record<Tier, { label: string; color: string; desc: strin
 };
 
 /**
- * 메타 점수 = 승률 + 픽률 보정(픽률이 높을수록 표본 신뢰도·존재감 반영, 최대 +4).
- * 승률 50%를 기준으로 절대 임계값으로 티어를 나눕니다(수집 표본 기준).
+ * 종합 점수 — 픽률(등장률)이 낮은 캐릭터일수록 종합 점수가 낮게 나오도록 설계.
+ *  1) 표본 보정(베이지안 수축): 픽 표본(picks)이 적을수록 승률을 50%로 끌어당겨
+ *     소수 표본에서 나온 극단 승률(뽀록)을 억제한다.
+ *  2) 픽률 밴드 반영: 픽률 10% 미만이면 급격히 감점(낮을수록 큼), 10~20%는 중립,
+ *     20% 초과면 가산. 인기 캐릭터는 상승하고 픽률 낮은 캐릭터는 하위로 내려간다.
  */
-export function metaScore(m: Pick<CharacterMeta, "winRate" | "pickRate">): number {
-  const pickBonus = Math.min(m.pickRate, 40) * 0.1; // 0 ~ +4
-  return Math.round((m.winRate + pickBonus) * 10) / 10;
+export function metaScore(
+  m: Pick<CharacterMeta, "winRate" | "pickRate" | "picks" | "wins">,
+): number {
+  const PRIOR = 30; // 사전 표본 강도(승률 50%를 가정한 가상 30판)
+  const shrunkWin = m.picks > 0 ? ((m.wins + PRIOR * 0.5) / (m.picks + PRIOR)) * 100 : 50;
+  const PICK_FLOOR = 10; // 이 픽률(%) 미만이면 감점
+  const PICK_CEIL = 20; // 이 픽률(%) 초과면 가산(상승)
+  const lowPickPenalty = Math.max(0, PICK_FLOOR - m.pickRate) * 3; // 10% 미만: 낮을수록 급격히 감점(0% → -30)
+  const highPickBonus = Math.max(0, Math.min(m.pickRate, 40) - PICK_CEIL) * 1.5; // 20% 초과: 가산(40%에서 +30)
+  return Math.round((shrunkWin - lowPickPenalty + highPickBonus) * 10) / 10;
 }
 
 export interface TieredCharacter extends CharacterMeta {
@@ -313,6 +323,52 @@ export async function getCompositions(opts?: {
     next: { revalidate: 300 },
   });
   if (!res.ok) throw new Error(`meta compositions ${res.status}`);
+  return res.json();
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 역할 기반 듀오 조합 (조합 티어 개편)                                   */
+/* ------------------------------------------------------------------ */
+
+/** 듀오/트리오 조합 한 항목 — Composition 과 동일 + 그 판 판별 역할 목록. */
+export interface RoleComposition extends Composition {
+  /** 각 캐릭터의 판별 포지션(tank/melee/ranged/support) — names 와 같은 순서. */
+  roles: string[];
+}
+
+/** 조합 카테고리(딜러 듀오/딜러 트리오/탱커 트리오) 단위 집계. */
+export interface RoleCompCategory {
+  key: string;
+  label: string;
+  distinctCombos: number;
+  byFrequency: RoleComposition[];
+  byWinRate: RoleComposition[];
+}
+
+export interface RoleCompositionsResult {
+  gameTypeId: string;
+  minGames: number;
+  totalCombos: number;
+  sampledMatches: number;
+  categories: RoleCompCategory[];
+}
+
+/** 역할 기반 듀오 조합 집계 조회(서버 컴포넌트용). */
+export async function getRoleCompositions(opts?: {
+  gameTypeId?: string;
+  limit?: number;
+  minGames?: number;
+}): Promise<RoleCompositionsResult> {
+  const p = new URLSearchParams();
+  if (opts?.gameTypeId) p.set("gameTypeId", opts.gameTypeId);
+  if (opts?.limit) p.set("limit", String(opts.limit));
+  if (opts?.minGames) p.set("minGames", String(opts.minGames));
+  const qs = p.toString();
+  const res = await fetch(`${API}/meta/compositions/roles${qs ? `?${qs}` : ""}`, {
+    next: { revalidate: 300 },
+  });
+  if (!res.ok) throw new Error(`meta compositions/roles ${res.status}`);
   return res.json();
 }
 

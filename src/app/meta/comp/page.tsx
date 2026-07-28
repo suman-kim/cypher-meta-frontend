@@ -1,7 +1,9 @@
 import {
   getCompositions,
+  getRoleCompositions,
   getMetaSummary,
   type CompositionsResult,
+  type RoleCompositionsResult,
   type MetaSummary,
 } from "@/lib/meta";
 import {
@@ -131,11 +133,17 @@ export default async function CompMetaPage({ searchParams }: Props) {
 
   /* ───────── 데이터 조합 탭 (기본) ───────── */
   let comps: CompositionsResult | null = null;
+  let roleComps: RoleCompositionsResult | null = null;
   let summary: MetaSummary | null = null;
   try {
     comps = await getCompositions({ gameTypeId: "rating", limit: 6, minGames: 3 });
   } catch {
     comps = null;
+  }
+  try {
+    roleComps = await getRoleCompositions({ gameTypeId: "rating", limit: 8, minGames: 3 });
+  } catch {
+    roleComps = null;
   }
   try {
     summary = await getMetaSummary();
@@ -196,7 +204,7 @@ export default async function CompMetaPage({ searchParams }: Props) {
       )}
 
       {comps && comps.totalTeams > 0 ? (
-        <CompositionSection data={comps} />
+        <CompositionSection data={comps} roleData={roleComps} />
       ) : (
         <div className="card grid place-items-center p-8 text-center text-sm text-gray-500">
           아직 조합 집계 데이터가 없습니다. 수집이 진행되면 표시됩니다.
