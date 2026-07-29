@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Avatar } from "@/components/CharacterAvatar";
 import {
   buildPersona,
   roleLabel,
@@ -272,10 +273,10 @@ function AnalysisBody({ data, isNormal }: { data: PlayerHistorySummary; isNormal
               return (
                 <div key={c.name} className="flex items-center gap-3 py-2">
                   <span
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-extrabold text-white"
-                    style={{ background: roleColor(c.role) }}
+                    className="inline-flex shrink-0 overflow-hidden rounded-lg border-2"
+                    style={{ borderColor: roleColor(c.role) }}
                   >
-                    {c.name.slice(0, 1)}
+                    <Avatar characterId={c.characterId} characterName={c.name} size={36} zoom={1} rounded={false} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">

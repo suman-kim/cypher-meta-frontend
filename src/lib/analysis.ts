@@ -13,6 +13,7 @@ export interface HistoryPosition {
 }
 export interface HistoryTopChar {
   name: string;
+  characterId?: string;
   role: string;
   games: number;
   wins: number;

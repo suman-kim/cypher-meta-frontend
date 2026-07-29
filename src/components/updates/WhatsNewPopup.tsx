@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { markUpdatesSeen, useUnseenUpdate } from "@/lib/updates-client";
+import { markUpdatesSeen, snoozeUpdate, useUnseenUpdate } from "@/lib/updates-client";
 import UpdateBody from "./UpdateBody";
 
 /** 작성 시각 → 상대 시간(오늘/어제/N일 전) */
@@ -18,13 +18,14 @@ function relDate(iso: string): string | null {
 }
 
 /**
- * WhatsNewPopup — 새 업데이트가 있고 아직 확인하지 않은 방문자에게 1회 요약 팝업을 띄운다.
- * 닫거나 '전체 보기'를 누르면 해당 버전을 '확인함'으로 저장해 다시 뜨지 않는다.
+ * WhatsNewPopup — 새 업데이트가 있고 아직 확인하지 않은 방문자에게 요약 팝업을 띄운다.
+ * '나중에'(X·배경 클릭 포함)는 24시간 스누즈 — 확인 처리하지 않아 기간이 지나면 다시 뜬다
+ * (헤더 NEW 뱃지는 유지). '전체 업데이트 보기'만 해당 버전을 '확인함'으로 영구 저장한다.
  * /updates·/admin 경로에서는 표시하지 않는다.
  */
 export default function WhatsNewPopup() {
   const pathname = usePathname();
-  const unseen = useUnseenUpdate();
+  const unseen = useUnseenUpdate({ respectSnooze: true });
   const [show, setShow] = useState(false);
 
   const hiddenRoute = !!pathname && (pathname.startsWith("/updates") || pathname.startsWith("/admin"));
@@ -41,12 +42,19 @@ export default function WhatsNewPopup() {
 
   if (!unseen || hiddenRoute) return null;
 
+  /** '나중에'/X/배경 클릭 — 24시간 스누즈(확인 처리 아님, 기간 후 재팝업). */
   function dismiss() {
     setShow(false);
-    // 페이드아웃 후 '확인함' 저장(저장 시 언마운트)
+    // 페이드아웃 후 스누즈 저장(저장 시 언마운트)
     window.setTimeout(() => {
-      if (unseen) markUpdatesSeen(unseen.id);
+      if (unseen) snoozeUpdate(unseen.id);
     }, 240);
+  }
+
+  /** '전체 업데이트 보기' — 해당 버전을 '확인함'으로 영구 저장. */
+  function confirmSeen() {
+    setShow(false);
+    if (unseen) markUpdatesSeen(unseen.id);
   }
 
   return (
@@ -118,7 +126,7 @@ export default function WhatsNewPopup() {
             </button>
             <Link
               href="/updates"
-              onClick={dismiss}
+              onClick={confirmSeen}
               className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-primary to-[#8b5cf6] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-float"
             >
               전체 업데이트 보기
