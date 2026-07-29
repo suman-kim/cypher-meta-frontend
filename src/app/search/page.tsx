@@ -13,7 +13,11 @@ interface Props {
 }
 
 export function generateMetadata({ searchParams }: Props) {
-  return { title: searchParams.nickname ? `"${searchParams.nickname}" 검색` : "검색" };
+  // 검색 결과 페이지는 색인에서 제외(무한한 쿼리 조합 방지). 링크는 따라가도록 follow.
+  return {
+    title: searchParams.nickname ? `"${searchParams.nickname}" 검색` : "검색",
+    robots: { index: false, follow: true },
+  };
 }
 
 export default async function SearchPage({ searchParams }: Props) {

@@ -21,7 +21,12 @@ import { StatChip } from "@/components/meta/StatChip";
 import CompVote from "@/components/meta/CompVote";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "조합 티어" };
+export const metadata = {
+  title: "사이퍼즈 조합 메타 (5인 조합 티어)",
+  description:
+    "사이퍼즈 5인 조합 메타 — 상위 랭커 매치의 팀 조합 빈도·승률과 추천 조합을 확인하세요.",
+  alternates: { canonical: "/meta/comp" },
+};
 
 function renderHeader(tab: "data" | "vote") {
   const desc =

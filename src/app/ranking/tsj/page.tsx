@@ -11,7 +11,12 @@ import { formatNumber, winRate } from "@/lib/format";
 import type { TsjRankingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "결투장 랭킹" };
+export const metadata = {
+  title: "사이퍼즈 결투장 랭킹 (투신전)",
+  description:
+    "사이퍼즈 결투장(투신전) 랭킹 — 근거리·원거리 결투장 상위 랭커와 연승 기록을 확인하세요.",
+  alternates: { canonical: "/ranking/tsj" },
+};
 
 const LIMIT = 50;
 

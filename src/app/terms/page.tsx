@@ -5,6 +5,7 @@ import { SITE_NAME } from "@/lib/constants";
 export const metadata = {
   title: "이용약관",
   description: `${SITE_NAME} 서비스 이용약관 — 서비스 이용 조건, 수집 정보, 데이터 출처 및 면책 안내.`,
+  alternates: { canonical: "/terms" },
 };
 
 /** 시행일 · 외부 약관 링크 (이 두 값만 바꾸면 됩니다) */

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import SearchBar from "@/components/SearchBar";
 import { getRatingRanking } from "@/lib/neople";
 import {
@@ -27,6 +28,15 @@ import {
 import type { RatingRankingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+// 홈페이지는 브랜드키워드 "사이퍼즈 메타"로 검색 노출되도록 제목·설명에 그 문구를 명시한다.
+// title.absolute 로 두면 레이아웃의 "%s · Cyphers Meta" 템플릿이 적용되지 않는다.
+export const metadata: Metadata = {
+  title: { absolute: "사이퍼즈 메타 · 전적 검색·랭킹·캐릭터 티어 | Cyphers Meta" },
+  description:
+    "사이퍼즈 메타 — 사이퍼즈 전적 검색, 실시간 랭킹, 캐릭터 티어와 아이템 빌드, 5인 조합 메타를 한눈에 확인하세요.",
+  alternates: { canonical: "/" },
+};
 
 const RANK_COLORS = ["#e3b23c", "#9aa7b4", "#b06b3f"];
 
@@ -206,7 +216,7 @@ export default async function HomePage() {
             검색
           </h1>
           <p className="fade-up mx-auto mt-3 max-w-md text-sm text-gray-500 sm:text-base" style={{ animationDelay: "0.14s" }}>
-            닉네임으로 전적을 검색하고 랭킹·티어·조합 메타를 한눈에 확인하세요.
+            사이퍼즈 메타 — 닉네임으로 전적을 검색하고 랭킹·캐릭터 티어·조합 메타를 한눈에 확인하세요.
           </p>
           <div className="fade-up relative z-30 mx-auto mt-6 max-w-xl" style={{ animationDelay: "0.21s" }}>
             <SearchBar size="lg" />

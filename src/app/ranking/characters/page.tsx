@@ -13,7 +13,12 @@ import { formatNumber, winRate } from "@/lib/format";
 import type { CharacterRankingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "캐릭터 랭킹" };
+export const metadata = {
+  title: "사이퍼즈 캐릭터 랭킹",
+  description:
+    "사이퍼즈 캐릭터별 랭킹 — 승리 수·승률·킬·어시스트·경험치 지표별 상위 랭커를 확인하세요.",
+  alternates: { canonical: "/ranking/characters" },
+};
 
 const LIMIT = 50;
 

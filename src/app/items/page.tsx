@@ -8,8 +8,10 @@ import { EmptyState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "아이템 빌드",
-  description: "캐릭터별로 부위별 채택 아이템과 채택률을 확인하세요.",
+  title: "사이퍼즈 아이템 (빌드·채택률)",
+  description:
+    "사이퍼즈 아이템 빌드 — 캐릭터별 부위별 채택 아이템과 채택률을 상위 랭커 매치 기준으로 확인하세요.",
+  alternates: { canonical: "/items" },
 };
 
 export default async function ItemsPage() {

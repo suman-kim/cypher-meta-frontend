@@ -13,7 +13,12 @@ import RankChange from "@/components/ranking/RankChange";
 import type { RatingRankingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "전체 랭킹" };
+export const metadata = {
+  title: "사이퍼즈 랭킹 (전체 순위)",
+  description:
+    "사이퍼즈 공식전 실시간 전체 랭킹 — 상위 랭커의 티어·RP·승률과 대표 캐릭터, 플레이 스타일을 확인하세요.",
+  alternates: { canonical: "/ranking" },
+};
 
 const LIMIT = 50;
 

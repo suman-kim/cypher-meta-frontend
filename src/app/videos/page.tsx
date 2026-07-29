@@ -6,8 +6,10 @@ import { getVideosPage } from "@/lib/videos";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "동영상 · Cyphers Meta",
-  description: "치지직·유튜브의 사이퍼즈 라이브와 인기 동영상을 한곳에서 — 조회순·최신순.",
+  title: "사이퍼즈 영상·방송",
+  description:
+    "치지직·유튜브의 사이퍼즈 라이브 방송과 인기 동영상을 조회순·최신순으로 한곳에서 확인하세요.",
+  alternates: { canonical: "/videos" },
 };
 
 export default async function VideosPage() {

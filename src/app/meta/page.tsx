@@ -32,7 +32,12 @@ import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "캐릭터 티어" };
+export const metadata = {
+  title: "사이퍼즈 캐릭터 티어 (메타)",
+  description:
+    "사이퍼즈 캐릭터 티어표 — 상위 랭커 매치 기반 픽률·승률·KDA로 본 캐릭터 메타를 확인하세요.",
+  alternates: { canonical: "/meta" },
+};
 
 const GAME_TABS = [{ key: "rating", label: "공식전" }] as const;
 const BASIS_TABS: { key: TierBasis; label: string }[] = [

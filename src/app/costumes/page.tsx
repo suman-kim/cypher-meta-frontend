@@ -5,8 +5,10 @@ import { EmptyState, ErrorState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "코스튬",
-  description: "사이퍼즈 캐릭터별 코스튬(치장) 정보를 캐릭터·출시년도별로 모아 봅니다.",
+  title: "사이퍼즈 코스튬",
+  description:
+    "사이퍼즈 캐릭터별 코스튬(치장) 정보를 캐릭터·출시년도별로 모아 확인하세요.",
+  alternates: { canonical: "/costumes" },
 };
 
 /** 코스튬 정보 페이지 — 캐릭터별 그룹 + 연도/이름 필터. 데이터는 백엔드 costumes API 에서. */

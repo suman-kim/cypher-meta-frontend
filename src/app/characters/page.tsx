@@ -4,7 +4,12 @@ import CharacterRoster from "@/components/characters/CharacterRoster";
 import { ErrorState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "캐릭터" };
+export const metadata = {
+  title: "사이퍼즈 캐릭터 (전체 목록)",
+  description:
+    "사이퍼즈 전체 캐릭터(사이퍼) 목록 — 포지션별 캐릭터와 능력치·스킬, 캐릭터 티어를 확인하세요.",
+  alternates: { canonical: "/characters" },
+};
 
 export default async function CharactersPage() {
   let characters: RosterEntry[] = [];
