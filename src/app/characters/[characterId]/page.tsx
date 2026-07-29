@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getCharacters, getCharacterRanking, NeopleApiError } from "@/lib/neople";
 import {
   getCharacterMeta,
@@ -32,9 +33,14 @@ async function resolveName(characterId: string): Promise<string | undefined> {
   }
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const canonical = `/characters/${params.characterId}`;
   const name = await resolveName(params.characterId);
-  return { title: name ?? "캐릭터 상세" };
+  const title = name ?? "캐릭터 상세";
+  const description = name
+    ? `사이퍼즈 ${name}의 픽률·승률·KDA, 추천 아이템 빌드, 지표별 상위 랭커를 확인하세요.`
+    : "사이퍼즈 캐릭터 상세 통계와 추천 빌드.";
+  return { title, description, alternates: { canonical }, openGraph: { title, description } };
 }
 
 export default async function CharacterDetailPage({ params, searchParams }: Props) {

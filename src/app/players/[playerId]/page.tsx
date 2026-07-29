@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   getPlayer,
@@ -41,12 +42,15 @@ interface Props {
   searchParams: { gameTypeId?: string; refresh?: string };
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const canonical = `/players/${params.playerId}`;
   try {
     const player = await getPlayer(params.playerId);
-    return { title: `${player.nickname} 전적` };
+    const title = `${player.nickname} 전적`;
+    const description = `사이퍼즈 ${player.nickname}님의 전적, 티어, 승률, 자주 플레이한 캐릭터와 최근 경기를 확인하세요.`;
+    return { title, description, alternates: { canonical }, openGraph: { title, description } };
   } catch {
-    return { title: "플레이어" };
+    return { title: "플레이어", alternates: { canonical } };
   }
 }
 

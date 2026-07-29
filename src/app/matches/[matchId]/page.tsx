@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getMatch, NeopleApiError } from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import ItemHoverCard from "@/components/ItemHoverCard";
@@ -19,7 +20,12 @@ interface Props {
   searchParams: { highlight?: string };
 }
 
-export const metadata = { title: "매치 상세" };
+export function generateMetadata({ params }: Props): Metadata {
+  return {
+    title: "매치 상세",
+    alternates: { canonical: `/matches/${params.matchId}` },
+  };
+}
 
 const MULTI_KILLS = [
   { key: "double", label: "더블킬", color: "#4fbf6b" },

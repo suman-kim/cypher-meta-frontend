@@ -32,6 +32,12 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} · ${SITE_TAGLINE}`,
     description: "사이퍼즈 전적 검색, 랭킹, 캐릭터·아이템 정보.",
   },
+  // 트위터/X 카드는 큰 이미지 형태로 노출. 이미지는 twitter-image.png 파일 규약에서 자동 주입된다.
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} · ${SITE_TAGLINE}`,
+    description: "사이퍼즈 전적 검색, 랭킹, 캐릭터·아이템 정보.",
+  },
   robots: {
     index: true,
     follow: true,
@@ -51,11 +57,43 @@ export const metadata: Metadata = {
 // FOUC 방지: 렌더 전에 저장된 테마를 적용 (라이트 기본, 'dark' 저장 시 다크)
 const themeScript = `(function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`;
 
+// 검색엔진 구조화 데이터(JSON-LD).
+//  - WebSite + SearchAction: 구글 '사이트링크 검색창' 노출 후보가 된다(검색어 → /search?nickname=).
+//  - Organization: 로고/사이트명 등 지식 패널용 기본 정보.
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    alternateName: "사이퍼즈 메타",
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/search?nickname={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon.svg`,
+  },
+];
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="flex min-h-[100dvh] flex-col bg-bg">
         <AnalyticsTracker />
