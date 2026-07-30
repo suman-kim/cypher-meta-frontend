@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import WhatsNewPopup from "@/components/updates/WhatsNewPopup";
+import NativeTabBar from "@/components/native/NativeTabBar";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site";
 
@@ -48,9 +49,14 @@ export const metadata: Metadata = {
   //  - 네이버 서치어드바이저   : NAVER_SITE_VERIFICATION (네이버 전용 필드가 없어 other 로 넣는다)
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION,
-    ...(process.env.NAVER_SITE_VERIFICATION
-      ? { other: { "naver-site-verification": process.env.NAVER_SITE_VERIFICATION } }
-      : {}),
+    other: {
+      ...(process.env.NAVER_SITE_VERIFICATION
+        ? { "naver-site-verification": process.env.NAVER_SITE_VERIFICATION }
+        : {}),
+      ...(process.env.BING_SITE_VERIFICATION
+        ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+        : {}),
+    },
   },
 };
 
@@ -101,6 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="container-app flex-1 py-6">{children}</main>
         <Footer />
         <WhatsNewPopup />
+        <NativeTabBar />
       </body>
     </html>
   );
