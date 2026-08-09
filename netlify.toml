@@ -1,0 +1,11 @@
+# Netlify 배포 설정 — Next.js(App Router, SSR/ISR)를 Next 런타임으로 서빙
+[build]
+  command = "next build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Next.js 런타임(SSR·ISR·라우트 핸들러 처리). 미적용 시 전 페이지 404 발생.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
