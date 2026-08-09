@@ -6,7 +6,7 @@ import CommentSection from "@/components/community/CommentSection";
 import RecommendButton from "@/components/community/RecommendButton";
 import DeletePostButton from "@/components/community/DeletePostButton";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"; // 댓글 신선도 위해 동적 유지
 
 interface Props {
   params: { board: string; postId: string };

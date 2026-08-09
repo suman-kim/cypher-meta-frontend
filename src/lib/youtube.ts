@@ -20,9 +20,9 @@ export interface YoutubeLive {
  * 현재 진행 중인 유튜브 '사이퍼즈' 라이브 목록. 실패해도 던지지 않고 빈 배열 반환.
  * @param limit — 최대 라이브 수(기본 12)
  */
-export async function getYoutubeLives(limit = 12): Promise<YoutubeLive[]> {
+export async function getYoutubeLives(limit = 12, revalidate?: number): Promise<YoutubeLive[]> {
   try {
-    const r = await fetch(`${API}/youtube/lives?limit=${limit}`, { cache: "no-store" });
+    const r = await fetch(`${API}/youtube/lives?limit=${limit}`, revalidate ? { next: { revalidate } } : { cache: "no-store" });
     if (!r.ok) return [];
     const data = (await r.json()) as { lives?: YoutubeLive[] };
     return Array.isArray(data?.lives) ? data.lives : [];

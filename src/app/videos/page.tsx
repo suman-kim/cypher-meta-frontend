@@ -3,7 +3,7 @@ import VideoBrowser from "@/components/videos/VideoBrowser";
 import { getLiveStreams } from "@/lib/live";
 import { getVideosPage } from "@/lib/videos";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
 
 export const metadata = {
   title: "사이퍼즈 영상·방송",
@@ -13,7 +13,7 @@ export const metadata = {
 };
 
 export default async function VideosPage() {
-  const [live, page] = await Promise.all([getLiveStreams(20), getVideosPage("view", 24, "", 0)]);
+  const [live, page] = await Promise.all([getLiveStreams(20, 120), getVideosPage("view", 24, "", 0, 120)]);
 
   return (
     <div className="space-y-10">

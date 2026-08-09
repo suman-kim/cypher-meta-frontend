@@ -6,7 +6,7 @@ import {
 import ItemExplorer, { type CharItem } from "@/components/items/ItemExplorer";
 import { EmptyState } from "@/components/ui";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 21600; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
 export const metadata = {
   title: "사이퍼즈 아이템 (빌드·채택률)",
   description:

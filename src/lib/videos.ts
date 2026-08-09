@@ -58,11 +58,12 @@ async function getYt(
   sort: VideoSort,
   limit: number,
   pageToken: string,
+  revalidate?: number,
 ): Promise<{ videos: Video[]; nextToken: string | null }> {
   try {
     const r = await fetch(
       `${API}/youtube/videos?sort=${sort}&limit=${limit}&pageToken=${encodeURIComponent(pageToken)}`,
-      { cache: "no-store" },
+      revalidate ? { next: { revalidate } } : { cache: "no-store" },
     );
     if (!r.ok) return { videos: [], nextToken: null };
     const d = (await r.json()) as { videos?: YtVideo[]; nextPageToken?: string | null };
@@ -129,10 +130,11 @@ export async function getVideosPage(
   ytToken: string | null = "",
   // czOffset 은 하위 호환성으로 남겨둠(동영상 VOD 는 유튜브 전용 — 치지직은 라이브만 지원)
   _czOffset = 0,
+  revalidate?: number,
 ): Promise<VideoPage> {
   const ytR =
     ytToken !== null
-      ? await getYt(sort, limit, ytToken)
+      ? await getYt(sort, limit, ytToken, revalidate)
       : { videos: [] as Video[], nextToken: null as string | null };
   const videos = sortVideos([...ytR.videos], sort);
   const nextYt = ytToken !== null ? ytR.nextToken : null;

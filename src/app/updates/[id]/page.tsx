@@ -5,7 +5,7 @@ import { getUpdate, getUpdateComments } from "@/lib/updates";
 import UpdateBody from "@/components/updates/UpdateBody";
 import UpdateComments from "@/components/updates/UpdateComments";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"; // 댓글 신선도 위해 동적 유지
 
 interface Props {
   params: { id: string };

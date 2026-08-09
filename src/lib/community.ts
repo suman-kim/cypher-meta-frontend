@@ -86,8 +86,8 @@ export interface PostDetail extends CommunityPost {
 /* 서버 전용 fetch                                                     */
 /* ------------------------------------------------------------------ */
 
-async function api<T>(path: string): Promise<T> {
-  const res = await fetch(`${API}${path}`, { cache: "no-store" });
+async function api<T>(path: string, revalidate?: number): Promise<T> {
+  const res = await fetch(`${API}${path}`, revalidate ? { next: { revalidate } } : { cache: "no-store" });
   if (!res.ok) throw new Error(`community ${path} → ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -111,10 +111,10 @@ export function getPost(id: string): Promise<PostDetail> {
   return api<PostDetail>(`/community/posts/${encodeURIComponent(id)}`);
 }
 
-export function getNotices(limit = 5): Promise<CommunityPost[]> {
-  return api<CommunityPost[]>(`/community/notices?limit=${limit}`);
+export function getNotices(limit = 5, revalidate?: number): Promise<CommunityPost[]> {
+  return api<CommunityPost[]>(`/community/notices?limit=${limit}`, revalidate);
 }
 
-export function getRecentPosts(limit = 5): Promise<CommunityPost[]> {
-  return api<CommunityPost[]>(`/community/recent?limit=${limit}`);
+export function getRecentPosts(limit = 5, revalidate?: number): Promise<CommunityPost[]> {
+  return api<CommunityPost[]>(`/community/recent?limit=${limit}`, revalidate);
 }

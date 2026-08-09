@@ -27,7 +27,7 @@ import {
 } from "@/lib/community";
 import type { RatingRankingRow } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
 
 // 홈페이지는 브랜드키워드 "사이퍼즈 메타"로 검색 노출되도록 제목·설명에 그 문구를 명시한다.
 // title.absolute 로 두면 레이아웃의 "%s · Cyphers Meta" 템플릿이 적용되지 않는다.
@@ -182,13 +182,13 @@ export default async function HomePage() {
   let recent: CommunityPost[] = [];
   try {
     [notices, recent] = await Promise.all([
-      getNotices(4).catch(() => []),
-      getRecentPosts(5).catch(() => []),
+      getNotices(4, 600).catch(() => []),
+      getRecentPosts(5, 600).catch(() => []),
     ]);
   } catch {}
 
-  const liveStreams = await getLiveStreams(20);
-  const latestUpdate = await getLatestUpdate();
+  const liveStreams = await getLiveStreams(20, 300);
+  const latestUpdate = await getLatestUpdate(600);
 
   return (
     <div className="space-y-10">

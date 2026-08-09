@@ -73,10 +73,10 @@ export function mapYoutube(l: YoutubeLive): LiveStream {
  *
  * @param limit — 반환할 최대 라이브 수(기본 20)
  */
-export async function getLiveStreams(limit = 20): Promise<LiveStream[]> {
+export async function getLiveStreams(limit = 20, revalidate?: number): Promise<LiveStream[]> {
   const sources: Array<Promise<LiveStream[]>> = [
-    getCyphersLives(limit).then((r) => r.lives.map(mapChzzk)),
-    getYoutubeLives(limit).then((r) => r.map(mapYoutube)),
+    getCyphersLives(limit, revalidate).then((r) => r.lives.map(mapChzzk)),
+    getYoutubeLives(limit, revalidate).then((r) => r.map(mapYoutube)),
     // TODO(SOOP): getSoopLives(limit).then((r) => r.map(mapSoop)),
   ];
   const settled = await Promise.allSettled(sources);

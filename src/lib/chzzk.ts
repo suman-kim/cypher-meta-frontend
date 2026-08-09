@@ -34,9 +34,9 @@ const EMPTY: ChzzkLivesResult = { lives: [], category: null, fetchedAt: "" };
  *
  * @param limit — 최대 라이브 수(기본 8)
  */
-export async function getCyphersLives(limit = 8): Promise<ChzzkLivesResult> {
+export async function getCyphersLives(limit = 8, revalidate?: number): Promise<ChzzkLivesResult> {
   try {
-    const r = await fetch(`${API}/chzzk/lives?limit=${limit}`, { cache: "no-store" });
+    const r = await fetch(`${API}/chzzk/lives?limit=${limit}`, revalidate ? { next: { revalidate } } : { cache: "no-store" });
     if (!r.ok) return EMPTY;
     const data = (await r.json()) as ChzzkLivesResult;
     return { lives: Array.isArray(data?.lives) ? data.lives : [], category: data?.category ?? null, fetchedAt: data?.fetchedAt ?? "" };

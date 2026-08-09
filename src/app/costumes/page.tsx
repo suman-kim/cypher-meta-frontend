@@ -3,7 +3,7 @@ import { getCharacters } from "@/lib/neople";
 import CostumeGallery from "@/components/costumes/CostumeGallery";
 import { EmptyState, ErrorState } from "@/components/ui";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 21600; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
 export const metadata = {
   title: "사이퍼즈 코스튬",
   description:

@@ -4,7 +4,7 @@ import { getUpdates } from "@/lib/updates";
 import UpdateBody from "@/components/updates/UpdateBody";
 import MarkUpdatesSeen from "@/components/updates/MarkUpdatesSeen";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
 
 export const metadata: Metadata = {
   title: "업데이트 노트",
@@ -43,7 +43,7 @@ function relDate(iso: string): string | null {
 }
 
 export default async function UpdatesPage() {
-  const { items, total } = await getUpdates(50, 0).catch(() => ({ items: [], total: 0 }));
+  const { items, total } = await getUpdates(50, 0, 300).catch(() => ({ items: [], total: 0 }));
   const latestId = items[0]?.id ?? null;
 
   return (

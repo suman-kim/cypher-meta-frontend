@@ -33,8 +33,8 @@ export interface UpdateListResult {
   total: number;
 }
 
-async function api<T>(path: string): Promise<T> {
-  const res = await fetch(`${API}${path}`, { cache: "no-store" });
+async function api<T>(path: string, revalidate?: number): Promise<T> {
+  const res = await fetch(`${API}${path}`, revalidate ? { next: { revalidate } } : { cache: "no-store" });
   if (!res.ok) throw new Error(`updates ${path} → ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -44,17 +44,17 @@ async function api<T>(path: string): Promise<T> {
  * @param limit — 가져올 개수(기본 20)
  * @param offset — 건너뛸 개수(기본 0)
  */
-export function getUpdates(limit = 20, offset = 0): Promise<UpdateListResult> {
+export function getUpdates(limit = 20, offset = 0, revalidate?: number): Promise<UpdateListResult> {
   const p = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  return api<UpdateListResult>(`/updates?${p.toString()}`);
+  return api<UpdateListResult>(`/updates?${p.toString()}`, revalidate);
 }
 
 /**
  * 최신 발행 업데이트 1건(메인 카드용). 실패 시 null.
  */
-export async function getLatestUpdate(): Promise<UpdateNote | null> {
+export async function getLatestUpdate(revalidate?: number): Promise<UpdateNote | null> {
   try {
-    const r = await api<{ latest: UpdateNote | null }>(`/updates/latest`);
+    const r = await api<{ latest: UpdateNote | null }>(`/updates/latest`, revalidate);
     return r.latest ?? null;
   } catch {
     return null;
