@@ -3,7 +3,7 @@ import { getRoster, type RosterEntry } from "@/lib/votes";
 import CharacterRoster from "@/components/characters/CharacterRoster";
 import { ErrorState } from "@/components/ui";
 
-export const revalidate = 3600; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
+export const dynamic = "force-dynamic"; // Railway: 요청 시점 렌더(백엔드는 런타임에만 확실히 도달) — 빌드타임 프리렌더 실패 방지
 export const metadata = {
   title: "사이퍼즈 캐릭터 (전체 목록)",
   description:

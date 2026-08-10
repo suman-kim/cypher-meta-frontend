@@ -3,7 +3,7 @@ import { getCharacters } from "@/lib/neople";
 import CostumeGallery from "@/components/costumes/CostumeGallery";
 import { EmptyState, ErrorState } from "@/components/ui";
 
-export const revalidate = 21600; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
+export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
 export const metadata = {
   title: "사이퍼즈 코스튬",
   description:

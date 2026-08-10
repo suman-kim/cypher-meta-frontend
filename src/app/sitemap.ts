@@ -3,7 +3,7 @@ import { SITE_URL } from "@/lib/site";
 import { getCharacters } from "@/lib/neople";
 
 // 로스터(캐릭터 목록) 조회 결과를 하루 캐시해 사이트맵을 재생성한다.
-export const revalidate = 86400;
+export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
 
 /** 주요 정적 경로. (플레이어 상세는 무한·동적이라 제외. 캐릭터 상세는 아래에서 동적으로 추가) */
 const ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [

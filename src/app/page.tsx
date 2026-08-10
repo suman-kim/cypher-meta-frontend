@@ -27,7 +27,7 @@ import {
 } from "@/lib/community";
 import type { RatingRankingRow } from "@/lib/types";
 
-export const revalidate = 600; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
+export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
 
 // 홈페이지는 브랜드키워드 "사이퍼즈 메타"로 검색 노출되도록 제목·설명에 그 문구를 명시한다.
 // title.absolute 로 두면 레이아웃의 "%s · Cyphers Meta" 템플릿이 적용되지 않는다.
