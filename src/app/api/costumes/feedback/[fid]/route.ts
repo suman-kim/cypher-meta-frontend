@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
  *  본인 비밀번호(body.password) 또는 관리자(x-admin-token 헤더)로 삭제. */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 
 export async function DELETE(req: NextRequest, { params }: { params: { fid: string } }) {

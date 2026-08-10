@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
+
+export const runtime = "edge";
 
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   let visitorId = req.cookies.get("cy_vid")?.value;
   const isNew = !visitorId;
-  if (!visitorId) visitorId = randomUUID();
+  if (!visitorId) visitorId = crypto.randomUUID();
 
   const payload = {
     path: typeof body.path === "string" && body.path ? body.path : "/",

@@ -6,6 +6,8 @@ import { EmptyState, ErrorState, SectionTitle } from "@/components/ui";
 import SearchBar from "@/components/SearchBar";
 import type { PlayerSearchRow } from "@/lib/types";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 
 interface Props {

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
@@ -11,7 +10,7 @@ export async function proxyWithVisitor(
 ): Promise<NextResponse> {
   let vid = req.cookies.get("cy_vid")?.value;
   const isNew = !vid;
-  if (!vid) vid = randomUUID();
+  if (!vid) vid = crypto.randomUUID();
 
   let url = `${API}${backendPath}`;
   const init: RequestInit = { method, cache: "no-store" };

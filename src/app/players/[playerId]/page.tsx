@@ -29,6 +29,8 @@ import { positionAttributeImage } from "@/lib/images";
 import { gameTypeLabel } from "@/lib/constants";
 import type { MatchRow as MatchRowType, PlayerDetail } from "@/lib/types";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 
 /** 프로필 분석 표본 크기(게임타입별 최근 N게임). 파티원은 이 중 앞 PARTY_SAMPLE 건의 상세로 계산. */

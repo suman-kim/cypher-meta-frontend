@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 /** 치지직 라이브 목록 프록시 — 동일 출처 중계. 라이브라 짧게(30초) 캐시. */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
+export const runtime = "edge";
+
 export async function GET(req: NextRequest) {
   const limit = req.nextUrl.searchParams.get("limit") ?? "8";
   try {

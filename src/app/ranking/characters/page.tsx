@@ -12,6 +12,8 @@ import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants"
 import { formatNumber, winRate } from "@/lib/format";
 import type { CharacterRankingRow } from "@/lib/types";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "사이퍼즈 캐릭터 랭킹",

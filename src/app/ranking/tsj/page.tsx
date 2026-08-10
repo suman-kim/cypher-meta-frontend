@@ -10,6 +10,8 @@ import { TSJ_TYPES, tsjLabel } from "@/lib/constants";
 import { formatNumber, winRate } from "@/lib/format";
 import type { TsjRankingRow } from "@/lib/types";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "사이퍼즈 결투장 랭킹 (투신전)",

@@ -17,6 +17,8 @@ import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants"
 import { winRate, kdaColor } from "@/lib/format";
 import type { CharacterRankingRow } from "@/lib/types";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 
 interface Props {

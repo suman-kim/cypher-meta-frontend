@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
 /** 개인 히스토리 분석 요약 프록시. 백엔드 GET /meta/history/:playerId 위임. 같은 유저 반복 조회는 2분 캐시. */
+export const runtime = "edge";
+
 export async function GET(req: NextRequest, { params }: { params: { playerId: string } }) {
   try {
     const res = await fetch(

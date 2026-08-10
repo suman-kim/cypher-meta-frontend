@@ -13,6 +13,8 @@ import { formatKDA, kdaColor, calcKDA, formatDate, formatPlayTime, formatNumber 
 import { gameTypeLabel, STAT_LABELS } from "@/lib/constants";
 import type { MatchDetail, MatchDetailItem, MatchDetailPlayer, MatchDetailTeam } from "@/lib/types";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 
 interface Props {

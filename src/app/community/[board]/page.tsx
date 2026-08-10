@@ -9,6 +9,8 @@ import NumberedPagination from "@/components/community/NumberedPagination";
 import WeeklyRankingCard, { type RankRow } from "@/components/community/WeeklyRankingCard";
 import NoticeCard from "@/components/community/NoticeCard";
 
+export const runtime = "edge";
+
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 15;
