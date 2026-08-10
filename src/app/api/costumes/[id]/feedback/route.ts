@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 /** 코스튬 피드백 조회(GET) / 작성(POST) 프록시 → 백엔드 /costumes/:id/feedback */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
-export const runtime = "edge";
-
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {

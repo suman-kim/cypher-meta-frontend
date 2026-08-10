@@ -12,8 +12,6 @@ import PickList from "@/components/ranking/PickList";
 import RankChange from "@/components/ranking/RankChange";
 import type { RatingRankingRow } from "@/lib/types";
 
-export const runtime = "edge";
-
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "사이퍼즈 랭킹 (전체 순위)",

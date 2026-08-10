@@ -26,8 +26,6 @@ async function proxy(req: NextRequest, method: "GET" | "POST") {
   }
 }
 
-export const runtime = "edge";
-
 export async function GET(req: NextRequest) {
   return proxy(req, "GET");
 }

@@ -12,8 +12,6 @@ import { NextRequest, NextResponse } from "next/server";
  * - `path` 외의 쿼리 파라미터는 그대로 업스트림으로 전달됩니다.
  * - 프로덕션(NODE_ENV=production)에서는 비활성화됩니다.
  */
-export const runtime = "edge";
-
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {

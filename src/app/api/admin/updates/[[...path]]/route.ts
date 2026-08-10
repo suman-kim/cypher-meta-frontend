@@ -28,8 +28,6 @@ async function forward(req: NextRequest, path: string[]) {
   }
 }
 
-export const runtime = "edge";
-
 export async function GET(req: NextRequest, { params }: { params: { path?: string[] } }) {
   return forward(req, params.path ?? []);
 }

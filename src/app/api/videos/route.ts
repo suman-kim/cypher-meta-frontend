@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getVideosPage, type VideoSort } from "@/lib/videos";
 
 /** 사이퍼즈 동영상 목록(유튜브+치지직) — 정렬 탭 + 무한 스크롤(커서). 2분 캐시. */
-export const runtime = "edge";
-
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const sort: VideoSort = sp.get("sort") === "recent" ? "recent" : "view";

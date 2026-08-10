@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
-
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
 /** 클라이언트 방문 이벤트 수신 → IP·geo·UA 를 채워 백엔드로 전달. 익명 방문자 쿠키 발급. */

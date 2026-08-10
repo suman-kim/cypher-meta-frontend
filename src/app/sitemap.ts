@@ -3,8 +3,6 @@ import { SITE_URL } from "@/lib/site";
 import { getCharacters } from "@/lib/neople";
 
 // 로스터(캐릭터 목록) 조회 결과를 하루 캐시해 사이트맵을 재생성한다.
-export const runtime = "edge";
-
 export const revalidate = 86400;
 
 /** 주요 정적 경로. (플레이어 상세는 무한·동적이라 제외. 캐릭터 상세는 아래에서 동적으로 추가) */

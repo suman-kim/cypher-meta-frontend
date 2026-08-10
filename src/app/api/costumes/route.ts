@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 /** 공개 코스튬 목록 프록시 — 동일 출처 호출. 참조 데이터라 CDN에 길게 캐시. */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
-export const runtime = "edge";
-
 export async function GET(req: NextRequest) {
   const qs = req.nextUrl.search; // ?character=&year= 그대로 전달
   try {

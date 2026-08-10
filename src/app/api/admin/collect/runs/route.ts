@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 /** 관리자 수집 이력 프록시 — /api/admin/collect/runs → 백엔드 /meta/collect/runs (x-admin-token 전달) */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
-export const runtime = "edge";
-
 export async function GET(req: NextRequest) {
   const token = req.headers.get("x-admin-token") ?? "";
   const limit = req.nextUrl.searchParams.get("limit") ?? "30";

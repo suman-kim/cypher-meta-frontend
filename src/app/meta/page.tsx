@@ -31,8 +31,6 @@ import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
 
-export const runtime = "edge";
-
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "사이퍼즈 캐릭터 티어 (메타)",

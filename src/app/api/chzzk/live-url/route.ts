@@ -6,8 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
  */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
-export const runtime = "edge";
-
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {

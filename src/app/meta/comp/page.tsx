@@ -20,8 +20,6 @@ import CompositionSection from "@/components/meta/CompositionSection";
 import { StatChip } from "@/components/meta/StatChip";
 import CompVote from "@/components/meta/CompVote";
 
-export const runtime = "edge";
-
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "사이퍼즈 조합 메타 (5인 조합 티어)",

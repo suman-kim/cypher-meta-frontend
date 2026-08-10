@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 /** 수정요청 상태 변경 프록시(관리자) → 백엔드 POST /costumes/feedback/:fid/resolve */
 const API = process.env.CYPHERS_API_URL ?? "http://localhost:4000/api";
 
-export const runtime = "edge";
-
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest, { params }: { params: { fid: string } }) {
