@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --experimental-strip-types scripts/test-normalize.ts",
-    "pages:build": "next-on-pages"
+    "pages:build": "next-on-pages",
+    "postinstall": "node scripts/patch-nop.cjs"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
