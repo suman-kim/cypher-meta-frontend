@@ -10,6 +10,7 @@ import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  icons: { icon: "/icon.svg" },
   title: {
     default: `${SITE_NAME} · ${SITE_TAGLINE}`,
     template: `%s · ${SITE_NAME}`,
@@ -30,12 +31,14 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     url: SITE_URL,
     siteName: SITE_NAME,
+    images: ["/opengraph-image.png"],
     title: `${SITE_NAME} · ${SITE_TAGLINE}`,
     description: "사이퍼즈 전적 검색, 랭킹, 공략, 메타, 캐릭터·아이템 정보.",
   },
   // 트위터/X 카드는 큰 이미지 형태로 노출. 이미지는 twitter-image.png 파일 규약에서 자동 주입된다.
   twitter: {
     card: "summary_large_image",
+    images: ["/twitter-image.png"],
     title: `${SITE_NAME} · ${SITE_TAGLINE}`,
     description: "사이퍼즈 전적 검색, 랭킹, 공략, 메타, 캐릭터·아이템 정보.",
   },

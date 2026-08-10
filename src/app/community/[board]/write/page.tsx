@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { boardLabel, isBoard } from "@/lib/community";
 import WriteForm from "@/components/community/WriteForm";
 
+export const runtime = "edge";
+
 export const metadata = { title: "글쓰기" };
 
 export default function WritePage({ params }: { params: { board: string } }) {

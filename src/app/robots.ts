@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
 
+export const runtime = "edge";
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {

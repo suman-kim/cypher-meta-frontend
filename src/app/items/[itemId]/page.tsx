@@ -6,6 +6,8 @@ import { ErrorState } from "@/components/ui";
 import { rarityMeta } from "@/lib/constants";
 import type { ItemDetail } from "@/lib/types";
 
+export const runtime = "edge";
+
 export const revalidate = 21600; // ISR: CDN 캐시로 요청당 SSR 제거 (Vercel 무료 한도 절감)
 
 interface Props {
