@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --experimental-strip-types scripts/test-normalize.ts",
-    "pages:build": "npx @cloudflare/next-on-pages@1"
+    "pages:build": "next-on-pages"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
@@ -26,6 +26,6 @@
     "postcss": "8.4.39",
     "tailwindcss": "3.4.6",
     "typescript": "5.5.3",
-    "@cloudflare/next-on-pages": "^1.13.7"
+    "@cloudflare/next-on-pages": "1.13.5"
   }
 }
