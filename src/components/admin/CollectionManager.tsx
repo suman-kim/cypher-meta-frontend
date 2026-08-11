@@ -14,6 +14,7 @@ interface Config {
   cronWindow: number;
   maxRank: number;
   cursorOffset: number;
+  lapCount: number;
   updatedAt: string;
 }
 interface Run {
@@ -256,6 +257,9 @@ export default function CollectionManager({ token }: { token: string }) {
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
               <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+            </div>
+            <div className="mt-1.5 text-right text-[11px] text-gray-500">
+              1위부터 완주한 순회 누적 <b className="text-gray-300">{config.lapCount.toLocaleString()}</b>회
             </div>
           </>
         ) : (
