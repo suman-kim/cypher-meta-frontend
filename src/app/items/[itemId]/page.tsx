@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getItem, NeopleApiError } from "@/lib/neople";
 import ItemIcon from "@/components/ItemIcon";
 import { Avatar } from "@/components/CharacterAvatar";
@@ -12,12 +13,24 @@ interface Props {
   params: { itemId: string };
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const canonical = `/items/${params.itemId}`;
   try {
     const item = await getItem(params.itemId);
-    return { title: item.itemName };
+    const parts = [item.rarityName, item.slotName].filter(Boolean).join(" · ");
+    const effect = (item.explain ?? "").replace(/\s+/g, " ").trim();
+    const description =
+      `사이퍼즈 아이템 ${item.itemName}${parts ? ` (${parts})` : ""}의 효과와 정보.` +
+      (effect ? ` ${effect}` : "");
+    const title = item.itemName;
+    return {
+      title,
+      description: description.slice(0, 160),
+      alternates: { canonical },
+      openGraph: { title, description: description.slice(0, 160) },
+    };
   } catch {
-    return { title: "아이템 상세" };
+    return { title: "아이템 상세", alternates: { canonical } };
   }
 }
 
