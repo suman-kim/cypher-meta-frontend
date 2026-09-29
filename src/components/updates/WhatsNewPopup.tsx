@@ -83,7 +83,7 @@ export default function WhatsNewPopup() {
               type="button"
               onClick={dismiss}
               aria-label="닫기"
-              className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-gray-500 transition-colors hover:bg-surface-3 hover:text-gray-200"
+              className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-lg text-gray-500 transition-colors hover:bg-surface-3 hover:text-gray-200"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M6 6l12 12M18 6L6 18" />
