@@ -7,9 +7,40 @@ import { calcKDA, kdaColor } from "@/lib/format";
 import {
   TIER_META,
   getCharacterPicks,
-  type TieredCharacter,
+  type Tier,
   type CharacterPicksResult,
 } from "@/lib/meta";
+import { UltimateBadge } from "./characters/UltimateBadge";
+
+/**
+ * MetaTable 한 행 — 캐릭터 단위(TieredCharacter, legacy)와 궁극기 단위(공식 역할군) 행 모두 받는다.
+ * 궁극기 단위 행은 ultimateType 이 있고, 같은 캐릭터가 1차/2차 두 행으로 나올 수 있다.
+ */
+export interface MetaTableRow {
+  characterId: string;
+  characterName: string | null;
+  tier: Tier;
+  score: number;
+  pickRate: number;
+  winRate: number;
+  kda: number;
+  picks: number;
+  /** 궁극기 구분(공식 역할군 체계에서만) */
+  ultimateType?: string;
+  /** 2차 궁극기 보유 캐릭터면 true — 1차/2차 배지 표시 */
+  dual?: boolean;
+  /** 궁극기 스킬명(공식 역할군 체계에서만) */
+  skillName?: string;
+}
+
+/**
+ * 행 고유 키 — 궁극기 단위 행은 캐릭터 ID 만으로는 겹치므로 궁극기를 붙인다.
+ * @param r — 행
+ * @returns React key·펼침 상태 키
+ */
+function rowKey(r: MetaTableRow): string {
+  return r.ultimateType ? `${r.characterId}:${r.ultimateType}` : r.characterId;
+}
 
 type SortKey = "score" | "pickRate" | "winRate" | "kda" | "picks";
 
@@ -59,7 +90,7 @@ function PicksPanel({
   data,
   loading,
 }: {
-  char: TieredCharacter;
+  char: MetaTableRow;
   data?: CharacterPicksResult;
   loading: boolean;
 }) {
@@ -151,11 +182,16 @@ function MiniStat({ label, value, color }: { label: string; value: string; color
   );
 }
 
+/**
+ * 캐릭터 상세 카드 목록(정렬 + 펼쳐서 픽 기록 보기).
+ * @param rows — 티어가 매겨진 행(캐릭터 단위 또는 궁극기 단위)
+ * @param gameTypeId — 픽 기록 조회 게임 타입
+ */
 export default function MetaTable({
   rows,
   gameTypeId,
 }: {
-  rows: TieredCharacter[];
+  rows: MetaTableRow[];
   gameTypeId?: string;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("score");
@@ -163,12 +199,17 @@ export default function MetaTable({
   const [picks, setPicks] = useState<Record<string, CharacterPicksResult>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  async function toggle(id: string) {
-    if (openId === id) {
+  /**
+   * 행 펼침/접기 — 픽 기록은 캐릭터 단위로 조회·캐시한다(1차/2차 행이 같은 기록을 공유).
+   * @param key — 행 키(rowKey)
+   * @param id — 캐릭터 ID
+   */
+  async function toggle(key: string, id: string) {
+    if (openId === key) {
       setOpenId(null);
       return;
     }
-    setOpenId(id);
+    setOpenId(key);
     if (!picks[id]) {
       setLoadingId(id);
       try {
@@ -213,16 +254,16 @@ export default function MetaTable({
       {/* 캐릭터 카드 목록 (반응형: 모바일 세로 / 데스크톱 가로) */}
       <ul className="space-y-2">
         {sorted.map((r, i) => {
-          const open = openId === r.characterId;
+          const open = openId === rowKey(r);
           return (
             <li
-              key={r.characterId}
+              key={rowKey(r)}
               className={`overflow-hidden rounded-xl border bg-surface transition-colors ${
                 open ? "border-primary/40" : "border-line"
               }`}
             >
               <div
-                onClick={() => toggle(r.characterId)}
+                onClick={() => toggle(rowKey(r), r.characterId)}
                 className="flex cursor-pointer flex-col gap-2.5 p-3 transition-colors hover:bg-surface-2 sm:flex-row sm:items-center sm:gap-3"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -236,6 +277,10 @@ export default function MetaTable({
                   >
                     {r.characterName ?? r.characterId}
                   </Link>
+                  {r.dual && r.ultimateType && <UltimateBadge ultimateType={r.ultimateType} />}
+                  {r.skillName && (
+                    <span className="hidden truncate text-xs text-gray-500 sm:inline">{r.skillName}</span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-1.5 sm:ml-auto sm:flex sm:gap-2">

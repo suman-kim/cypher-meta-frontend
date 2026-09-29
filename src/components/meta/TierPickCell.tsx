@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Avatar } from "../CharacterAvatar";
 import { calcKDA, kdaColor } from "@/lib/format";
 import { getCharacterPicks, type CharacterPicksResult } from "@/lib/meta";
+import { UltimateBadge } from "../characters/UltimateBadge";
 
 function pickDateParts(iso: string | null): { date: string; time: string } | null {
   if (!iso) return null;
@@ -26,6 +27,10 @@ function pickDateParts(iso: string | null): { date: string; time: string } | nul
  * 티어 그리드 셀.
  * - 캐릭터 이미지 클릭 → 캐릭터 상세 페이지(유지)
  * - 캐릭터 이름 클릭 → 픽 기록 모달
+ * - 공식 역할군 체계에서 2차 궁극기 보유 캐릭터면 아바타 모서리에 "1차/2차" 배지
+ * @param ultimateType — 궁극기 구분(공식 역할군 체계에서만)
+ * @param dual — 2차 궁극기 보유 캐릭터면 true(배지 표시)
+ * @param skillName — 궁극기 스킬명(툴팁용)
  */
 export function TierPickCell({
   characterId,
@@ -33,12 +38,18 @@ export function TierPickCell({
   pickRate,
   winRate,
   gameTypeId,
+  ultimateType,
+  dual,
+  skillName,
 }: {
   characterId: string;
   characterName: string | null;
   pickRate: number;
   winRate: number;
   gameTypeId?: string;
+  ultimateType?: string;
+  dual?: boolean;
+  skillName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<CharacterPicksResult | null>(null);
@@ -86,10 +97,11 @@ export function TierPickCell({
     <div className="flex w-[84px] flex-col items-center gap-1 rounded-md p-1 transition-colors hover:bg-surface-2">
       <Link
         href={`/characters/${characterId}`}
-        title={`${name} 상세 · 픽률 ${pickRate}% · 승률 ${winRate}%`}
-        className="rounded-md ring-primary/50 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2"
+        title={`${name}${skillName ? ` (${skillName})` : ""} 상세 · 픽률 ${pickRate}% · 승률 ${winRate}%`}
+        className="relative rounded-md ring-primary/50 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2"
       >
         <Avatar characterId={characterId} characterName={characterName ?? undefined} size={44} />
+        {dual && ultimateType && <UltimateBadge ultimateType={ultimateType} className="absolute -right-1.5 -top-1.5" />}
       </Link>
       <Link
         href={`/characters/${characterId}`}

@@ -8,6 +8,8 @@ import PodiumCard from "@/components/ranking/PodiumCard";
 import RankAvatar from "@/components/ranking/RankAvatar";
 import { Avatar } from "@/components/CharacterAvatar";
 import RankingCharacterPicker from "@/components/ranking/RankingCharacterPicker";
+import { getCharacterUltimates, getPositionSystem } from "@/lib/official-api";
+import type { CharacterUltimate } from "@/lib/official";
 import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants";
 import { formatNumber, winRate } from "@/lib/format";
 import type { CharacterRankingRow } from "@/lib/types";
@@ -66,6 +68,9 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
   }
 
   const charName = characters.find((c) => c.characterId === characterId)?.characterName ?? undefined;
+  // 공식 역할군 체계면 캐릭터 선택기를 공식 역할군으로 묶는다(실패 시 기존 포지션 그룹)
+  const officialUltimates: CharacterUltimate[] =
+    (await getPositionSystem()) === "official" ? await getCharacterUltimates().catch(() => []) : [];
 
   if (charError) {
     return (
@@ -87,7 +92,11 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
             캐릭터를 선택하면 해당 캐릭터의 지표별 상위 랭커를 보여줍니다.
           </p>
         </div>
-        <RankingCharacterPicker characters={characters} rankingType={rankingType} />
+        <RankingCharacterPicker
+          characters={characters}
+          rankingType={rankingType}
+          officialUltimates={officialUltimates.length ? officialUltimates : undefined}
+        />
       </div>
     );
   }

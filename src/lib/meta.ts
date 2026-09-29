@@ -210,7 +210,15 @@ export const TIER_BASIS_LABEL: Record<TierBasis, string> = {
   pick: "픽률",
 };
 
-function basisValue(r: TieredCharacter, by: TierBasis): number {
+/**
+ * 티어 산정에 필요한 최소 필드 — 캐릭터 단위(CharacterMeta)와 궁극기 단위(UltimateStatRow) 행 모두 만족한다.
+ */
+export type TierInput = Pick<CharacterMeta, "picks" | "wins" | "matchCount" | "pickRate" | "winRate">;
+
+/** 티어가 매겨진 행(원본 필드 + 종합 점수 + 티어) */
+export type Tiered<T extends TierInput> = T & { score: number; tier: Tier };
+
+function basisValue(r: Tiered<TierInput>, by: TierBasis): number {
   if (by === "win") return r.winRate;
   if (by === "pick") return r.pickRate;
   return r.score;
@@ -218,15 +226,16 @@ function basisValue(r: TieredCharacter, by: TierBasis): number {
 
 /**
  * 상대 평가(백분위) 티어. 선택한 기준(by) 내림차순 정렬 후
+ * (캐릭터 단위 CharacterMeta 뿐 아니라 궁극기 단위 UltimateStatRow 에도 쓴다 — 제네릭 T)
  * 상위 10% S / 25% A / 50% B / 80% C / 나머지 D.
  * minSample 미만 표본은 티어 산정에서 제외하고 D로 둡니다(기본 0 = 제외 없음).
  */
-export function withTiers(
-  rows: CharacterMeta[],
+export function withTiers<T extends TierInput = CharacterMeta>(
+  rows: T[],
   by: TierBasis = "score",
   minSample = 0,
-): TieredCharacter[] {
-  const scored: TieredCharacter[] = rows.map((r) => ({ ...r, score: metaScore(r), tier: "D" }));
+): Tiered<T>[] {
+  const scored: Tiered<T>[] = rows.map((r) => ({ ...r, score: metaScore(r), tier: "D" as Tier }));
   const qualified = scored
     .filter((r) => r.picks >= minSample)
     .sort((a, b) => basisValue(b, by) - basisValue(a, by) || b.matchCount - a.matchCount);
@@ -237,11 +246,17 @@ export function withTiers(
   return scored;
 }
 
-export function groupByTier(
-  rows: TieredCharacter[],
+/**
+ * 티어별로 묶고 각 티어 안을 선택 기준 내림차순으로 정렬한다.
+ * @param rows — withTiers 결과(캐릭터 단위·궁극기 단위 모두 가능)
+ * @param by — 정렬 기준(종합/승률/픽률)
+ * @returns 티어 → 행 목록
+ */
+export function groupByTier<T extends TierInput>(
+  rows: Tiered<T>[],
   by: TierBasis = "score",
-): Record<Tier, TieredCharacter[]> {
-  const g: Record<Tier, TieredCharacter[]> = { S: [], A: [], B: [], C: [], D: [] };
+): Record<Tier, Tiered<T>[]> {
+  const g: Record<Tier, Tiered<T>[]> = { S: [], A: [], B: [], C: [], D: [] };
   for (const r of rows) g[r.tier].push(r);
   // 각 티어 내부도 선택한 기준(종합/픽률/승률) 내림차순으로 정렬한다.
   // (티어 순서 S→D + 티어 내부 기준 내림차순 = 전체가 기준값 높은 순으로 나열됨)

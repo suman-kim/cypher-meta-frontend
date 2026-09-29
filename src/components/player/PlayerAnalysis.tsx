@@ -5,12 +5,15 @@ import { Avatar } from "@/components/CharacterAvatar";
 import {
   buildPersona,
   roleLabel,
-  ROLE_COLORS,
+  roleColorOf,
+  toOfficialView,
   type PlayerHistorySummary,
 } from "@/lib/analysis";
+import type { PositionSystem } from "@/lib/official";
 
 const C = 2 * Math.PI * 54; // 도넛 둘레(r=54)
-const roleColor = (r?: string | null): string => ROLE_COLORS[(r as string) ?? "etc"] ?? ROLE_COLORS.etc;
+// 기존 포지션 코드·공식 역할군명 모두 색을 돌려준다
+const roleColor = roleColorOf;
 const fmtYM = (iso?: string | null): string => {
   if (!iso) return "";
   const d = new Date(iso);
@@ -29,8 +32,19 @@ const TYPES: { key: GameType; label: string }[] = [
  * 개인 분석 섹션 — 누적 전적(GET /meta/history/:playerId) 기반.
  * 공식전/일반전 2타입 토글. 일반전은 API가 승패·KDA를 주지 않아 픽·플레이 중심으로 표시.
  * 첫 조회 시 백엔드가 백그라운드로 백필하므로, 비어있으면 몇 초 간격으로 자동 재조회한다.
+ * 포지션 체계가 official 이면 공식 역할군 필드로 같은 화면을 그린다(toOfficialView) — legacy 면 기존 그대로.
+ * @param playerId — 대상 플레이어 ID
+ * @param positionSystem — 포지션 체계(서버 페이지가 전달, 기본 legacy)
  */
-export default function PlayerAnalysis({ playerId }: { playerId: string; nickname?: string | null }) {
+export default function PlayerAnalysis({
+  playerId,
+  positionSystem = "legacy",
+}: {
+  playerId: string;
+  nickname?: string | null;
+  positionSystem?: PositionSystem;
+}) {
+  const official = positionSystem === "official";
   const [gameType, setGameType] = useState<GameType>("rating");
   const [data, setData] = useState<PlayerHistorySummary | null>(null);
   const [status, setStatus] = useState<"loading" | "empty" | "ready" | "error">("loading");
@@ -135,13 +149,22 @@ export default function PlayerAnalysis({ playerId }: { playerId: string; nicknam
         </div>
       )}
 
-      {status === "ready" && data && <AnalysisBody data={data} isNormal={isNormal} />}
+      {status === "ready" && data && (
+        <AnalysisBody data={official ? toOfficialView(data) : data} isNormal={isNormal} official={official} />
+      )}
     </section>
   );
 }
 
-/** 실제 분석 본문 렌더(타입별 분기). */
-function AnalysisBody({ data, isNormal }: { data: PlayerHistorySummary; isNormal: boolean }) {
+/**
+ * 실제 분석 본문 렌더(타입별 분기).
+ * @param data — 화면용 요약(official 이면 toOfficialView 결과)
+ * @param isNormal — 일반전 여부
+ * @param official — 공식 역할군 체계 여부(라벨을 "포지션"→"역할군"으로, 궁극기 판별 진행 안내 표시)
+ */
+function AnalysisBody({ data, isNormal, official }: { data: PlayerHistorySummary; isNormal: boolean; official: boolean }) {
+  const term = official ? "역할군" : "포지션";
+  const pending = official ? (data.coverage.ultimatePending ?? 0) : 0;
   const { persona, summary, keywords } = buildPersona(data, isNormal ? "normal" : "rating");
   const totalGames = data.positions.reduce((s, p) => s + p.games, 0) || 1;
   const top = data.topCharacters[0];
@@ -194,14 +217,14 @@ function AnalysisBody({ data, isNormal }: { data: PlayerHistorySummary; isNormal
         {isNormal ? (
           <>
             <Kpi label="총 경기" value={data.coverage.total.toLocaleString()} sub="일반전 누적" />
-            <Kpi label="주 포지션" value={roleLabel(data.primaryRole)} valueColor={roleColor(data.primaryRole)} sub={`${data.positions[0]?.share ?? 0}%`} />
+            <Kpi label={`주 ${term}`} value={roleLabel(data.primaryRole)} valueColor={roleColor(data.primaryRole)} sub={`${data.positions[0]?.share ?? 0}%`} />
             <Kpi label="평균 플레이시간" value={fmtMin(data.avgPlayTime)} />
             <Kpi label="최다 캐릭터" value={top?.name ?? "-"} sub={top ? `${top.games}판` : undefined} />
           </>
         ) : (
           <>
             <Kpi label="통산 승률" value={`${data.winRate}%`} sub={`${data.wins}승 ${data.losses}패`} />
-            <Kpi label="주 포지션" value={roleLabel(data.primaryRole)} valueColor={roleColor(data.primaryRole)} sub={`${data.positions[0]?.share ?? 0}%`} />
+            <Kpi label={`주 ${term}`} value={roleLabel(data.primaryRole)} valueColor={roleColor(data.primaryRole)} sub={`${data.positions[0]?.share ?? 0}%`} />
             <Kpi label="평균 KDA" value={data.avgKda.toFixed(2)} />
             <div className="card p-3.5">
               <div className="text-[11px] text-gray-500">최근 폼</div>
@@ -227,7 +250,12 @@ function AnalysisBody({ data, isNormal }: { data: PlayerHistorySummary; isNormal
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {/* 포지션 도넛 */}
         <div className="card p-5">
-          <h3 className="mb-3 text-sm font-bold text-gray-100">포지션 성향</h3>
+          <h3 className="mb-3 text-sm font-bold text-gray-100">{term} 성향</h3>
+          {pending > 0 && (
+            <p className="-mt-2 mb-2 text-[11px] text-gray-500">
+              궁극기(1차/2차) 판별 중인 경기 {pending.toLocaleString()}건 — 판별되면 역할군이 확정됩니다.
+            </p>
+          )}
           <div className="flex items-center gap-5">
             <svg width="132" height="132" viewBox="0 0 132 132" className="shrink-0">
               <circle cx="66" cy="66" r="54" fill="none" stroke="rgba(148,163,184,0.18)" strokeWidth="16" />
@@ -245,7 +273,7 @@ function AnalysisBody({ data, isNormal }: { data: PlayerHistorySummary; isNormal
                 />
               ))}
               <text x="66" y="61" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94a3b8">
-                주 포지션
+                주 {term}
               </text>
               <text x="66" y="80" textAnchor="middle" fontSize="14" fontWeight="800" fill={roleColor(data.primaryRole)}>
                 {roleLabel(data.primaryRole)}

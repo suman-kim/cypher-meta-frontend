@@ -20,6 +20,7 @@ import { RankBadge } from "@/components/player/RankBadge";
 import { RefreshStatsButton } from "@/components/player/RefreshStatsButton";
 import TrackOnView from "@/components/player/TrackOnView";
 import PlayerAnalysis from "@/components/player/PlayerAnalysis";
+import { getPositionSystem } from "@/lib/official-api";
 import { EmptyState, ErrorState, LinkTabs, Stat, TierBadge } from "@/components/ui";
 import { readRecord, winRate, calcKDA } from "@/lib/format";
 import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat, buildRecentSummary } from "@/lib/profile";
@@ -80,6 +81,8 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   const gameTypeId = searchParams.gameTypeId; // undefined(전체) | "rating" | "normal"
   const fresh = Boolean(searchParams.refresh); // 전적 갱신 버튼 → 캐시 완전 무시
   const dataMeta: { cachedAt?: string | null } = {}; // 마지막 갱신 시각 캡처
+  // 포지션 체계(official/legacy) — 개인 분석 화면 라벨·역할 값 선택에 사용
+  const positionSystem = await getPositionSystem();
 
   let player: PlayerDetail | undefined;
   let error: NeopleApiError | null = null;
@@ -372,7 +375,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
           </div>
 
           {/* 개인 분석 (누적 전적 기반) */}
-          <PlayerAnalysis playerId={params.playerId} nickname={player.nickname} />
+          <PlayerAnalysis playerId={params.playerId} nickname={player.nickname} positionSystem={positionSystem} />
 
           {/* 게임 타입 탭 — 페이지 전체(스탯·AI 분석·전적)의 기준. AI 분석 위로 배치. */}
           <div className="flex flex-wrap items-center justify-between gap-2">

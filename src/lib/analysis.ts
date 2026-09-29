@@ -2,8 +2,12 @@
  * analysis.ts — 개인 히스토리 요약(GET /meta/history/:playerId) 타입과
  * 규칙 기반 페르소나/요약 문장 생성기. (LLM 없이 결정적)
  * 공식전(rating)은 승률·KDA 포함, 일반전(normal)은 API가 승패/KDA를 주지 않아 픽·플레이 중심.
+ *
+ * 응답에는 기존 포지션(탱커/근딜/원딜/서포터) 필드와 공식 역할군 필드(official*)가 함께 온다.
+ * 공식 역할군 체계에서는 toOfficialView()로 공식 필드를 기존 필드 자리에 옮겨, 같은 화면 구조를 그대로 쓴다(롤백 대비).
  */
 import { ROLE_LABELS } from "./meta";
+import { roleByName, UNKNOWN_ROLE_COLOR } from "./official";
 
 export interface HistoryPosition {
   role: string;
@@ -19,6 +23,10 @@ export interface HistoryTopChar {
   wins: number;
   winRate: number;
   kda: number;
+  /** 1차/2차/판별 미상 판 수 (공식 역할군 체계) */
+  ultimates?: { first: number; second: number; unknown: number };
+  /** 대표 공식 역할군 (공식 역할군 체계, 정할 수 없으면 null) */
+  officialRole?: string | null;
 }
 export interface HistoryYear {
   year: number;
@@ -26,11 +34,27 @@ export interface HistoryYear {
   winRate: number;
   topCharacter: string | null;
   topRole: string | null;
+  /** 그 해 최다 공식 역할군(미확정 제외) */
+  topOfficialRole?: string | null;
+}
+/** 공식 역할군 분포 1행 — officialRole=null 은 미확정 */
+export interface HistoryOfficialPosition {
+  officialRole: string | null;
+  games: number;
+  share: number;
+  winRate: number;
 }
 export interface PlayerHistorySummary {
   playerId: string;
   gameType?: string;
-  coverage: { total: number; oldest: string | null; newest: string | null };
+  coverage: {
+    total: number;
+    oldest: string | null;
+    newest: string | null;
+    /** 궁극기 판별을 마친 판 수 / 백그라운드 대기 판 수 */
+    ultimateChecked?: number;
+    ultimatePending?: number;
+  };
   winRate: number;
   wins: number;
   losses: number;
@@ -39,14 +63,27 @@ export interface PlayerHistorySummary {
   avgPlayTime?: number;
   primaryRole: string | null;
   positions: HistoryPosition[];
+  /** 공식 역할군 체계 필드 (구버전 백엔드에는 없음) */
+  primaryOfficialRole?: string | null;
+  officialPositions?: HistoryOfficialPosition[];
   topCharacters: HistoryTopChar[];
   byYear: HistoryYear[];
   recentForm: string[];
 }
 
-/** 역할 코드 → 한글 라벨(미분류/누락은 "올라운더"). */
+/** 공식 역할군 체계에서 역할군을 확정할 수 없는 판·캐릭터의 표시 이름 */
+export const UNKNOWN_OFFICIAL_ROLE = "미확정";
+
+/**
+ * 역할 → 한글 라벨. 기존 포지션 코드(tank 등)는 한글로 바꾸고, 공식 역할군명·"미확정"은 그대로 둔다.
+ * 그 밖의 값·누락은 "올라운더".
+ * @param r — 포지션 코드 또는 공식 역할군명
+ * @returns 표시 라벨
+ */
 export const roleLabel = (r?: string | null): string =>
-  (r && ROLE_LABELS[r as keyof typeof ROLE_LABELS]) || "올라운더";
+  (r && ROLE_LABELS[r as keyof typeof ROLE_LABELS]) ||
+  (r && (roleByName(r) || r === UNKNOWN_OFFICIAL_ROLE) ? r : "") ||
+  "올라운더";
 
 /** 포지션 도넛/뱃지 역할별 색상. */
 export const ROLE_COLORS: Record<string, string> = {
@@ -56,6 +93,36 @@ export const ROLE_COLORS: Record<string, string> = {
   support: "#10b981",
   etc: "#94a3b8",
 };
+
+/**
+ * 역할 → 표시 색. 기존 포지션 코드면 ROLE_COLORS, 공식 역할군명이면 그 역할군 색, 나머지는 회색.
+ * @param r — 포지션 코드 또는 공식 역할군명
+ * @returns CSS 색
+ */
+export const roleColorOf = (r?: string | null): string =>
+  (r && ROLE_COLORS[r]) || roleByName(r)?.color || (r === UNKNOWN_OFFICIAL_ROLE ? UNKNOWN_ROLE_COLOR : ROLE_COLORS.etc);
+
+/**
+ * 공식 역할군 체계용 보기로 바꾼다 — 공식 필드를 기존 필드(positions/primaryRole/topRole/role) 자리에 옮긴다.
+ * 공식 필드가 없는 응답(구버전 백엔드)은 그대로 돌려준다.
+ * @param d — 개인 분석 요약 원본
+ * @returns 화면용 요약(역할 값이 공식 역할군명 또는 "미확정")
+ */
+export function toOfficialView(d: PlayerHistorySummary): PlayerHistorySummary {
+  if (!d.officialPositions) return d;
+  return {
+    ...d,
+    primaryRole: d.primaryOfficialRole ?? null,
+    positions: d.officialPositions.map((p) => ({
+      role: p.officialRole ?? UNKNOWN_OFFICIAL_ROLE,
+      games: p.games,
+      share: p.share,
+      winRate: p.winRate,
+    })),
+    topCharacters: d.topCharacters.map((c) => ({ ...c, role: c.officialRole ?? UNKNOWN_OFFICIAL_ROLE })),
+    byYear: d.byYear.map((y) => ({ ...y, topRole: y.topOfficialRole ?? null })),
+  };
+}
 
 /** 연도별 topRole 변화 텍스트(공통). */
 function roleTrend(d: PlayerHistorySummary): string {

@@ -16,6 +16,9 @@ import { EmptyState, ErrorState, LinkTabs, Stat } from "@/components/ui";
 import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants";
 import { winRate, kdaColor } from "@/lib/format";
 import type { CharacterRankingRow } from "@/lib/types";
+import CharacterUltimates from "@/components/characters/CharacterUltimates";
+import { getCharacterUltimates, getCharacterUltimateStats, getPositionSystem } from "@/lib/official-api";
+import type { CharacterUltimate, UltimateStatRow } from "@/lib/official";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +61,18 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
       .catch(() => null),
     getCharacterItemMeta(params.characterId).catch(() => null as CharacterItemMeta | null),
   ]);
+
+  // 공식 역할군 체계면 이 캐릭터의 1차/2차 궁극기 정의·통계를 함께 불러온다(실패 시 섹션 생략)
+  let ultimates: CharacterUltimate[] = [];
+  let ultimateStats: UltimateStatRow[] = [];
+  if ((await getPositionSystem()) === "official") {
+    const [u, st] = await Promise.all([
+      getCharacterUltimates().catch(() => [] as CharacterUltimate[]),
+      getCharacterUltimateStats("rating").catch(() => [] as UltimateStatRow[]),
+    ]);
+    ultimates = u.filter((x) => x.characterId === params.characterId);
+    ultimateStats = st.filter((x) => x.characterId === params.characterId);
+  }
 
   let rows: CharacterRankingRow[] = [];
   let error: NeopleApiError | null = null;
@@ -106,6 +121,9 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
       </div>
 
       {/* 능력치 & 스킬 (공식 사이트 기준) */}
+      {/* 궁극기·공식 역할군 (official 체계에서만) */}
+      {ultimates.length > 0 && <CharacterUltimates ultimates={ultimates} stats={ultimateStats} />}
+
       {profile && <CypherProfileView profile={profile} />}
 
       {/* 메타 아이템 빌드 (슬롯별) */}

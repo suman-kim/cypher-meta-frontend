@@ -12,6 +12,7 @@ import {
   isRoleFilter,
   type TierBasis,
   type RoleFilter,
+  type RoleOrEtc,
   type CharacterMeta,
   type MetaSummary,
 } from "@/lib/meta";
@@ -30,6 +31,21 @@ import { StatChip } from "@/components/meta/StatChip";
 import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
+import {
+  getCharacterUltimates,
+  getCharacterUltimateStats,
+  getOfficialTierVotes,
+  getPositionSystem,
+} from "@/lib/official-api";
+import {
+  OFFICIAL_ROLES,
+  isOfficialRoleKey,
+  roleByKey,
+  type CharacterUltimate,
+  type OfficialTierVotesResult,
+  type UltimateStatRow,
+} from "@/lib/official";
+import OfficialTierVoteSection from "@/components/meta/OfficialTierVoteSection";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -46,7 +62,35 @@ const BASIS_TABS: { key: TierBasis; label: string }[] = [
   { key: "pick", label: "픽률" },
 ];
 
-function metaHref(gameType: string, tierBy: TierBasis, role: RoleFilter): string {
+/**
+ * 데이터 티어 한 행 — 캐릭터 단위(CharacterMeta, legacy)와 궁극기 단위(UltimateStatRow, official)의 공통 모양.
+ */
+type TierRow = {
+  characterId: string;
+  characterName: string | null;
+  picks: number;
+  wins: number;
+  matchCount: number;
+  pickRate: number;
+  winRate: number;
+  kda: number;
+  /** legacy 포지션 코드 */
+  role?: string;
+  /** official: 궁극기 구분·스킬명·공식 역할군·2차 보유 여부 */
+  ultimateType?: string;
+  skillName?: string;
+  officialRole?: string;
+  dual?: boolean;
+};
+
+/**
+ * 데이터 티어 탭 링크 생성.
+ * @param gameType — 게임 타입
+ * @param tierBy — 티어 기준
+ * @param role — 역할 필터(legacy: tank 등 / official: 공식 역할군 영문 키 / "all")
+ * @returns /meta 쿼리 URL
+ */
+function metaHref(gameType: string, tierBy: TierBasis, role: string): string {
   const p: string[] = [];
   if (gameType) p.push(`gameType=${gameType}`);
   if (tierBy !== "score") p.push(`tierBy=${tierBy}`);
@@ -74,7 +118,25 @@ interface Props {
 export default async function MetaPage({ searchParams }: Props) {
   const tab = searchParams.tab === "vote" ? "vote" : "data";
 
-  /* ───────── 커뮤니티 투표 탭 ───────── */
+  /* ───────── 커뮤니티 투표 탭 — 공식 역할군 체계 ───────── */
+  if (tab === "vote" && (await getPositionSystem()) === "official") {
+    const [ultimates, votes] = await Promise.all([
+      getCharacterUltimates().catch(() => [] as CharacterUltimate[]),
+      getOfficialTierVotes().catch(() => null as OfficialTierVotesResult | null),
+    ]);
+    // 궁극기 정의를 못 받으면 아래 기존(legacy) 투표 화면으로 폴백
+    if (ultimates.length > 0) {
+      return (
+        <div className="space-y-5">
+          {renderHeader("vote")}
+          <MetaViewTabs base="/meta" active="vote" dataLabel="데이터 티어" />
+          <OfficialTierVoteSection ultimates={ultimates} votes={votes} />
+        </div>
+      );
+    }
+  }
+
+  /* ───────── 커뮤니티 투표 탭 (legacy) ───────── */
   if (tab === "vote") {
     let roster: RosterEntry[] = [];
     let tierVotes: TierVotesResult | null = null;
@@ -160,8 +222,6 @@ export default async function MetaPage({ searchParams }: Props) {
   const tierBy: TierBasis = BASIS_TABS.some((b) => b.key === searchParams.tierBy)
     ? (searchParams.tierBy as TierBasis)
     : "score";
-  const role: RoleFilter = isRoleFilter(searchParams.role) ? searchParams.role : "all";
-  const roleLabel = (r: RoleFilter) => (r === "all" ? "전체" : ROLE_LABELS[r]);
 
   let rows: CharacterMeta[] = [];
   let summary: MetaSummary | null = null;
@@ -171,6 +231,26 @@ export default async function MetaPage({ searchParams }: Props) {
   } catch {
     failed = true;
   }
+
+  // 포지션 체계 — official 이면 (캐릭터, 1차/2차) 단위 행과 공식 역할군 탭을 쓴다.
+  // 궁극기 통계를 못 받으면 기존(legacy) 화면으로 폴백한다.
+  let official = (await getPositionSystem()) === "official";
+  let ultRows: UltimateStatRow[] = [];
+  if (official && !failed) {
+    try {
+      ultRows = await getCharacterUltimateStats(gameType || undefined);
+    } catch {
+      official = false;
+    }
+  }
+  const legacyRole: RoleFilter = !official && isRoleFilter(searchParams.role) ? searchParams.role : "all";
+  const officialRole = official && isOfficialRoleKey(searchParams.role) ? searchParams.role : "all";
+  const role: string = official ? officialRole : legacyRole;
+  const roleTabs: { key: string; label: string }[] = official
+    ? [{ key: "all", label: "전체" }, ...OFFICIAL_ROLES.map((r) => ({ key: r.key, label: r.name }))]
+    : ROLE_TABS;
+  const roleLabel = (r: string) =>
+    r === "all" ? "전체" : official ? (roleByKey(r)?.name ?? r) : ROLE_LABELS[r as RoleOrEtc];
 
   if (failed) {
     return (
@@ -185,8 +265,14 @@ export default async function MetaPage({ searchParams }: Props) {
     );
   }
 
-  const tieredAll = withTiers(rows, tierBy);
-  const tiered = role === "all" ? tieredAll : tieredAll.filter((r) => r.role === role);
+  // 티어 행 — legacy 는 캐릭터 85행, official 은 (캐릭터, 1차/2차) 139행. 티어는 필터 전 전체 기준으로 매긴다.
+  const baseRows: TierRow[] = official ? ultRows : rows;
+  const tieredAll = withTiers(baseRows, tierBy);
+  const officialName = official && role !== "all" ? roleByKey(role)?.name : undefined;
+  const tiered =
+    role === "all"
+      ? tieredAll
+      : tieredAll.filter((r) => (official ? r.officialRole === officialName : r.role === role));
   const grouped = groupByTier(tiered, tierBy);
   const activeTiers = TIER_ORDER.filter((t) => grouped[t].length > 0);
 
@@ -269,7 +355,7 @@ export default async function MetaPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {rows.length === 0 ? (
+      {baseRows.length === 0 ? (
         <EmptyState
           title="아직 수집된 데이터가 없습니다"
           description="백엔드에서 수집을 먼저 실행하세요 → POST /api/meta/collect?rankers=20&perPlayer=10"
@@ -278,9 +364,9 @@ export default async function MetaPage({ searchParams }: Props) {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">역할</span>
+            <span className="text-xs font-medium text-gray-500">{official ? "공식 역할군" : "역할"}</span>
             <div className="inline-flex flex-wrap gap-1 rounded-lg border border-line bg-surface-2 p-1">
-              {ROLE_TABS.map((t) => (
+              {roleTabs.map((t) => (
                 <Link
                   key={t.key}
                   href={metaHref(gameType, tierBy, t.key)}
@@ -330,12 +416,15 @@ export default async function MetaPage({ searchParams }: Props) {
                     <div className="flex flex-1 flex-wrap gap-2">
                       {grouped[t].map((c) => (
                         <TierPickCell
-                          key={c.characterId}
+                          key={c.ultimateType ? `${c.characterId}:${c.ultimateType}` : c.characterId}
                           characterId={c.characterId}
                           characterName={c.characterName ?? null}
                           pickRate={c.pickRate}
                           winRate={c.winRate}
                           gameTypeId={gameType || undefined}
+                          ultimateType={c.ultimateType}
+                          dual={c.dual}
+                          skillName={c.skillName}
                         />
                       ))}
                     </div>

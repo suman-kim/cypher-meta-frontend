@@ -5,11 +5,14 @@ import { Avatar } from "@/components/CharacterAvatar";
 import ItemIcon from "@/components/ItemIcon";
 import { orderSlots, ROLE_LABELS, type CharacterItemMeta, type RoleOrEtc } from "@/lib/meta";
 import { rarityMeta } from "@/lib/constants";
+import { OFFICIAL_ROLES, roleByName, UNKNOWN_ROLE_COLOR } from "@/lib/official";
 
 export interface CharItem {
   characterId: string;
   characterName: string | null;
   role: RoleOrEtc;
+  /** 공식 역할군 한글명(1차·2차, 중복 제거) — official 체계에서 필터·칩에 사용 */
+  officialRoles?: string[];
   pickRate: number;
   winRate: number;
   matchCount: number;
@@ -23,20 +26,32 @@ const ROLE_FILTERS: { key: "all" | RoleOrEtc; label: string; color?: string }[] 
   { key: "support", label: "서포터", color: "#a15bf0" },
 ];
 
+/**
+ * 캐릭터별 아이템 빌드 탐색기.
+ * @param characters — 캐릭터 목록(픽률순)
+ * @param initial — 첫 캐릭터의 아이템 통계(서버에서 미리 조회)
+ * @param official — 공식 역할군 체계면 true → 역할 필터·칩을 공식 역할군으로(2차 캐릭터는 두 역할군 모두에 걸림)
+ */
 export default function ItemExplorer({
   characters,
   initial,
+  official = false,
 }: {
   characters: CharItem[];
   initial: { characterId: string; data: CharacterItemMeta } | null;
+  official?: boolean;
 }) {
+  // 역할 필터 목록 — official: 전체 + 공식 역할군 7종(키=한글명) / legacy: 기존 4종
+  const roleFilters: { key: string; label: string; color?: string }[] = official
+    ? [{ key: "all", label: "전체" }, ...OFFICIAL_ROLES.map((r) => ({ key: r.name, label: r.name, color: r.color }))]
+    : ROLE_FILTERS;
   const [selected, setSelected] = useState(initial?.characterId ?? characters[0]?.characterId ?? "");
   const [cache, setCache] = useState<Record<string, CharacterItemMeta>>(
     initial ? { [initial.characterId]: initial.data } : {},
   );
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
-  const [role, setRole] = useState<"all" | RoleOrEtc>("all");
+  const [role, setRole] = useState<string>("all");
   const [pickerOpen, setPickerOpen] = useState(true); // 모바일/태블릿 캐릭터 선택 섹션 접기/펼치기
 
   useEffect(() => {
@@ -60,9 +75,11 @@ export default function ItemExplorer({
   const filtered = useMemo(
     () =>
       characters.filter(
-        (c) => (role === "all" || c.role === role) && (!q || (c.characterName ?? "").includes(q.trim())),
+        (c) =>
+          (role === "all" || (official ? (c.officialRoles ?? []).includes(role) : c.role === role)) &&
+          (!q || (c.characterName ?? "").includes(q.trim())),
       ),
-    [characters, q, role],
+    [characters, q, role, official],
   );
 
   const current = cache[selected];
@@ -113,7 +130,7 @@ export default function ItemExplorer({
               />
             </div>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {ROLE_FILTERS.map((r) => {
+              {roleFilters.map((r) => {
                 const active = role === r.key;
                 return (
                   <button
@@ -191,9 +208,19 @@ export default function ItemExplorer({
                   <h2 className="text-xl font-black text-gray-50">
                     {selectedChar.characterName ?? selectedChar.characterId}
                   </h2>
-                  {selectedChar.role !== "etc" && (
-                    <span className="chip bg-surface-3 text-gray-300">{ROLE_LABELS[selectedChar.role]}</span>
-                  )}
+                  {official
+                    ? (selectedChar.officialRoles ?? []).map((name) => (
+                        <span key={name} className="chip inline-flex items-center gap-1 bg-surface-3 text-gray-300">
+                          <span
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ backgroundColor: roleByName(name)?.color ?? UNKNOWN_ROLE_COLOR }}
+                          />
+                          {name}
+                        </span>
+                      ))
+                    : selectedChar.role !== "etc" && (
+                        <span className="chip bg-surface-3 text-gray-300">{ROLE_LABELS[selectedChar.role]}</span>
+                      )}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                   <span>

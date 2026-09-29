@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { UltimateBadge } from "@/components/characters/UltimateBadge";
+import { getCharacterUltimateStats, getPositionSystem } from "@/lib/official-api";
+import { OFFICIAL_ROLES, type UltimateStatRow } from "@/lib/official";
 import type { Metadata } from "next";
 import SearchBar from "@/components/SearchBar";
 import { getRatingRanking } from "@/lib/neople";
@@ -39,6 +42,23 @@ export const metadata: Metadata = {
 };
 
 const RANK_COLORS = ["#e3b23c", "#9aa7b4", "#b06b3f"];
+
+/** 홈 "역할별 TOP3" 카드 1개 — 기존 포지션·공식 역할군 공용 모양 */
+interface RoleTopCard {
+  key: string;
+  label: string;
+  color: string;
+  /** 기존 포지션이면 아이콘 표시(공식 역할군은 색 점) */
+  legacyIcon: boolean;
+  list: {
+    characterId: string;
+    characterName: string | null;
+    pickRate: number;
+    winRate: number;
+    ultimateType?: string;
+    dual?: boolean;
+  }[];
+}
 
 const ROLE_META = [
   { key: "tank", label: "탱커", color: "#5b8def" },
@@ -168,13 +188,29 @@ export default async function HomePage() {
     ]);
   } catch {}
 
-  const roleTop: Record<string, CharacterMeta[]> = {};
-  for (const rm of ROLE_META) {
-    roleTop[rm.key] = charMeta
-      .filter((c) => c.role === rm.key)
-      .sort((a, b) => b.pickRate - a.pickRate || b.winRate - a.winRate)
-      .slice(0, 3);
+  // 역할별 TOP3 — official 이면 공식 역할군 7종 × (캐릭터, 1차/2차) 단위, 아니면 기존 포지션 4종
+  const byPick = <T extends { pickRate: number; winRate: number }>(a: T, b: T) =>
+    b.pickRate - a.pickRate || b.winRate - a.winRate;
+  let roleCards: RoleTopCard[] = ROLE_META.map((rm) => ({
+    key: rm.key,
+    label: rm.label,
+    color: rm.color,
+    legacyIcon: true,
+    list: charMeta.filter((c) => c.role === rm.key).sort(byPick).slice(0, 3),
+  }));
+  if ((await getPositionSystem()) === "official") {
+    const ult = await getCharacterUltimateStats("rating").catch(() => [] as UltimateStatRow[]);
+    if (ult.length > 0) {
+      roleCards = OFFICIAL_ROLES.map((r) => ({
+        key: r.key,
+        label: r.name,
+        color: r.color,
+        legacyIcon: false,
+        list: ult.filter((u) => u.officialRole === r.name).sort(byPick).slice(0, 3),
+      }));
+    }
   }
+  const officialCards = !roleCards[0]?.legacyIcon;
   const compTrend = comps?.byFrequency ?? [];
   const hasMeta = charMeta.length > 0;
 
@@ -286,13 +322,18 @@ export default async function HomePage() {
 
       {/* 포지션별 캐릭터 TOP3 */}
       <section>
-        <SectionHeader icon="🧭" title="포지션별 캐릭터 TOP3" href="/meta" cta="캐릭터 티어" />
+        <SectionHeader
+          icon="🧭"
+          title={officialCards ? "역할군별 캐릭터 TOP3" : "포지션별 캐릭터 TOP3"}
+          href="/meta"
+          cta="캐릭터 티어"
+        />
         {!hasMeta ? (
           <div className="card p-8 text-center text-sm text-gray-500">수집된 메타 데이터가 아직 없습니다.</div>
         ) : (
           <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-            {ROLE_META.map((rm) => {
-              const list = roleTop[rm.key] ?? [];
+            {roleCards.map((rm) => {
+              const list = rm.list;
               return (
                 <div
                   key={rm.key}
@@ -300,7 +341,11 @@ export default async function HomePage() {
                 >
                   <div className="relative flex items-center gap-2 border-b border-line px-4 py-3">
                     <span className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: rm.color }} />
-                    <RoleIcon role={rm.key} color={rm.color} />
+                    {rm.legacyIcon ? (
+                      <RoleIcon role={rm.key} color={rm.color} />
+                    ) : (
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: rm.color }} />
+                    )}
                     <span className="text-sm font-bold text-gray-100">{rm.label}</span>
                   </div>
                   {list.length === 0 ? (
@@ -309,7 +354,7 @@ export default async function HomePage() {
                     <div className="divide-y divide-line">
                       {list.map((c, i) => (
                         <Link
-                          key={c.characterId}
+                          key={c.ultimateType ? `${c.characterId}:${c.ultimateType}` : c.characterId}
                           href={`/characters/${c.characterId}`}
                           className="flex items-center gap-2.5 p-2.5 transition-colors hover:bg-surface-2"
                         >
@@ -326,8 +371,9 @@ export default async function HomePage() {
                             zoom={1}
                           />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold text-gray-100">
-                              {c.characterName ?? c.characterId}
+                            <div className="flex items-center gap-1 truncate text-sm font-semibold text-gray-100">
+                              <span className="truncate">{c.characterName ?? c.characterId}</span>
+                              {c.dual && c.ultimateType && <UltimateBadge ultimateType={c.ultimateType} />}
                             </div>
                             <div className="text-[11px] text-gray-500">
                               픽 {c.pickRate}% · 승 {c.winRate}%

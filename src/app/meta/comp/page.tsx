@@ -19,6 +19,25 @@ import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import CompositionSection from "@/components/meta/CompositionSection";
 import { StatChip } from "@/components/meta/StatChip";
 import CompVote from "@/components/meta/CompVote";
+import { UltimateBadge } from "@/components/characters/UltimateBadge";
+import OfficialCompositionSection, { type OfficialCompBasis } from "@/components/meta/OfficialCompositionSection";
+import OfficialCompVote from "@/components/meta/OfficialCompVote";
+import {
+  getCharacterUltimates,
+  getOfficialCompVotes,
+  getOfficialFormations,
+  getPositionSystem,
+  getUltimateCompositions,
+} from "@/lib/official-api";
+import {
+  dualCharacterIds,
+  isOfficialRoleKey,
+  unitKey,
+  type CharacterUltimate,
+  type OfficialCompVotesResult,
+  type OfficialFormation,
+  type UltimateCompositionsResult,
+} from "@/lib/official";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -42,11 +61,91 @@ function renderHeader(tab: "data" | "vote") {
 }
 
 interface Props {
-  searchParams: { tab?: string };
+  /** tab=vote|data, 공식 역할군 체계에서는 size(2|3)·roles(역할군 키 쉼표 목록)·basis(freq|win|both) */
+  searchParams: { tab?: string; size?: string; roles?: string; basis?: string };
 }
 
+/**
+ * 조합 티어 페이지.
+ * 포지션 체계가 official 이면 궁극기 단위 듀오/트리오 + 공식 역할군 필터·편성 투표를,
+ * 아니면(legacy·조회 실패) 기존 역할 카테고리 조합·편성 투표를 보여 준다. 5인 풀팀 집계는 두 체계 공통.
+ */
 export default async function CompMetaPage({ searchParams }: Props) {
   const tab = searchParams.tab === "vote" ? "vote" : "data";
+  const official = (await getPositionSystem()) === "official";
+
+  /* ───────── 커뮤니티 투표 탭 — 공식 역할군 체계 ───────── */
+  if (tab === "vote" && official) {
+    const [ultimates, formations, votes] = await Promise.all([
+      getCharacterUltimates().catch(() => [] as CharacterUltimate[]),
+      getOfficialFormations().catch(() => [] as OfficialFormation[]),
+      getOfficialCompVotes().catch(() => null as OfficialCompVotesResult | null),
+    ]);
+    if (ultimates.length > 0 && formations.length > 0) {
+      const byUnit = new Map(ultimates.map((u) => [unitKey(u.characterId, u.ultimateType), u]));
+      const dual = dualCharacterIds(ultimates);
+      const fmap = new Map(formations.map((f) => [f.key, f]));
+      return (
+        <div className="space-y-5">
+          {renderHeader("vote")}
+          <MetaViewTabs base="/meta/comp" active="vote" dataLabel="데이터 조합" />
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-100">커뮤니티 추천 조합 투표</h2>
+              <span className="text-xs text-gray-500">
+                공식 역할군 편성 선택 후 5인 구성{" "}
+                {votes ? `· 총 ${votes.totalBallots.toLocaleString()}표 · ${votes.distinctCombos.toLocaleString()}종` : ""}
+              </span>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* 결과: 득표순 조합 */}
+              <div className="space-y-2">
+                {votes && votes.top.length > 0 ? (
+                  votes.top.map((c, i) => (
+                    <div key={c.units.join("-")} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-2.5">
+                      <span
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm font-black ${
+                          i === 0 ? "bg-primary text-white" : i === 1 ? "bg-surface-3 text-gray-100" : i === 2 ? "bg-[#c07b3f] text-white" : "bg-surface-2 text-gray-400"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                      <div className="flex flex-1 flex-wrap items-center gap-1.5">
+                        {c.units.map((unit, j) => {
+                          const u = byUnit.get(unit);
+                          const [cid, ult] = unit.split(":");
+                          return (
+                            <span key={`${unit}-${j}`} className="flex flex-col items-center gap-0.5" title={u ? `${u.characterName} · ${u.skillName}` : undefined}>
+                              <span className="relative">
+                                <Avatar characterId={cid} characterName={u?.characterName} size={32} zoom={1} />
+                                {dual.has(cid) && <UltimateBadge ultimateType={ult} className="absolute -right-1.5 -top-1.5" />}
+                              </span>
+                              <span className="w-10 truncate text-center text-[9px] leading-tight text-gray-500">{u?.characterName ?? ""}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-bold text-primary">{c.votes}표</div>
+                        {fmap.get(c.formationKey) && <div className="text-[10px] text-gray-500">{fmap.get(c.formationKey)!.label}</div>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-sm text-gray-500">
+                    아직 투표된 조합이 없습니다. 첫 조합을 등록해 보세요!
+                  </div>
+                )}
+              </div>
+              {/* 투표 폼 */}
+              <OfficialCompVote ultimates={ultimates} formations={formations} />
+            </div>
+            <p className="text-[11px] text-gray-500">역할군은 사이퍼즈 공식 역할군(궁극기별)입니다.</p>
+          </section>
+        </div>
+      );
+    }
+  }
 
   /* ───────── 커뮤니티 투표 탭 ───────── */
   if (tab === "vote") {
@@ -145,10 +244,23 @@ export default async function CompMetaPage({ searchParams }: Props) {
   } catch {
     comps = null;
   }
-  try {
-    roleComps = await getRoleCompositions({ gameTypeId: "rating", limit: 8, minGames: 3 });
-  } catch {
-    roleComps = null;
+  // 공식 역할군 체계 — 궁극기 단위 듀오/트리오(필터·기준은 URL 쿼리). 실패하면 기존 역할 카테고리로 폴백.
+  const size: 2 | 3 = searchParams.size === "3" ? 3 : 2;
+  const roleKeys = (searchParams.roles ?? "").split(",").filter((k) => isOfficialRoleKey(k));
+  const basis: OfficialCompBasis =
+    searchParams.basis === "win" || searchParams.basis === "both" ? searchParams.basis : "freq";
+  let ultComps: UltimateCompositionsResult | null = null;
+  if (official) {
+    ultComps = await getUltimateCompositions({ gameTypeId: "rating", size, roles: roleKeys, limit: 10, minGames: 3 }).catch(
+      () => null,
+    );
+  }
+  if (!ultComps) {
+    try {
+      roleComps = await getRoleCompositions({ gameTypeId: "rating", limit: 8, minGames: 3 });
+    } catch {
+      roleComps = null;
+    }
   }
   try {
     summary = await getMetaSummary();
@@ -208,8 +320,12 @@ export default async function CompMetaPage({ searchParams }: Props) {
         </div>
       )}
 
+      {/* 공식 역할군 듀오/트리오 (official 체계) */}
+      {ultComps && <OfficialCompositionSection data={ultComps} roles={roleKeys} basis={basis} />}
+
       {comps && comps.totalTeams > 0 ? (
-        <CompositionSection data={comps} roleData={roleComps} />
+        // official 체계에서는 역할 카테고리(roleData) 없이 5인 풀팀만 보여 준다
+        <CompositionSection data={comps} roleData={ultComps ? null : roleComps} />
       ) : (
         <div className="card grid place-items-center p-8 text-center text-sm text-gray-500">
           아직 조합 집계 데이터가 없습니다. 수집이 진행되면 표시됩니다.

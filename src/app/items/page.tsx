@@ -5,6 +5,8 @@ import {
 } from "@/lib/meta";
 import ItemExplorer, { type CharItem } from "@/components/items/ItemExplorer";
 import { EmptyState } from "@/components/ui";
+import { getCharacterUltimates, getPositionSystem } from "@/lib/official-api";
+import type { CharacterUltimate } from "@/lib/official";
 
 export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
 export const metadata = {
@@ -14,7 +16,19 @@ export const metadata = {
   alternates: { canonical: "/items" },
 };
 
+/**
+ * 아이템 빌드 페이지. 포지션 체계가 official 이면 역할 필터를 공식 역할군으로 바꾼다
+ * (아이템 통계 자체는 캐릭터 단위 그대로).
+ */
 export default async function ItemsPage() {
+  // 공식 역할군 체계면 캐릭터별 공식 역할군(1차·2차) 목록을 붙인다 — 실패하면 기존 필터로 폴백
+  let ultimates: CharacterUltimate[] = [];
+  if ((await getPositionSystem()) === "official") {
+    ultimates = await getCharacterUltimates().catch(() => [] as CharacterUltimate[]);
+  }
+  const official = ultimates.length > 0;
+  const rolesOf = (id: string) => [...new Set(ultimates.filter((u) => u.characterId === id).map((u) => u.officialRole))];
+
   let chars: CharItem[] = [];
   try {
     const meta = await getCharacterMeta("rating");
@@ -23,6 +37,7 @@ export default async function ItemsPage() {
         characterId: c.characterId,
         characterName: c.characterName,
         role: c.role,
+        officialRoles: official ? rolesOf(c.characterId) : undefined,
         pickRate: c.pickRate,
         winRate: c.winRate,
         matchCount: c.matchCount,
@@ -52,7 +67,7 @@ export default async function ItemsPage() {
           icon="🎒"
         />
       ) : (
-        <ItemExplorer characters={chars} initial={initial} />
+        <ItemExplorer characters={chars} initial={initial} official={official} />
       )}
     </div>
   );
