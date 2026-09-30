@@ -126,8 +126,9 @@ export default function PlayerAnalysis({
         <span className="chip bg-primary/10 text-[11px] font-semibold text-primary">
           {gameType === "all" ? "전체" : gameType === "rating" ? "공식전" : "일반전"}
         </span>
+        {/* 표본 경기·기간 — 모바일은 버튼 아래 둘째 줄(전체 폭)로 내려 접기 버튼이 밀리지 않게, sm 이상은 한 줄 */}
         {!hidden && status === "ready" && data && (
-          <span className="text-[11px] text-gray-500">
+          <span className="order-last w-full text-[11px] text-gray-500 sm:order-none sm:w-auto">
             표본 {data.coverage.total.toLocaleString()}경기
             {data.coverage.oldest && <> · {fmtYM(data.coverage.oldest)}~{fmtYM(data.coverage.newest)}</>}
           </span>

@@ -405,9 +405,11 @@ export default async function PlayerPage({ params, searchParams }: Props) {
 
           {/* 매치 리스트 */}
           <div className="space-y-3">
-            <h2 className="text-lg font-bold text-gray-100">
-              최근 전적 <span className="text-sm font-normal text-gray-500">· {basisLabel}</span>
-            </h2>
+            {/* 제목 줄 — 개인 분석·AI 전적 분석과 같은 형태(기준 탭은 파란 칩) */}
+            <div className="flex flex-wrap items-center gap-2 px-1">
+              <h2 className="text-lg font-bold text-gray-100">최근 전적</h2>
+              <span className="chip bg-primary/10 text-[11px] font-semibold text-primary">{basisLabel}</span>
+            </div>
 
             {displayMatches.length === 0 ? (
               <EmptyState

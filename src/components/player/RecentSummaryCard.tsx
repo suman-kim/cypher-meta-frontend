@@ -11,8 +11,11 @@ const TONE: Record<string, string | undefined> = {
 
 /**
  * 현재 탭 기준 최근 전적 AI 분석(서술 + 지표 타일).
- * 모바일/태블릿(lg 미만)에서는 헤더를 눌러 열고 닫을 수 있으며 기본은 열림.
- * 데스크톱(lg 이상)에서는 토글 없이 항상 펼쳐진다.
+ * 제목 줄은 개인 분석·최근 전적과 같이 카드 바깥에 둔다(제목 + 칩 + 접기 버튼).
+ * 모바일/태블릿(lg 미만)에서는 접기/펼치기 버튼으로 열고 닫을 수 있으며 기본은 열림.
+ * 데스크톱(lg 이상)에서는 버튼 없이 항상 펼쳐진다.
+ * @param summary — 최근 전적 요약(서술·지표 타일·표본 수)
+ * @param basisLabel — 현재 기준 탭 라벨(전체/공식전/일반전)
  */
 export default function RecentSummaryCard({
   summary,
@@ -25,40 +28,51 @@ export default function RecentSummaryCard({
   if (summary.sample === 0) return null;
 
   return (
-    <section className="relative overflow-hidden rounded-xl border border-line bg-surface p-4 sm:p-5">
-      {/* AI 느낌의 상단 그라데이션 악센트 */}
-      <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary via-primary/40 to-transparent" />
-      <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
-
-      <div className="relative">
-        {/* 헤더 — 모바일/태블릿: 열기·닫기 토글 / 데스크톱(lg): 클릭 비활성(항상 펼침) */}
+    <section className="space-y-3">
+      {/* 제목 줄 — 개인 분석과 같은 형태(카드 바깥) */}
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <h2 className="text-lg font-bold text-gray-100">AI 전적 분석</h2>
+        <span className="chip bg-surface-2 text-[11px] text-gray-500">최근 {summary.sample}판 분석</span>
+        {basisLabel && (
+          <span className="chip bg-primary/10 text-[11px] font-semibold text-primary">{basisLabel}</span>
+        )}
+        {/* 접기/펼치기 — 모바일/태블릿 전용(데스크톱은 항상 펼침) */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls="ai-summary-body"
-          className="flex w-full items-center gap-2 text-left lg:pointer-events-none"
+          className="ml-auto inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-xs font-semibold text-gray-400 transition-colors hover:text-gray-100 lg:hidden"
         >
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-            ✨
-          </span>
-          <h2 className="text-base font-bold text-gray-100">AI 전적 분석</h2>
-          <span className="chip hidden bg-surface-2 text-[11px] text-gray-500 sm:inline">
-            {basisLabel ? `${basisLabel} · ` : ""}최근 {summary.sample}판 분석
-          </span>
-          {/* 토글 셰브론 — 모바일/태블릿 전용 */}
-          <span
-            className={`ml-auto text-gray-500 transition-transform lg:hidden ${open ? "rotate-180" : ""}`}
-            aria-hidden="true"
+          {open ? "접기" : "펼치기"}
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden
           >
-            ▾
-          </span>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
         </button>
+      </div>
 
-        {/* 본문 — 모바일: open 시에만 / 데스크톱(lg): 항상 표시 */}
-        <div id="ai-summary-body" className={`${open ? "block" : "hidden"} lg:block`}>
+      <div
+        id="ai-summary-body"
+        className={`relative overflow-hidden rounded-xl border border-line bg-surface p-4 sm:p-5 ${open ? "block" : "hidden"} lg:block`}
+      >
+        {/* AI 느낌의 상단 그라데이션 악센트 */}
+        <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary via-primary/40 to-transparent" />
+        <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
+
+        <div className="relative">
           {/* 서술 분석 */}
-          <div className="mt-3 space-y-2">
+          <div className="space-y-2">
             {summary.analysis.map((para, i) => (
               <p key={i} className="text-sm leading-relaxed text-gray-300">
                 {para}
