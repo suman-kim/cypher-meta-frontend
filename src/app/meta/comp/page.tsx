@@ -236,37 +236,25 @@ export default async function CompMetaPage({ searchParams }: Props) {
   }
 
   /* ───────── 데이터 조합 탭 (기본) ───────── */
-  let comps: CompositionsResult | null = null;
-  let roleComps: RoleCompositionsResult | null = null;
-  let summary: MetaSummary | null = null;
-  try {
-    comps = await getCompositions({ gameTypeId: "rating", limit: 6, minGames: 3 });
-  } catch {
-    comps = null;
-  }
   // 공식 역할군 체계 — 궁극기 단위 듀오/트리오(필터·기준은 URL 쿼리). 실패하면 기존 역할 카테고리로 폴백.
   const size: 2 | 3 = searchParams.size === "3" ? 3 : 2;
   const roleKeys = (searchParams.roles ?? "").split(",").filter((k) => isOfficialRoleKey(k));
   const basis: OfficialCompBasis =
     searchParams.basis === "win" || searchParams.basis === "both" ? searchParams.basis : "freq";
-  let ultComps: UltimateCompositionsResult | null = null;
-  if (official) {
-    ultComps = await getUltimateCompositions({ gameTypeId: "rating", size, roles: roleKeys, limit: 10, minGames: 3 }).catch(
-      () => null,
-    );
-  }
-  if (!ultComps) {
-    try {
-      roleComps = await getRoleCompositions({ gameTypeId: "rating", limit: 8, minGames: 3 });
-    } catch {
-      roleComps = null;
-    }
-  }
-  try {
-    summary = await getMetaSummary();
-  } catch {
-    summary = null;
-  }
+  // 서로 독립인 조회는 동시에 보낸다(차례로 기다리면 응답 시간이 합쳐진다). 각각 실패하면 null.
+  const [comps, ultComps, summary] = await Promise.all([
+    getCompositions({ gameTypeId: "rating", limit: 6, minGames: 3 }).catch(() => null as CompositionsResult | null),
+    official
+      ? getUltimateCompositions({ gameTypeId: "rating", size, roles: roleKeys, limit: 10, minGames: 3 }).catch(
+          () => null as UltimateCompositionsResult | null,
+        )
+      : Promise.resolve(null as UltimateCompositionsResult | null),
+    getMetaSummary().catch(() => null as MetaSummary | null),
+  ]);
+  // 궁극기 조합을 못 받았을 때만 기존 역할 카테고리 조합으로 폴백
+  const roleComps: RoleCompositionsResult | null = ultComps
+    ? null
+    : await getRoleCompositions({ gameTypeId: "rating", limit: 8, minGames: 3 }).catch(() => null);
 
   return (
     <div className="space-y-5">
