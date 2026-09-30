@@ -52,10 +52,6 @@ export default function OfficialCharacterRoster({ ultimates }: { ultimates: Char
         <span className="shrink-0 text-xs text-gray-500">{total}종</span>
       </div>
 
-      <p className="text-xs text-gray-500">
-        공식 역할군 기준입니다. 2차 궁극기가 있는 캐릭터는 궁극기에 따라 역할군이 달라 두 곳에 나올 수 있어요.
-      </p>
-
       {total === 0 ? (
         <p className="py-10 text-center text-sm text-gray-500">검색 결과가 없습니다.</p>
       ) : (
