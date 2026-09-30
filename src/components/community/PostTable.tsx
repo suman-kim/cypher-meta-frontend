@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { categoryLabel, type CommunityPost } from "@/lib/community";
+import { parseKstParts } from "@/lib/format";
 
 function formatViews(n: number): string {
   return n >= 10000 ? `${Math.round(n / 1000)}k` : n.toLocaleString("ko-KR");
@@ -14,8 +15,9 @@ function timeAgo(iso: string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
   if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}일 전`;
-  const d = new Date(t);
-  return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  // 서버 타임존(운영=UTC)이 아닌 한국 날짜로 표기
+  const p = parseKstParts(iso);
+  return p ? `${String(p.month).padStart(2, "0")}.${String(p.day).padStart(2, "0")}` : "";
 }
 
 /** 제목 2줄 말줄임(line-clamp 플러그인 없이 인라인 스타일로) */

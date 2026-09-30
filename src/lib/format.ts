@@ -60,9 +60,38 @@ interface KstParts {
   second: number;
 }
 
-/** "YYYY-MM-DD HH:MM(:SS)" (또는 T 구분) 를 성분 그대로 파싱. 타임존 변환 없음. */
+/** 문자열 끝의 타임존 표기("Z" 또는 "+09:00"/"-0500" 등) */
+const TZ_SUFFIX = /(Z|[+-]\d{2}:?\d{2})$/i;
+
+/** KST 벽시계 성분을 뽑는 포맷터(서버 타임존과 무관) */
+const KST_PARTS_FMT = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+  hourCycle: "h23",
+});
+
+/**
+ * 날짜 문자열 → KST 벽시계 성분.
+ *  - 타임존 표기가 있는 문자열(우리 백엔드의 글·댓글 createdAt 같은 ISO "…Z")은 절대 시각이므로 KST 로 변환한다.
+ *    (예전에는 이것도 성분 그대로 읽어, UTC 시각이 한국 시각인 것처럼 9시간 이르게 표시됐다)
+ *  - 표기가 없는 "YYYY-MM-DD HH:MM(:SS)" (또는 T 구분, Neople date)는 KST 벽시계이므로 성분 그대로 쓴다.
+ * @param dateStr — 날짜 문자열
+ * @returns KST 성분(파싱 실패 시 null)
+ */
 export function parseKstParts(dateStr?: string): KstParts | null {
   if (!dateStr) return null;
+  if (TZ_SUFFIX.test(String(dateStr).trim())) {
+    const t = Date.parse(String(dateStr));
+    if (!Number.isFinite(t)) return null;
+    const parts = KST_PARTS_FMT.formatToParts(new Date(t));
+    const g = (type: string) => Number(parts.find((x) => x.type === type)?.value);
+    return { year: g("year"), month: g("month"), day: g("day"), hour: g("hour"), minute: g("minute"), second: g("second") };
+  }
   const mt = String(dateStr).match(
     /(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/,
   );
