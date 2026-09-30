@@ -9,11 +9,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UltimatePicker } from "./UltimatePicker";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 import {
   dualCharacterIds,
   groupUltimatesByRole,
   roleByName,
-  UNKNOWN_ROLE_COLOR,
   type CharacterUltimate,
   type OfficialFormation,
 } from "@/lib/official";
@@ -141,7 +141,7 @@ export default function OfficialCompVote({
         return (
           <div key={`${formationKey}-${i}`}>
             <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-gray-300">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: role?.color ?? UNKNOWN_ROLE_COLOR }} />
+              <OfficialRoleIcon role={roleName} size={16} />
               {i + 1}번 · {roleName}
             </div>
             <UltimatePicker

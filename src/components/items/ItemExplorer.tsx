@@ -5,7 +5,8 @@ import { Avatar } from "@/components/CharacterAvatar";
 import ItemIcon from "@/components/ItemIcon";
 import { orderSlots, ROLE_LABELS, type CharacterItemMeta, type RoleOrEtc } from "@/lib/meta";
 import { rarityMeta } from "@/lib/constants";
-import { OFFICIAL_ROLES, roleByName, UNKNOWN_ROLE_COLOR } from "@/lib/official";
+import { OFFICIAL_ROLES } from "@/lib/official";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 
 export interface CharItem {
   characterId: string;
@@ -143,8 +144,11 @@ export default function ItemExplorer({
                         : "border-line bg-surface-2 text-gray-400 hover:text-gray-100"
                     }`}
                   >
-                    {r.color && !active && (
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: r.color }} />
+                    {official && r.key !== "all" ? (
+                      <OfficialRoleIcon role={r.key} size={14} />
+                    ) : (
+                      r.color &&
+                      !active && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: r.color }} />
                     )}
                     {r.label}
                   </button>
@@ -211,10 +215,7 @@ export default function ItemExplorer({
                   {official
                     ? (selectedChar.officialRoles ?? []).map((name) => (
                         <span key={name} className="chip inline-flex items-center gap-1 bg-surface-3 text-gray-300">
-                          <span
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: roleByName(name)?.color ?? UNKNOWN_ROLE_COLOR }}
-                          />
+                          <OfficialRoleIcon role={name} size={14} />
                           {name}
                         </span>
                       ))

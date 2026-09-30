@@ -4,6 +4,7 @@
  */
 import { Avatar } from "@/components/CharacterAvatar";
 import { UltimateBadge } from "@/components/characters/UltimateBadge";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 import OfficialTierVote from "./OfficialTierVote";
 import {
   OFFICIAL_ROLES,
@@ -44,7 +45,7 @@ export default function OfficialTierVoteSection({
             return (
               <div key={r.key} className="card p-3">
                 <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-200" title={r.desc}>
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.color }} />
+                  <OfficialRoleIcon role={r.key} size={18} />
                   {r.name}
                 </div>
                 {list.length === 0 ? (

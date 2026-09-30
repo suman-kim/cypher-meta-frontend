@@ -73,10 +73,17 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
 }
 
 /** 링크 탭 그룹 (URL 기반) */
+/**
+ * 링크형 알약 탭.
+ * @param tabs — 탭 목록(href·라벨·활성 여부)
+ * @param keepScroll — true 면 탭 이동 시 스크롤을 맨 위로 올리지 않는다(같은 페이지의 쿼리만 바꾸는 탭용). 기본 false
+ */
 export function LinkTabs({
   tabs,
+  keepScroll = false,
 }: {
   tabs: { href: string; label: string; active: boolean }[];
+  keepScroll?: boolean;
 }) {
   return (
     <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-line bg-surface-2 p-1">
@@ -84,6 +91,7 @@ export function LinkTabs({
         <Link
           key={t.href}
           href={t.href}
+          scroll={!keepScroll}
           aria-current={t.active ? "page" : undefined}
           className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
             t.active

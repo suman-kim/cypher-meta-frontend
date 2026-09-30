@@ -138,8 +138,15 @@ export async function getMetaSummary(): Promise<MetaSummary> {
   return res.json();
 }
 
-export async function getCharacterItemMeta(characterId: string): Promise<CharacterItemMeta> {
-  const res = await fetch(`${API}/meta/characters/${encodeURIComponent(characterId)}/items`, {
+/**
+ * 캐릭터 아이템 채택 통계(추천 빌드·슬롯별 채택률의 원천 — 수집한 매칭 경기의 최종 장착 아이템).
+ * @param characterId — 캐릭터 ID
+ * @param ultimateType — "1st"/"2nd" 지정 시 그 궁극기로 판별된 판만 집계(상세 1차/2차 분리). 생략 시 전체
+ * @returns 슬롯별·상위 아이템 채택률
+ */
+export async function getCharacterItemMeta(characterId: string, ultimateType?: string): Promise<CharacterItemMeta> {
+  const q = ultimateType ? `?ultimateType=${encodeURIComponent(ultimateType)}` : "";
+  const res = await fetch(`${API}/meta/characters/${encodeURIComponent(characterId)}/items${q}`, {
     next: { revalidate: 300 },
   });
   if (!res.ok) throw new Error(`meta items ${res.status}`);

@@ -40,7 +40,8 @@ export default function Header() {
     href === "/meta" ? pathname === "/meta" : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface lg:bg-surface/80 lg:backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface lg:bg-surface/80 lg:backdrop-blur">
+      {/* z-40: 홈 히어로 검색창(relative z-30)이 스크롤 시 헤더·모바일 메뉴 위로 올라오지 않게. 모달(z-50↑)보다는 아래 */}
       <div className="container-app flex h-16 items-center gap-4">
         <Link href="/" aria-label="Cyphers Meta 홈" className="flex shrink-0 items-center">
           <Logo />

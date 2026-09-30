@@ -27,10 +27,11 @@ import {
 import { Avatar } from "@/components/CharacterAvatar";
 import MetaTable from "@/components/MetaTable";
 import { TierPickCell } from "@/components/meta/TierPickCell";
-import { StatChip } from "@/components/meta/StatChip";
+import CollectionStatsCard from "@/components/meta/CollectionStatsCard";
 import MetaViewTabs from "@/components/meta/MetaViewTabs";
 import TierVote from "@/components/meta/TierVote";
 import { EmptyState, ErrorState } from "@/components/ui";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 import {
   getCharacterUltimates,
   getCharacterUltimateStats,
@@ -282,66 +283,30 @@ export default async function MetaPage({ searchParams }: Props) {
       <MetaViewTabs base="/meta" active="data" dataLabel="데이터 티어" />
 
       {summary &&
-        (() => {
-          // 정확한 집계 상한(scope.rankTop)이 있을 때만 노출한다.
-          // (구버전 백엔드의 lastCollect.rankers 는 회전 수집의 1회 window 값이라 오해 소지가 있어 폴백하지 않음)
-          const sc = summary.scope;
-          const rankTop = sc?.rankTop ?? null;
-          const gt = sc?.gameType ?? summary.lastCollect?.gameTypeId ?? "rating";
-          const gtLabel = gt === "rating" ? "공식전" : gt;
-
-          // 회전 수집이면 순회 진행도(방금 갱신한 순위 구간·순회 %)를 계산한다.
-          const rotating = !!sc?.rotating && sc?.window != null && rankTop != null;
-          let rangeValue = rankTop != null ? `${gtLabel} 랭킹 상위 ${rankTop.toLocaleString()}위` : "";
-          let rangeSub: string | undefined;
-          let rangeTip =
-            rankTop != null
-              ? `사이퍼즈 ${gtLabel}(레이팅) 랭킹 상위 ${rankTop.toLocaleString()}위 플레이어들이 최근 플레이한 경기를 표본으로 집계합니다.`
-              : "";
-          if (rotating && rankTop != null && sc?.window != null) {
-            const win = sc.window;
-            const lastOff = sc.lastCollectedOffset ?? 0;
-            const from = lastOff + 1;
-            const to = Math.min(lastOff + win, rankTop);
-            const pct = Math.min(100, Math.max(0, Math.round((to / rankTop) * 100)));
-            rangeValue = `${gtLabel} 랭킹 상위 ${rankTop.toLocaleString()}위 순회 중`;
-            rangeSub = `· 순회 ${pct}%`;
-            rangeTip = `사이퍼즈 ${gtLabel}(레이팅) 랭킹 상위 ${rankTop.toLocaleString()}위를 매일 ${win}명씩 순위 구간을 이동하며 수집합니다. 방금 ${from.toLocaleString()}~${to.toLocaleString()}위 구간을 갱신했어요(순회 ${pct}%). 상위 ${rankTop.toLocaleString()}위를 한 바퀴 도는 데 시간이 걸려 순위 구간별로 데이터 신선도가 다를 수 있습니다.`;
-          }
-
-          return (
-            <div className="flex flex-wrap items-start gap-2 text-sm">
-              {rankTop != null && (
-                <StatChip label="집계 범위" value={rangeValue} sub={rangeSub} tip={rangeTip} />
-              )}
-              <StatChip
-                label="표본 매치"
-                value={summary.matches.toLocaleString()}
-                tip="상위 랭커들이 최근 플레이한 경기를 중복 없이 모은 수예요. 이 경기들이 티어 계산의 표본이 됩니다."
-              />
-              <StatChip
-                label="플레이어 기록"
-                value={summary.playerRecords.toLocaleString()}
-                tip="표본 매치에 참여한 모든 플레이어(양 팀 전원)의 캐릭터 픽 1건이 1기록이에요. 픽률·승률·KDA는 이 기록을 집계해 계산합니다."
-              />
-              <StatChip
-                label="캐릭터"
-                value={`${summary.characters}종`}
-                tip="표본 경기에 한 번 이상 등장한 서로 다른 캐릭터 수예요."
-              />
-              {summary.lastCollect?.lastRun && (
-                <StatChip
-                  muted
-                  label="최근 수집"
-                  value={new Date(summary.lastCollect.lastRun).toLocaleString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                  })}
-                  tip="표본 데이터를 마지막으로 갱신한 시각이에요. 하루 한 번 자동으로 새 경기를 수집합니다."
-                />
-              )}
-            </div>
-          );
-        })()}
+        // 집계 정보 — PC 디자인 1a(KPI 카드 + 상태 헤더) / 모바일 1b(한 줄 메타 라인)
+        <CollectionStatsCard
+          className="max-w-[720px]"
+          summary={summary}
+          kpis={[
+            {
+              label: "표본 매치",
+              shortLabel: "매치",
+              value: summary.matches.toLocaleString(),
+              tip: "상위 랭커들이 최근 플레이한 경기를 중복 없이 모은 수예요. 이 경기들이 티어 계산의 표본이 됩니다.",
+            },
+            {
+              label: "플레이어 기록",
+              value: summary.playerRecords.toLocaleString(),
+              tip: "표본 매치에 참여한 모든 플레이어(양 팀 전원)의 캐릭터 픽 1건이 1기록이에요. 픽률·승률·KDA는 이 기록을 집계해 계산합니다.",
+            },
+            {
+              label: "캐릭터",
+              value: summary.characters.toLocaleString(),
+              unit: "종",
+              tip: "표본 경기에 한 번 이상 등장한 서로 다른 캐릭터 수예요.",
+            },
+          ]}
+        />}
 
       <div className="inline-flex gap-1 rounded-lg border border-line bg-surface-2 p-1">
         {GAME_TABS.map((t) => (
@@ -365,16 +330,21 @@ export default async function MetaPage({ searchParams }: Props) {
         <>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-gray-500">{official ? "공식 역할군" : "역할"}</span>
-            <div className="inline-flex flex-wrap gap-1 rounded-lg border border-line bg-surface-2 p-1">
-              {roleTabs.map((t) => (
-                <Link
-                  key={t.key}
-                  href={metaHref(gameType, tierBy, t.key)}
-                  className={`segtab text-xs ${t.key === role ? "segtab-active" : ""}`}
-                >
-                  {t.label}
-                </Link>
-              ))}
+            {/* 모바일에서 두 줄로 꺾이지 않게 가로 스크롤 한 줄 */}
+            <div className="scroll-row w-full gap-1 rounded-lg border border-line bg-surface-2 p-1 sm:w-auto">
+              {roleTabs.map((t) => {
+                const color = official ? roleByKey(t.key)?.color : undefined;
+                return (
+                  <Link
+                    key={t.key}
+                    href={metaHref(gameType, tierBy, t.key)}
+                    className={`segtab inline-flex items-center gap-1 text-xs ${t.key === role ? "segtab-active" : ""}`}
+                  >
+                    {color && <OfficialRoleIcon role={t.key} size={16} />}
+                    {t.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 

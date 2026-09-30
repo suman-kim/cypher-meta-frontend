@@ -21,6 +21,8 @@ export interface HistoryTopChar {
   role: string;
   games: number;
   wins: number;
+  /** 승패가 있는 판 수(공식전) — '전체' 기준에서 승률의 분모 */
+  decided?: number;
   winRate: number;
   kda: number;
   /** 1차/2차/판별 미상 판 수 (공식 역할군 체계) */

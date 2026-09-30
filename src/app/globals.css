@@ -120,6 +120,17 @@ body {
   .segtab-active {
     @apply bg-primary text-white hover:text-white;
   }
+  /* 가로 스크롤 한 줄(칩·탭 목록) — 모바일에서 여러 줄로 꺾여 지저분해지지 않게. 스크롤바는 숨김 */
+  .scroll-row {
+    @apply flex flex-nowrap items-center gap-1.5 overflow-x-auto;
+    scrollbar-width: none;
+  }
+  .scroll-row::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-row > * {
+    @apply shrink-0 whitespace-nowrap;
+  }
 }
 
 /* 순위 뱃지(1~3위) 반짝임 스윕 */

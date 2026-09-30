@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Avatar } from "@/components/CharacterAvatar";
 import type { RosterEntry, RoleCode } from "@/lib/votes";
 import { UltimateBadge } from "@/components/characters/UltimateBadge";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 import { OFFICIAL_ROLES, dualCharacterIds, groupUltimatesByRole, type CharacterUltimate } from "@/lib/official";
 
 /** 선택 그리드 한 칸 — 기존 로스터와 공식 역할군 공용 */
@@ -98,7 +99,11 @@ export default function RankingCharacterPicker({
           return (
             <section key={s.key}>
               <div className="mb-2.5 flex items-center gap-2">
-                <span className="h-4 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                {official ? (
+                  <OfficialRoleIcon role={s.key} size={20} />
+                ) : (
+                  <span className="h-4 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                )}
                 <h2 className="text-base font-bold text-gray-100">{s.label}</h2>
                 <span className="chip bg-surface-2 text-gray-500">{list.length}</span>
               </div>

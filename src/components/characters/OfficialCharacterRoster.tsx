@@ -9,13 +9,12 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Avatar } from "@/components/CharacterAvatar";
 import { UltimateBadge } from "@/components/characters/UltimateBadge";
-import {
-  OFFICIAL_ROLES,
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
+import { characterHref, OFFICIAL_ROLES,
   dualCharacterIds,
   groupUltimatesByRole,
   unitKey,
-  type CharacterUltimate,
-} from "@/lib/official";
+  type CharacterUltimate, } from "@/lib/official";
 
 /**
  * @param ultimates — 캐릭터별 1차/2차 궁극기 정의 목록(GET /meta/ultimates)
@@ -66,7 +65,7 @@ export default function OfficialCharacterRoster({ ultimates }: { ultimates: Char
           return (
             <section key={role.key}>
               <div className="mb-2.5 flex items-center gap-2">
-                <span className="h-4 w-1.5 rounded-full" style={{ backgroundColor: role.color }} />
+                <OfficialRoleIcon role={role.key} size={22} />
                 <h2 className="text-base font-bold text-gray-100" title={role.desc}>
                   {role.name}
                 </h2>
@@ -77,7 +76,7 @@ export default function OfficialCharacterRoster({ ultimates }: { ultimates: Char
                 {list.map((u) => (
                   <Link
                     key={unitKey(u.characterId, u.ultimateType)}
-                    href={`/characters/${u.characterId}`}
+                    href={characterHref(u.characterId, u.ultimateType)}
                     title={`${u.characterName} · ${u.skillName}`}
                     className="group flex flex-col items-center gap-1.5 rounded-lg border border-line bg-surface p-2 transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:bg-surface-2"
                   >

@@ -3,6 +3,7 @@
  * 서버/클라이언트 컴포넌트 어디서든 쓸 수 있도록 훅을 쓰지 않는 순수 표시 컴포넌트다.
  */
 import { ultimateLabel } from "@/lib/official";
+import { OfficialRoleIcon } from "./OfficialRoleIcon";
 
 /**
  * @param ultimateType — "1st" | "2nd"
@@ -23,14 +24,14 @@ export function UltimateBadge({ ultimateType, className = "" }: { ultimateType: 
 }
 
 /**
- * OfficialRoleChip — 공식 역할군 이름 칩(역할군 색 점 + 이름).
+ * OfficialRoleChip — 공식 역할군 이름 칩(공식 역할군 아이콘 + 이름).
  * @param name — 공식 역할군 한글명
- * @param color — 역할군 색
+ * @param color — 역할군 색(아이콘을 못 찾을 때 대비, 현재는 칩 테두리 강조에 사용)
  */
 export function OfficialRoleChip({ name, color }: { name: string; color: string }) {
   return (
-    <span className="chip inline-flex items-center gap-1 bg-surface-3 text-gray-300">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+    <span className="chip inline-flex items-center gap-1 bg-surface-3 text-gray-300" style={{ boxShadow: `inset 0 0 0 1px ${color}33` }}>
+      <OfficialRoleIcon role={name} size={14} />
       {name}
     </span>
   );

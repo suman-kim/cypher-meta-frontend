@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UltimatePicker } from "./UltimatePicker";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 import { OFFICIAL_ROLES, dualCharacterIds, groupUltimatesByRole, type CharacterUltimate } from "@/lib/official";
 
 /**
@@ -75,7 +76,7 @@ export default function OfficialTierVote({ ultimates }: { ultimates: CharacterUl
       {OFFICIAL_ROLES.map((r) => (
         <div key={r.key}>
           <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-gray-300" title={r.desc}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: r.color }} />
+            <OfficialRoleIcon role={r.key} size={16} />
             {r.name}
           </div>
           <UltimatePicker options={byRole[r.key]} dual={dual} value={picks[r.key]} onSelect={(u) => set(r.key, u)} />

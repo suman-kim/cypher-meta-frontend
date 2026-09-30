@@ -7,9 +7,11 @@ import {
   roleLabel,
   roleColorOf,
   toOfficialView,
+  UNKNOWN_OFFICIAL_ROLE,
   type PlayerHistorySummary,
 } from "@/lib/analysis";
 import type { PositionSystem } from "@/lib/official";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 
 const C = 2 * Math.PI * 54; // 도넛 둘레(r=54)
 // 기존 포지션 코드·공식 역할군명 모두 색을 돌려준다
@@ -22,30 +24,57 @@ const fmtYM = (iso?: string | null): string => {
 };
 const fmtMin = (sec?: number): string => (sec ? `${Math.round(sec / 60)}분` : "-");
 
-type GameType = "rating" | "normal";
-const TYPES: { key: GameType; label: string }[] = [
-  { key: "rating", label: "공식전" },
-  { key: "normal", label: "일반전" },
-];
+/** 개인 분석 기준 — 플레이어 화면의 게임 타입 탭(전체/공식전/일반전)과 같다 */
+export type AnalysisGameType = "all" | "rating" | "normal";
+
+/** 개인 분석 섹션 접힘 상태를 기억하는 localStorage 키(방문자별 편의 설정) */
+const HIDDEN_KEY = "cy_player_analysis_hidden";
 
 /**
  * 개인 분석 섹션 — 누적 전적(GET /meta/history/:playerId) 기반.
- * 공식전/일반전 2타입 토글. 일반전은 API가 승패·KDA를 주지 않아 픽·플레이 중심으로 표시.
+ * 기준(전체/공식전/일반전)은 페이지 상단 게임 타입 탭을 따른다(자체 토글 없음).
+ * 일반전은 API가 승패·KDA를 주지 않아 픽·플레이 중심으로 표시하고, 전체는 승률·KDA 를 공식전 판으로만 계산한다.
  * 첫 조회 시 백엔드가 백그라운드로 백필하므로, 비어있으면 몇 초 간격으로 자동 재조회한다.
  * 포지션 체계가 official 이면 공식 역할군 필드로 같은 화면을 그린다(toOfficialView) — legacy 면 기존 그대로.
+ * 제목 줄의 접기/펼치기로 섹션을 숨길 수 있고, 선택은 브라우저(localStorage)에 기억한다. 접혀 있으면 API 도 부르지 않는다.
  * @param playerId — 대상 플레이어 ID
  * @param positionSystem — 포지션 체계(서버 페이지가 전달, 기본 legacy)
+ * @param gameType — 분석 기준(페이지 탭 값: all | rating | normal)
  */
 export default function PlayerAnalysis({
   playerId,
   positionSystem = "legacy",
+  gameType,
 }: {
   playerId: string;
   nickname?: string | null;
   positionSystem?: PositionSystem;
+  gameType: AnalysisGameType;
 }) {
   const official = positionSystem === "official";
-  const [gameType, setGameType] = useState<GameType>("rating");
+  // 섹션 접기/펼치기 — 기본은 펼침, 선택은 브라우저에 기억한다(저장소를 못 쓰면 매번 펼침)
+  const [hidden, setHidden] = useState(false);
+  // 저장된 설정을 읽기 전에는 불러오지 않는다(접어 둔 경우 새로고침 직후 불필요한 호출 방지)
+  const [prefReady, setPrefReady] = useState(false);
+  useEffect(() => {
+    try {
+      setHidden(window.localStorage.getItem(HIDDEN_KEY) === "1");
+    } catch {
+      /* 저장소 사용 불가(프라이빗 모드 등) — 기본값 유지 */
+    }
+    setPrefReady(true);
+  }, []);
+  /** 접기/펼치기 전환 후 선택을 저장한다 */
+  const toggleHidden = () =>
+    setHidden((v) => {
+      const next = !v;
+      try {
+        window.localStorage.setItem(HIDDEN_KEY, next ? "1" : "0");
+      } catch {
+        /* 저장 실패는 무시 — 이번 방문에는 그대로 동작 */
+      }
+      return next;
+    });
   const [data, setData] = useState<PlayerHistorySummary | null>(null);
   const [status, setStatus] = useState<"loading" | "empty" | "ready" | "error">("loading");
   const retries = useRef(0);
@@ -68,21 +97,23 @@ export default function PlayerAnalysis({
     }
   }, [playerId, gameType]);
 
+  // 접혀 있으면 불러오지 않는다(펼칠 때 처음 불러옴)
   useEffect(() => {
+    if (!prefReady || hidden) return;
     setStatus("loading");
     retries.current = 0;
     load();
-  }, [load]);
+  }, [load, hidden, prefReady]);
 
   // 첫 조회 백필 레이스: 비어있으면 5초 간격 자동 재시도(최대 3회)
   useEffect(() => {
-    if (status !== "empty" || retries.current >= 3) return;
+    if (hidden || status !== "empty" || retries.current >= 3) return;
     const t = setTimeout(() => {
       retries.current += 1;
       load();
     }, 5000);
     return () => clearTimeout(t);
-  }, [status, load]);
+  }, [status, load, hidden]);
 
   const isNormal = gameType === "normal";
 
@@ -91,27 +122,46 @@ export default function PlayerAnalysis({
       <div className="flex flex-wrap items-center gap-2 px-1">
         <h2 className="text-lg font-bold text-gray-100">개인 분석</h2>
         <span className="chip bg-surface-2 text-[11px] text-gray-500">누적 전적 기반</span>
-        {/* 타입 토글 */}
-        <div className="inline-flex overflow-hidden rounded-lg border border-bg-border">
-          {TYPES.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setGameType(t.key)}
-              className={`px-3 py-1 text-xs font-bold transition-colors ${
-                gameType === t.key ? "bg-primary text-white" : "bg-surface-2 text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {status === "ready" && data && (
-          <span className="ml-auto text-[11px] text-gray-500">
+        {/* 현재 기준(상단 탭 값) 표시 */}
+        <span className="chip bg-primary/10 text-[11px] font-semibold text-primary">
+          {gameType === "all" ? "전체" : gameType === "rating" ? "공식전" : "일반전"}
+        </span>
+        {!hidden && status === "ready" && data && (
+          <span className="text-[11px] text-gray-500">
             표본 {data.coverage.total.toLocaleString()}경기
             {data.coverage.oldest && <> · {fmtYM(data.coverage.oldest)}~{fmtYM(data.coverage.newest)}</>}
           </span>
         )}
+        {/* 보이기/숨기기 */}
+        <button
+          type="button"
+          onClick={toggleHidden}
+          aria-expanded={!hidden}
+          aria-controls="player-analysis-body"
+          className="ml-auto inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-xs font-semibold text-gray-400 transition-colors hover:text-gray-100"
+        >
+          {hidden ? "펼치기" : "접기"}
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`transition-transform ${hidden ? "" : "rotate-180"}`}
+            aria-hidden
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
       </div>
+
+      {hidden ? (
+        <p className="px-1 text-xs text-gray-500">개인 분석을 접어 두었어요. 펼치기를 누르면 다시 볼 수 있어요.</p>
+      ) : (
+        <div id="player-analysis-body" className="space-y-3">
 
       {status === "loading" && (
         <div className="card p-6 text-center text-sm text-gray-500">분석 데이터를 불러오는 중…</div>
@@ -130,7 +180,7 @@ export default function PlayerAnalysis({
         <div className="card flex flex-col items-center gap-2 p-6 text-center">
           <div className="text-2xl">🗂️</div>
           <div className="text-sm font-semibold text-gray-200">
-            {isNormal ? "일반전" : "공식전"} 전적을 수집하고 있어요
+            {gameType === "all" ? "" : isNormal ? "일반전 " : "공식전 "}전적을 수집하고 있어요
           </div>
           <p className="max-w-md text-xs leading-relaxed text-gray-500">
             처음 조회한 플레이어라 백그라운드로 전적을 모으는 중이에요. 잠시 후 자동으로 채워집니다.
@@ -150,7 +200,14 @@ export default function PlayerAnalysis({
       )}
 
       {status === "ready" && data && (
-        <AnalysisBody data={official ? toOfficialView(data) : data} isNormal={isNormal} official={official} />
+        <AnalysisBody
+          data={official ? toOfficialView(data) : data}
+          isNormal={isNormal}
+          isAll={gameType === "all"}
+          official={official}
+        />
+      )}
+        </div>
       )}
     </section>
   );
@@ -160,9 +217,20 @@ export default function PlayerAnalysis({
  * 실제 분석 본문 렌더(타입별 분기).
  * @param data — 화면용 요약(official 이면 toOfficialView 결과)
  * @param isNormal — 일반전 여부
+ * @param isAll — '전체' 기준 여부(주력 캐릭터에 합산 판 수와 공식전 전적을 나눠 표시)
  * @param official — 공식 역할군 체계 여부(라벨을 "포지션"→"역할군"으로, 궁극기 판별 진행 안내 표시)
  */
-function AnalysisBody({ data, isNormal, official }: { data: PlayerHistorySummary; isNormal: boolean; official: boolean }) {
+function AnalysisBody({
+  data,
+  isNormal,
+  isAll,
+  official,
+}: {
+  data: PlayerHistorySummary;
+  isNormal: boolean;
+  isAll: boolean;
+  official: boolean;
+}) {
   const term = official ? "역할군" : "포지션";
   const pending = official ? (data.coverage.ultimatePending ?? 0) : 0;
   const { persona, summary, keywords } = buildPersona(data, isNormal ? "normal" : "rating");
@@ -282,7 +350,12 @@ function AnalysisBody({ data, isNormal, official }: { data: PlayerHistorySummary
             <div className="flex-1 space-y-2">
               {data.positions.filter((p) => p.games > 0).map((p) => (
                 <div key={p.role} className="flex items-center gap-2 text-[13px]">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded" style={{ background: roleColor(p.role) }} />
+                  {/* 공식 역할군이면 공식 아이콘(도넛 색은 역할군 색 유지), 기존 포지션·미확정은 색 사각형 */}
+                  {official && p.role !== UNKNOWN_OFFICIAL_ROLE ? (
+                    <OfficialRoleIcon role={p.role} size={16} />
+                  ) : (
+                    <span className="h-2.5 w-2.5 shrink-0 rounded" style={{ background: roleColor(p.role) }} />
+                  )}
                   <span className="font-semibold text-gray-200">{roleLabel(p.role)}</span>
                   <span className="text-[11px] text-gray-500">{p.games}판</span>
                   <span className="ml-auto font-extrabold text-gray-100">{p.share}%</span>
@@ -329,7 +402,12 @@ function AnalysisBody({ data, isNormal, official }: { data: PlayerHistorySummary
                         <div className="text-[13px] font-extrabold" style={{ color: c.winRate >= 50 ? "#10b981" : "#ef4444" }}>
                           {c.winRate}%
                         </div>
-                        <div className="text-[10px] text-gray-500">{c.games}전 {c.wins}승</div>
+                        <div className="text-[10px] text-gray-500">
+                          {/* 전체: 합산 판 수와 승률 분모(공식전)가 달라 나눠 표시 */}
+                          {isAll && c.decided != null && c.decided !== c.games
+                            ? `${c.games}판 · 공식 ${c.decided}전 ${c.wins}승`
+                            : `${c.games}전 ${c.wins}승`}
+                        </div>
                       </>
                     )}
                   </div>

@@ -17,14 +17,31 @@ import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants"
 import { winRate, kdaColor } from "@/lib/format";
 import type { CharacterRankingRow } from "@/lib/types";
 import CharacterUltimates from "@/components/characters/CharacterUltimates";
+import UltimateSwitch from "@/components/characters/UltimateSwitch";
 import { getCharacterUltimates, getCharacterUltimateStats, getPositionSystem } from "@/lib/official-api";
-import type { CharacterUltimate, UltimateStatRow } from "@/lib/official";
+import { roleByName, ultimateLabel, type CharacterUltimate, type UltimateStatRow, type UltimateType } from "@/lib/official";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
   params: { characterId: string };
-  searchParams: { rankingType?: string };
+  /** rankingType — 랭커 지표 / ult — 1차·2차 궁극기("1st"|"2nd", 2차 보유 캐릭터만) */
+  searchParams: { rankingType?: string; ult?: string };
+}
+
+/**
+ * 상세 페이지 URL — 궁극기 선택과 랭커 지표를 함께 유지한다.
+ * @param characterId — 캐릭터 ID
+ * @param rankingType — 랭커 지표
+ * @param ult — 선택 궁극기(없으면 생략)
+ * @returns 상세 페이지 경로
+ */
+function detailHref(characterId: string, rankingType: string, ult?: string): string {
+  const p = new URLSearchParams();
+  if (ult) p.set("ult", ult);
+  if (rankingType !== "winCount") p.set("rankingType", rankingType);
+  const q = p.toString();
+  return `/characters/${characterId}${q ? `?${q}` : ""}`;
 }
 
 async function resolveName(characterId: string): Promise<string | undefined> {
@@ -54,15 +71,7 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
   const name = await resolveName(params.characterId);
   const profile = getCypherProfile(name);
 
-  // 메타 통계(자체 픽률·승률·KDA)와 아이템 채택률 — 백엔드가 없거나 데이터가 없으면 조용히 생략.
-  const [selfMeta, itemMeta] = await Promise.all([
-    getCharacterMeta()
-      .then((rows: CharacterMeta[]) => rows.find((r) => r.characterId === params.characterId) ?? null)
-      .catch(() => null),
-    getCharacterItemMeta(params.characterId).catch(() => null as CharacterItemMeta | null),
-  ]);
-
-  // 공식 역할군 체계면 이 캐릭터의 1차/2차 궁극기 정의·통계를 함께 불러온다(실패 시 섹션 생략)
+  // 공식 역할군 체계면 이 캐릭터의 1차/2차 궁극기 정의·통계를 먼저 불러온다(실패 시 궁극기 분리 없이 표시)
   let ultimates: CharacterUltimate[] = [];
   let ultimateStats: UltimateStatRow[] = [];
   if ((await getPositionSystem()) === "official") {
@@ -73,6 +82,23 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
     ultimates = u.filter((x) => x.characterId === params.characterId);
     ultimateStats = st.filter((x) => x.characterId === params.characterId);
   }
+  // 2차 궁극기 보유 캐릭터는 1차/2차로 페이지를 나눈다(기본 1차). 1차만 있는 캐릭터는 분리 없음.
+  const dual = ultimates.some((u) => u.ultimateType === "2nd");
+  const selectedUlt: UltimateType | undefined = dual ? (searchParams.ult === "2nd" ? "2nd" : "1st") : undefined;
+  const selectedDef = ultimates.find((u) => u.ultimateType === selectedUlt);
+  const selectedStat = ultimateStats.find((s) => s.ultimateType === selectedUlt);
+
+  // 메타 통계(자체 픽률·승률·KDA)와 아이템 채택률 — 1차/2차 분리 시 그 궁극기 판만(수집한 매칭 경기의 장착 아이템).
+  // 백엔드가 없거나 데이터가 없으면 조용히 생략.
+  const [selfMeta, itemMeta] = await Promise.all([
+    getCharacterMeta()
+      .then((rows: CharacterMeta[]) => rows.find((r) => r.characterId === params.characterId) ?? null)
+      .catch(() => null),
+    getCharacterItemMeta(params.characterId, selectedUlt).catch(() => null as CharacterItemMeta | null),
+  ]);
+  // 상단 지표 — 1차/2차 분리 시 그 궁극기 통계, 아니면 캐릭터 합산
+  const headStat = selectedUlt ? (selectedStat ?? null) : selfMeta;
+  const ultLabel = selectedDef ? `${ultimateLabel(selectedDef.ultimateType)} 궁극기 ${selectedDef.skillName}` : null;
 
   let rows: CharacterRankingRow[] = [];
   let error: NeopleApiError | null = null;
@@ -106,25 +132,43 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
           </div>
         </div>
 
-        {selfMeta && (
+        {headStat && (
           <div className="grid grid-cols-4 gap-2 sm:ml-auto sm:w-[360px]">
-            <Stat label="픽률" value={`${selfMeta.pickRate}%`} accent="rgb(var(--primary))" />
+            <Stat label="픽률" value={`${headStat.pickRate}%`} accent="rgb(var(--primary))" />
             <Stat
               label="승률"
-              value={`${selfMeta.winRate}%`}
-              accent={selfMeta.winRate >= 50 ? "rgb(var(--win))" : "rgb(var(--lose))"}
+              value={`${headStat.winRate}%`}
+              accent={headStat.winRate >= 50 ? "rgb(var(--win))" : "rgb(var(--lose))"}
             />
-            <Stat label="KDA" value={selfMeta.kda.toFixed(2)} accent={kdaColor(selfMeta.kda)} />
-            <Stat label="표본" value={selfMeta.picks.toLocaleString()} />
+            <Stat label="KDA" value={headStat.kda.toFixed(2)} accent={kdaColor(headStat.kda)} />
+            <Stat label="표본" value={headStat.picks.toLocaleString()} />
           </div>
         )}
       </div>
 
-      {/* 능력치 & 스킬 (공식 사이트 기준) */}
-      {/* 궁극기·공식 역할군 (official 체계에서만) */}
-      {ultimates.length > 0 && <CharacterUltimates ultimates={ultimates} stats={ultimateStats} />}
+      {/* 1차/2차 궁극기 페이지 전환 — 2차 궁극기 보유 캐릭터만. 지표·추천 빌드·채택률이 선택한 궁극기 판으로 바뀐다 */}
+      {dual && selectedUlt && (
+        <UltimateSwitch
+          ultimates={ultimates}
+          stats={ultimateStats}
+          selected={selectedUlt}
+          hrefFor={(u) => detailHref(params.characterId, rankingType, u)}
+        />
+      )}
 
-      {profile && <CypherProfileView profile={profile} />}
+      {/* 궁극기·공식 역할군 (official 체계, 1차만 있는 캐릭터 — 2차 보유 캐릭터는 위 전환에서 함께 보여 줌) */}
+      {ultimates.length > 0 && !dual && <CharacterUltimates ultimates={ultimates} stats={ultimateStats} />}
+
+      {/* 능력치 & 스킬 (공식 사이트 기준) */}
+
+      {/* 능력치(공통)·역할군 고정 버프·스킬 — 2차 보유 캐릭터는 선택 궁극기 기준으로 */}
+      {profile && (
+        <CypherProfileView
+          profile={profile}
+          ultimateType={selectedUlt}
+          role={roleByName(selectedDef?.officialRole ?? ultimates.find((u) => u.ultimateType === "1st")?.officialRole)}
+        />
+      )}
 
       {/* 메타 아이템 빌드 (슬롯별) */}
       {slots.length > 0 && (
@@ -133,8 +177,9 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
           <section>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-bold text-gray-100">추천 빌드</h2>
+              {ultLabel && <span className="chip bg-primary/10 text-[11px] font-semibold text-primary">{ultLabel}</span>}
               <span className="text-xs text-gray-500">
-                표본 {itemMeta?.picks.toLocaleString()} · 슬롯별 최다 채택
+                표본 {itemMeta?.picks.toLocaleString()} · 수집한 매칭 경기의 장착 아이템 · 슬롯별 최다 채택
               </span>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
@@ -166,6 +211,7 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
           <section>
             <div className="mb-2 flex items-center gap-2">
               <h2 className="text-lg font-bold text-gray-100">슬롯별 채택률</h2>
+              {ultLabel && <span className="chip bg-primary/10 text-[11px] font-semibold text-primary">{ultLabel}</span>}
               <span className="text-xs text-gray-500">각 슬롯 상위 채택 아이템</span>
             </div>
             <div className="card divide-y divide-line">
@@ -204,16 +250,19 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
 
       {/* 지표 탭 */}
       <LinkTabs
+        keepScroll
         tabs={CHARACTER_RANKING_TYPES.map((t) => ({
-          href: `/characters/${params.characterId}?rankingType=${t.type}`,
+          href: detailHref(params.characterId, t.type, selectedUlt),
           label: t.label,
           active: t.type === rankingType,
         }))}
       />
 
-      <h2 className="text-lg font-bold text-gray-100">
-        {characterRankingLabel(rankingType)} 상위 랭커
-      </h2>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="text-lg font-bold text-gray-100">{characterRankingLabel(rankingType)} 상위 랭커</h2>
+        {/* 네오플 캐릭터 랭킹은 궁극기를 구분하지 않는다 */}
+        {dual && <span className="text-xs text-gray-500">네오플 공식 랭킹 기준 · 1차/2차 구분 없음</span>}
+      </div>
 
       {error ? (
         <ErrorState message={error.message} hint={`code: ${error.code}`} />

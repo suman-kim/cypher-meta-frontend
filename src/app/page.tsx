@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { UltimateBadge } from "@/components/characters/UltimateBadge";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
 import { getCharacterUltimateStats, getPositionSystem } from "@/lib/official-api";
-import { OFFICIAL_ROLES, type UltimateStatRow } from "@/lib/official";
+import { characterHref, OFFICIAL_ROLES, type UltimateStatRow } from "@/lib/official";
 import type { Metadata } from "next";
 import SearchBar from "@/components/SearchBar";
 import { getRatingRanking } from "@/lib/neople";
@@ -204,7 +205,8 @@ export default async function HomePage() {
       roleCards = OFFICIAL_ROLES.map((r) => ({
         key: r.key,
         label: r.name,
-        color: r.color,
+        // 카드 상단 테두리 — 공식 아이콘의 시그니처 색
+        color: r.iconColor,
         legacyIcon: false,
         list: ult.filter((u) => u.officialRole === r.name).sort(byPick).slice(0, 3),
       }));
@@ -344,7 +346,7 @@ export default async function HomePage() {
                     {rm.legacyIcon ? (
                       <RoleIcon role={rm.key} color={rm.color} />
                     ) : (
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: rm.color }} />
+                      <OfficialRoleIcon role={rm.key} size={18} />
                     )}
                     <span className="text-sm font-bold text-gray-100">{rm.label}</span>
                   </div>
@@ -355,7 +357,7 @@ export default async function HomePage() {
                       {list.map((c, i) => (
                         <Link
                           key={c.ultimateType ? `${c.characterId}:${c.ultimateType}` : c.characterId}
-                          href={`/characters/${c.characterId}`}
+                          href={characterHref(c.characterId, c.ultimateType)}
                           className="flex items-center gap-2.5 p-2.5 transition-colors hover:bg-surface-2"
                         >
                           <span

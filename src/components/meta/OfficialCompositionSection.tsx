@@ -8,14 +8,13 @@
 import Link from "next/link";
 import { Avatar } from "@/components/CharacterAvatar";
 import { UltimateBadge } from "@/components/characters/UltimateBadge";
-import {
-  OFFICIAL_ROLES,
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
+import { characterHref, OFFICIAL_ROLES,
   UNKNOWN_ROLE_COLOR,
   roleByName,
   unitKey,
   type UltimateComposition,
-  type UltimateCompositionsResult,
-} from "@/lib/official";
+  type UltimateCompositionsResult, } from "@/lib/official";
 
 /** 목록 기준 — 빈도 / 승률 / 둘 다 */
 export type OfficialCompBasis = "freq" | "win" | "both";
@@ -64,7 +63,7 @@ function UltimateComboCard({ combo, rank }: { combo: UltimateComposition; rank: 
           return (
             <Link
               key={unitKey(m.characterId, m.ultimateType)}
-              href={`/characters/${m.characterId}`}
+              href={characterHref(m.characterId, m.ultimateType)}
               className="flex flex-col items-center gap-0.5"
               title={`${m.characterName} · ${m.skillName}`}
             >
@@ -73,7 +72,11 @@ function UltimateComboCard({ combo, rank }: { combo: UltimateComposition; rank: 
                 {m.dual && <UltimateBadge ultimateType={m.ultimateType} className="absolute -right-1.5 -top-1.5" />}
               </span>
               <span className="w-14 truncate text-center text-[9px] leading-tight text-gray-500">{m.characterName}</span>
-              <span className="rounded-full px-1.5 text-[8px] font-bold leading-4" style={{ color, background: `${color}22` }}>
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full px-1.5 text-[8px] font-bold leading-4"
+                style={{ color, background: `${color}22` }}
+              >
+                <OfficialRoleIcon role={m.officialRole} size={10} />
                 {m.officialRole}
               </span>
             </Link>
@@ -118,14 +121,14 @@ export default function OfficialCompositionSection({
   basis: OfficialCompBasis;
 }) {
   const size = data.size;
-  const mixes = data.roleMixes.slice(0, 10);
+  const mixes = data.roleMixes.slice(0, 8);
   const activeMix = roles.join(",");
 
   return (
     <section>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-2">
-          <h2 className="text-lg font-bold text-gray-100">조합 티어</h2>
+          <h2 className="text-lg font-bold text-gray-100">듀오·트리오 조합</h2>
           <span className="text-xs text-gray-500">
             팀 내 {size}인 조합 · {data.distinctCombos.toLocaleString()}종
             {data.filterRoles.length ? ` · ${data.filterRoles.join("+")} 포함` : ""}
@@ -158,47 +161,58 @@ export default function OfficialCompositionSection({
         </div>
       </div>
 
-      {/* 역할군 필터 — 역할군 1개 포함 / 자주 나오는 구성 */}
-      <div className="mb-3 space-y-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="w-20 shrink-0 whitespace-nowrap text-xs text-gray-500">역할군</span>
-          <Link
-            href={officialCompHref(size, [], basis)}
-            className={`rounded-full px-3 py-1 text-xs font-bold ${roles.length === 0 ? "bg-primary text-white" : "border border-line bg-surface text-gray-400 hover:text-gray-200"}`}
-          >
-            전체
-          </Link>
-          {OFFICIAL_ROLES.map((r) => {
-            const on = activeMix === r.key;
-            return (
-              <Link
-                key={r.key}
-                href={officialCompHref(size, [r.key], basis)}
-                title={`${r.name} 포함 조합`}
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${on ? "bg-primary text-white" : "border border-line bg-surface text-gray-400 hover:text-gray-200"}`}
-              >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: r.color }} />
-                {r.name}
-              </Link>
-            );
-          })}
-        </div>
-        {mixes.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="w-20 shrink-0 whitespace-nowrap text-xs text-gray-500">자주 나온 구성</span>
-            {mixes.map((m) => {
-              const keys = namesToKeys(m.roles);
-              const on = activeMix === keys.join(",");
+      {/* 역할군 필터 — 한 줄 가로 스크롤 2단(역할군 포함 / 자주 나온 구성) */}
+      <div className="mb-3 space-y-2.5 rounded-xl border border-line bg-surface p-3">
+        <div>
+          <div className="mb-1.5 text-[11px] font-semibold text-gray-500">역할군 포함</div>
+          <div className="scroll-row">
+            <Link
+              href={officialCompHref(size, [], basis)}
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${roles.length === 0 ? "bg-primary text-white" : "bg-surface-2 text-gray-400 hover:text-gray-200"}`}
+            >
+              전체
+            </Link>
+            {OFFICIAL_ROLES.map((r) => {
+              const on = activeMix === r.key;
               return (
                 <Link
-                  key={m.roles.join("+")}
-                  href={officialCompHref(size, keys, basis)}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${on ? "bg-primary text-white" : "border border-line bg-surface text-gray-400 hover:text-gray-200"}`}
+                  key={r.key}
+                  href={officialCompHref(size, [r.key], basis)}
+                  title={`${r.name} 포함 조합`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${on ? "bg-primary text-white" : "bg-surface-2 text-gray-400 hover:text-gray-200"}`}
                 >
-                  {m.roles.join("+")} <span className="opacity-70">{m.games.toLocaleString()}</span>
+                  <OfficialRoleIcon role={r.key} size={14} />
+                  {r.name}
                 </Link>
               );
             })}
+          </div>
+        </div>
+        {mixes.length > 0 && (
+          <div>
+            <div className="mb-1.5 text-[11px] font-semibold text-gray-500">자주 나온 구성</div>
+            <div className="scroll-row">
+              {mixes.map((m) => {
+                const keys = namesToKeys(m.roles);
+                const on = activeMix === keys.join(",");
+                return (
+                  <Link
+                    key={m.roles.join("+")}
+                    href={officialCompHref(size, keys, basis)}
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${on ? "bg-primary text-white" : "bg-surface-2 text-gray-300 hover:text-gray-100"}`}
+                  >
+                    {m.roles.map((name, i) => (
+                      <span key={`${name}-${i}`} className="inline-flex items-center gap-1">
+                        {i > 0 && <span className="opacity-50">+</span>}
+                        <OfficialRoleIcon role={name} size={14} />
+                        {name}
+                      </span>
+                    ))}
+                    <span className={`ml-0.5 text-[10px] ${on ? "text-white/80" : "text-gray-500"}`}>{m.games.toLocaleString()}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

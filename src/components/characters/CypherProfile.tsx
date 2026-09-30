@@ -1,4 +1,7 @@
 import { STAT_DISPLAY, type CypherProfile } from "@/lib/cypher-profiles";
+import type { OfficialRoleDef } from "@/lib/official";
+import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
+import { UltimateBadge } from "@/components/characters/UltimateBadge";
 
 /** 스킬 슬롯 배지 색 */
 function slotStyle(slot: string): { bg: string; fg: string } {
@@ -20,8 +23,26 @@ function slotLabel(slot: string): string {
   return map[slot] ?? slot;
 }
 
-export default function CypherProfileView({ profile }: { profile: CypherProfile }) {
-  const { stat, skills } = profile;
+/**
+ * 캐릭터 능력치·스킬(공식 사이트 기준).
+ * - 능력치: 1차/2차 공통. 공식 역할군 체계면 그 아래 선택 궁극기 역할군의 "고정 버프"를 함께 보여 준다.
+ * - 스킬: ultimateType 이 있으면 공통 스킬 + 그 궁극기 전용 스킬만(전용 스킬엔 1차/2차 배지).
+ *   ultimateType 이 없으면(1차만 있는 캐릭터·기존 체계) 전체를 보여 주되 전용 스킬엔 배지를 붙인다.
+ * @param profile — 능력치·스킬 정적 데이터
+ * @param ultimateType — 선택 궁극기("1st"|"2nd", 2차 보유 캐릭터 상세에서만)
+ * @param role — 선택 궁극기의 공식 역할군(고정 버프 표시용, 공식 역할군 체계에서만)
+ */
+export default function CypherProfileView({
+  profile,
+  ultimateType,
+  role,
+}: {
+  profile: CypherProfile;
+  ultimateType?: "1st" | "2nd";
+  role?: OfficialRoleDef;
+}) {
+  const { stat } = profile;
+  const skills = (profile.skills ?? []).filter((s) => !ultimateType || !s.ult || s.ult === ultimateType);
   return (
     <div className="space-y-4">
       {/* 능력치 */}
@@ -56,15 +77,37 @@ export default function CypherProfileView({ profile }: { profile: CypherProfile 
               );
             })}
           </div>
+          {/* 선택 궁극기 역할군의 고정 버프 — 기본 능력치는 1차/2차 공통이고, 역할군에 따라 이 버프가 달라진다 */}
+          {role && (
+            <div className="card mt-2 p-4">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <OfficialRoleIcon role={role.key} size={18} />
+                <span className="text-sm font-bold text-gray-100">{role.name} 역할군 고정 버프</span>
+                <span className="text-[11px] text-gray-500">
+                  {ultimateType ? `${ultimateType === "2nd" ? "2차" : "1차"} 궁극기 선택 시 적용` : "기본 능력치에 더해 적용"}
+                </span>
+              </div>
+              <ul className="space-y-1">
+                {role.buffs.map((b) => (
+                  <li key={b} className="flex gap-2 text-[13px] leading-relaxed text-gray-400">
+                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-gray-500" aria-hidden />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 
-      {/* 스킬 */}
-      {skills && skills.length > 0 && (
+      {/* 스킬 — 선택 궁극기에 맞는 스킬만(공통 + 그 궁극기 전용) */}
+      {skills.length > 0 && (
         <section>
           <div className="mb-2 flex items-center gap-2">
             <h2 className="text-lg font-bold text-gray-100">스킬</h2>
-            <span className="text-xs text-gray-500">{skills.length}개</span>
+            <span className="text-xs text-gray-500">
+              {skills.length}개{ultimateType ? ` · ${ultimateType === "2nd" ? "2차" : "1차"} 궁극기 기준` : ""}
+            </span>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2">
             {skills.map((sk, i) => {
@@ -79,6 +122,8 @@ export default function CypherProfileView({ profile }: { profile: CypherProfile 
                       {slotLabel(sk.slot)}
                     </span>
                     <span className="min-w-0 flex-1 truncate font-bold text-gray-100">{sk.name}</span>
+                    {/* 궁극기 전용 스킬 표시(공통 스킬은 표시 없음) */}
+                    {sk.ult && <UltimateBadge ultimateType={sk.ult} />}
                     {sk.cooldown && (
                       <span className="chip shrink-0 bg-surface-2 text-gray-500">쿨타임 {sk.cooldown}</span>
                     )}

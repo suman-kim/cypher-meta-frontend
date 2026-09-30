@@ -21,7 +21,7 @@ export default function Footer() {
           </div>
 
           {/* 정보 링크 (인라인) */}
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
             <Link href="/terms" className="text-gray-400 transition-colors hover:text-primary">
               이용약관
             </Link>
@@ -40,6 +40,8 @@ export default function Footer() {
 
         <div className="mt-6 border-t border-line pt-5 text-center text-xs text-gray-500">
           © {year} {SITE_NAME}. 데이터 제공: Neople 오픈 API · 본 사이트는 Neople·넥슨과 무관한 비공식 팬 사이트입니다.
+          <br />
+          게임 이미지·공식 역할군 아이콘의 저작권은 넥슨·네오플에 있습니다.
         </div>
       </div>
     </footer>

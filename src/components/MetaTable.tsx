@@ -11,6 +11,7 @@ import {
   type CharacterPicksResult,
 } from "@/lib/meta";
 import { UltimateBadge } from "./characters/UltimateBadge";
+import { characterHref } from "@/lib/official";
 
 /**
  * MetaTable 한 행 — 캐릭터 단위(TieredCharacter, legacy)와 궁극기 단위(공식 역할군) 행 모두 받는다.
@@ -271,7 +272,7 @@ export default function MetaTable({
                   <TierPill tier={r.tier} size="md" />
                   <Avatar characterId={r.characterId} characterName={r.characterName ?? undefined} size={36} />
                   <Link
-                    href={`/characters/${r.characterId}`}
+                    href={characterHref(r.characterId, r.ultimateType)}
                     onClick={(e) => e.stopPropagation()}
                     className="truncate text-sm font-bold text-gray-100 hover:text-primary"
                   >

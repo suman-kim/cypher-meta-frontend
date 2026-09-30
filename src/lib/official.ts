@@ -30,24 +30,56 @@ export interface OfficialRoleDef {
   key: OfficialRoleKey;
   /** 한글명 (백엔드 officialRole 값과 동일) */
   name: string;
-  /** 표시 색 */
+  /** 표시 색(칩·도넛·막대 등 UI 강조색) */
   color: string;
+  /** 공식 아이콘의 시그니처 색 — 아이콘 이미지(public/icons/roles)의 대표 색에서 추출 */
+  iconColor: string;
   /** 공식 설명(요약) — 툴팁용 */
   desc: string;
+  /** 역할군 고정 버프(공식 "역할군 시스템 안내"의 역할 고정 버프 표) */
+  buffs: string[];
 }
 
 /**
  * 공식 역할군 7종 — 표시 순서(전방 → 후방 → 지원). 백엔드 position-system.ts 의 OFFICIAL_ROLES 와 key·name 일치.
- * 설명 출처: 사이퍼즈 공식 "역할군 시스템 안내".
+ * 설명·고정 버프 출처: 사이퍼즈 공식 "역할군 시스템 안내"(2026-09-30 확인).
  */
 export const OFFICIAL_ROLES: OfficialRoleDef[] = [
-  { key: "vanguard", name: "뱅가드", color: "#5b8def", desc: "최전방에서 전투를 이끌며 높은 전투 유지력을 보이는 캐릭터" },
-  { key: "striker", name: "스트라이커", color: "#e3913c", desc: "전방에서 공격과 방어를 유연하게 전환하는 밸런스형 캐릭터" },
-  { key: "skirmisher", name: "스커미셔", color: "#c65bd6", desc: "높은 기동성으로 적의 허점을 찌르는 기습 공격 특화 캐릭터" },
-  { key: "reaper", name: "리퍼", color: "#e2506a", desc: "순간적인 강력한 대미지로 근접한 적을 제압하는 캐릭터" },
-  { key: "ranger", name: "레인저", color: "#4fbf6b", desc: "원거리에서 지속적으로 치명적인 피해를 누적시키는 캐릭터" },
-  { key: "artillery", name: "아틸러리", color: "#2fb5b0", desc: "긴 사거리로 적군을 견제하고 공성을 주도하는 캐릭터" },
-  { key: "controller", name: "컨트롤러", color: "#a15bf0", desc: "아군 지원 및 적군의 행동을 제어·약화시키는 캐릭터" },
+  {
+    key: "vanguard", name: "뱅가드", color: "#5b8def", iconColor: "#bdb9b3",
+    desc: "최전방에서 전투를 이끌며 높은 전투 유지력을 보이는 캐릭터",
+    buffs: ["체력이 60% 이하일 때 이동 속도 +50", "비전투 중 초당 체력 회복 +1.1% +7", "최대 체력 +5%, 방어력 +4%, 상태 이상 지속시간 -15%, 궁극기 대미지 +16%"],
+  },
+  {
+    key: "striker", name: "스트라이커", color: "#e3913c", iconColor: "#cd6f14",
+    desc: "전방에서 공격과 방어를 유연하게 전환하는 밸런스형 캐릭터",
+    buffs: ["전투 지속 시 4초마다 공격 속도 +2%, 인간 추가 공격력 +2.5%, 방어력 +1.5% (최대 3회)", "플레이어 타격 시 흡혈률 +20%, 소모킷 구매 코인 -20%", "최대 체력을 초과하는 흡혈량을 보호막으로 전환 (최대 10%)"],
+  },
+  {
+    key: "skirmisher", name: "스커미셔", color: "#c65bd6", iconColor: "#ccab3d",
+    desc: "높은 기동성으로 적의 허점을 찌르는 기습 공격 특화 캐릭터",
+    buffs: ["적 플레이어를 300 거리 이내에서 타격 시 추가 피해 (L스킬 제외, 쿨타임 60초)", "비전투 중 이동 속도 +30, 공격력 +30", "전투 시작 시 10초간 이동 속도 +15, 치명타 +15%"],
+  },
+  {
+    key: "reaper", name: "리퍼", color: "#e2506a", iconColor: "#cb3734",
+    desc: "순간적인 강력한 대미지로 근접한 적을 제압하는 캐릭터",
+    buffs: ["플레이어 킬 시 10초간 쿨타임 가속 +10% (중첩 불가)", "현재 체력이 50%를 초과하는 적 플레이어 공격 시 방어 관통 +10%", "치명타 피해량 +10%"],
+  },
+  {
+    key: "ranger", name: "레인저", color: "#4fbf6b", iconColor: "#875bc7",
+    desc: "원거리에서 지속적으로 치명적인 피해를 누적시키는 캐릭터",
+    buffs: ["적 플레이어를 600 거리 밖에서 타격 시 방어 관통 +5%의 추가 피해 (L스킬 제외, 쿨타임 15초)", "이동 속도 +15, 방어력 +3%, 공격력 +10 (피격 시 20초간 효과 제거)", "인간 추가 공격력 +5%"],
+  },
+  {
+    key: "artillery", name: "아틸러리", color: "#2fb5b0", iconColor: "#2787b3",
+    desc: "긴 사거리로 적군을 견제하고 공성을 주도하는 캐릭터",
+    buffs: ["적 플레이어를 600 거리 밖에서 타격 시 10초간 쿨타임 가속 +10% (L스킬 제외, 쿨타임 20초)", "적 플레이어 타격 시 체력 회복량 -20% 디버프 6초간 부여 (중첩 불가)", "수호자·몬스터 추가 공격력 +17%"],
+  },
+  {
+    key: "controller", name: "컨트롤러", color: "#a15bf0", iconColor: "#3fdd40",
+    desc: "아군 지원 및 적군의 행동을 제어·약화시키는 캐릭터",
+    buffs: ["전투 지속 시 5초마다 600 범위 내 아군 보호막 +70 (최대 5회, 다른 컨트롤러에게는 미적용)", "적 플레이어를 SL 스킬로 타격 시 쿨타임 가속 -10% 디버프 8초간 부여 (중첩 불가)", "궁극기(E) 쿨타임 -10%, SL 스킬 쿨타임 -5%"],
+  },
 ];
 
 /** 역할군을 모를 때(개인 분석의 미확정) 표시 색 */
@@ -97,6 +129,16 @@ export function ultimateLabel(t: string | null | undefined): string {
  */
 export function unitKey(characterId: string, ultimateType: string): string {
   return `${characterId}:${ultimateType}`;
+}
+
+/**
+ * 캐릭터 상세 경로 — 2차 궁극기 칸이면 2차 페이지(?ult=2nd)로, 그 외는 기본(1차) 페이지로.
+ * @param characterId — 캐릭터 ID
+ * @param ultimateType — 궁극기 구분(없으면 기본 페이지)
+ * @returns 상세 페이지 경로
+ */
+export function characterHref(characterId: string, ultimateType?: string | null): string {
+  return ultimateType === "2nd" ? `/characters/${characterId}?ult=2nd` : `/characters/${characterId}`;
 }
 
 /** 캐릭터별 궁극기 정의 1행 (GET /meta/ultimates) */

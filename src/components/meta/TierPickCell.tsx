@@ -6,6 +6,7 @@ import { Avatar } from "../CharacterAvatar";
 import { calcKDA, kdaColor } from "@/lib/format";
 import { getCharacterPicks, type CharacterPicksResult } from "@/lib/meta";
 import { UltimateBadge } from "../characters/UltimateBadge";
+import { characterHref } from "@/lib/official";
 
 function pickDateParts(iso: string | null): { date: string; time: string } | null {
   if (!iso) return null;
@@ -96,7 +97,7 @@ export function TierPickCell({
   return (
     <div className="flex w-[84px] flex-col items-center gap-1 rounded-md p-1 transition-colors hover:bg-surface-2">
       <Link
-        href={`/characters/${characterId}`}
+        href={characterHref(characterId, ultimateType)}
         title={`${name}${skillName ? ` (${skillName})` : ""} 상세 · 픽률 ${pickRate}% · 승률 ${winRate}%`}
         className="relative rounded-md ring-primary/50 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2"
       >
@@ -104,7 +105,7 @@ export function TierPickCell({
         {dual && ultimateType && <UltimateBadge ultimateType={ultimateType} className="absolute -right-1.5 -top-1.5" />}
       </Link>
       <Link
-        href={`/characters/${characterId}`}
+        href={characterHref(characterId, ultimateType)}
         title={`${name} 상세`}
         className="w-full truncate text-center text-[11px] font-medium text-gray-300 transition-colors hover:text-primary"
       >
@@ -145,7 +146,7 @@ export function TierPickCell({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/characters/${characterId}`}
+                    href={characterHref(characterId, ultimateType)}
                     className="truncate text-sm font-bold text-gray-100 hover:text-primary"
                   >
                     {name}

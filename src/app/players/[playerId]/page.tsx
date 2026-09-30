@@ -20,8 +20,9 @@ import { RankBadge } from "@/components/player/RankBadge";
 import { RefreshStatsButton } from "@/components/player/RefreshStatsButton";
 import TrackOnView from "@/components/player/TrackOnView";
 import PlayerAnalysis from "@/components/player/PlayerAnalysis";
+import GameTypeSwitcher from "@/components/player/GameTypeSwitcher";
 import { getPositionSystem } from "@/lib/official-api";
-import { EmptyState, ErrorState, LinkTabs, Stat, TierBadge } from "@/components/ui";
+import { EmptyState, ErrorState, Stat, TierBadge } from "@/components/ui";
 import { readRecord, winRate, calcKDA } from "@/lib/format";
 import { buildPlayStyle, buildTopCharacters, buildPlayTimeHeat, buildRecentSummary } from "@/lib/profile";
 import { computePlaystyleTags, PLAYSTYLE_SAMPLE } from "@/lib/badges";
@@ -304,6 +305,12 @@ export default async function PlayerPage({ params, searchParams }: Props) {
               />
             </div>
 
+            {/* 게임 타입(전체/공식전/일반전) — 페이지 전체(지표·개인 분석·AI 분석·전적)의 기준.
+                프로필 카드 안에 두고, 스크롤로 벗어나면 화면 아래에 플로팅 전환 버튼이 뜬다. */}
+            <div className="border-t border-bg-border px-5 py-3">
+              <GameTypeSwitcher tabs={tabs} hint="선택한 기준으로 분석·전적이 표시됩니다" />
+            </div>
+
             {/* 스탯 요약 */}
             <div className="grid grid-cols-2 gap-2 border-t border-bg-border p-4 sm:grid-cols-3 lg:grid-cols-5">
               <Stat
@@ -374,16 +381,13 @@ export default async function PlayerPage({ params, searchParams }: Props) {
             </details>
           </div>
 
-          {/* 개인 분석 (누적 전적 기반) */}
-          <PlayerAnalysis playerId={params.playerId} nickname={player.nickname} positionSystem={positionSystem} />
-
-          {/* 게임 타입 탭 — 페이지 전체(스탯·AI 분석·전적)의 기준. AI 분석 위로 배치. */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <LinkTabs tabs={tabs} />
-            <span className="hidden text-xs text-gray-500 sm:inline">
-              선택 탭 기준으로 분석·전적이 표시됩니다
-            </span>
-          </div>
+          {/* 개인 분석 (누적 전적 기반) — 기준은 상단 게임 타입 탭을 따른다 */}
+          <PlayerAnalysis
+            playerId={params.playerId}
+            nickname={player.nickname}
+            positionSystem={positionSystem}
+            gameType={gameTypeId === "rating" ? "rating" : gameTypeId === "normal" ? "normal" : "all"}
+          />
 
           {/* 최근 전적 요약 (탭별) */}
           {hasAnalytics && (
