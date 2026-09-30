@@ -7,6 +7,12 @@
 import { roleByKey, roleByName, UNKNOWN_ROLE_COLOR } from "@/lib/official";
 
 /**
+ * 아이콘 캐시 버전 — 아이콘 파일을 바꾸면 올린다.
+ * (CDN 이 이전 응답(404 포함)을 길게 캐시하므로, 쿼리를 바꿔 새로 받게 한다)
+ */
+const ICON_VERSION = "1";
+
+/**
  * @param role — 공식 역할군 한글명(예: "리퍼") 또는 영문 키(예: "reaper")
  * @param size — 표시 크기(px, 기본 16)
  * @param className — 추가 클래스
@@ -34,7 +40,7 @@ export function OfficialRoleIcon({
     // 작은 정적 아이콘이라 next/image 최적화 없이 그대로 쓴다
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/icons/roles/${def.key}.png`}
+      src={`/icons/roles/${def.key}.png?v=${ICON_VERSION}`}
       alt={def.name}
       title={def.name}
       width={size}
