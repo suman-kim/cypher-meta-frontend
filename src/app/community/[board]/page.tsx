@@ -23,7 +23,7 @@ export function generateMetadata({ params }: Props) {
   return {
     title: `사이퍼즈 커뮤니티 · ${label}`,
     description:
-      "사이퍼즈 커뮤니티 — 자유게시판·공략·팁을 나누고 인기 글과 주간 랭킹을 확인하세요.",
+      "사이퍼즈 커뮤니티 — 공식전·일반전 이야기를 나누고 인기 글과 주간 랭킹을 확인하세요.",
     alternates: { canonical: `/community/${params.board}` },
   };
 }
