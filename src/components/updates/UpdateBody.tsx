@@ -1,6 +1,6 @@
 /**
  * UpdateBody — 업데이트 본문 렌더러(고급 changelog 스타일).
- *  - "[신규] …", "[개선] …", "[수정] …" 등 대괄호 태그로 시작하는 줄 → 색상 태그 뱃지 + 텍스트
+ *  - "[신규] …", "[개선] …", "[수정] …" 등 대괄호 태그로 시작하는 줄 → 색상 태그 뱃지 + 굵은 제목 텍스트
  *  - "- " / "• " / "* " 로 시작하는 줄 → 심플 불릿
  *  - 빈 줄 → 문단 구분, 그 외 → 문단 텍스트
  * 훅을 쓰지 않는 순수 렌더 컴포넌트라 서버/클라이언트 양쪽에서 사용 가능.
@@ -51,7 +51,8 @@ export default function UpdateBody({
             ) : (
               <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
             )}
-            <span className="min-w-0 flex-1 pt-0.5">{it.text}</span>
+            {/* 태그 줄은 기능 제목이므로 굵게, 불릿은 설명이라 보통 굵기 */}
+            <span className={`min-w-0 flex-1 pt-0.5 ${it.tag ? "font-bold text-gray-100" : ""}`}>{it.text}</span>
           </li>
         ))}
       </ul>,
