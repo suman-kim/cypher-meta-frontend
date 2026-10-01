@@ -155,18 +155,23 @@ function ComboCard({
                 <span className="grid h-4 w-4 place-items-center rounded bg-primary/15 text-[9px] text-primary">▦</span>
                 이 조합이 등장한 경기 기록 <b className="text-gray-300">{matches.length}</b>건
               </div>
-              <ul className="divide-y divide-line/40">
+              <ul className="space-y-1.5">
                 {matches.map((m) => {
                   const win = m.result === "win";
-                  const col = win ? "rgb(var(--win))" : "rgb(var(--lose))";
                   return (
                     <li
                       key={m.matchId}
-                      className="border-l-2 py-2 pl-2.5 first:pt-0.5 last:pb-0.5"
-                      style={{ borderLeftColor: col }}
+                      // 결과 표시 — 왼쪽 색 띠 대신 왼쪽에서 옅게 퍼지는 승(파랑)/패(빨강) 배경
+                      className={`rounded-xl border border-line/60 bg-gradient-to-r px-2.5 py-2 ${
+                        win ? "from-win/[0.10]" : "from-lose/[0.10]"
+                      } via-transparent to-transparent`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="shrink-0 text-[11px] font-black" style={{ color: col }}>
+                        <span
+                          className={`shrink-0 rounded px-1.5 py-px text-[10px] font-black ${
+                            win ? "bg-win/15 text-win" : "bg-lose/15 text-lose"
+                          }`}
+                        >
                           {win ? "승리" : "패배"}
                         </span>
                         <span className="shrink-0 text-[11px] text-gray-500">{fmtMatchDate(m.playedAt)}</span>

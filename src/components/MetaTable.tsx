@@ -114,16 +114,19 @@ function PicksPanel({
         {data.picks.map((p, idx) => {
           const kda = calcKDA(p.killCount, p.deathCount, p.assistCount);
           const win = p.result === "win";
-          const col = win ? "rgb(var(--win))" : "rgb(var(--lose))";
-          const kc = kdaColor(kda);
+                    const kc = kdaColor(kda);
           const dt = pickDateParts(p.playedAt);
           return (
             <li
               key={`${p.matchId}-${p.playerId}-${idx}`}
-              className="group flex items-center gap-2.5 overflow-hidden rounded-lg border border-line/60 border-l-[3px] bg-surface px-2.5 py-1.5 text-xs transition-colors hover:bg-surface-2"
-              style={{ borderLeftColor: col }}
+              // 결과 표시 — 왼쪽 색 띠 대신 왼쪽에서 옅게 퍼지는 승(파랑)/패(빨강) 배경
+              className={`group flex items-center gap-2.5 overflow-hidden rounded-xl border border-line/60 bg-gradient-to-r px-2.5 py-2 text-xs transition-colors hover:border-primary/30 ${
+                win ? "from-win/[0.10]" : "from-lose/[0.10]"
+              } via-transparent to-transparent`}
             >
-              <span className="w-4 shrink-0 text-center text-[11px] font-black" style={{ color: col }}>
+              <span
+                className={`shrink-0 rounded px-1 py-px text-[10px] font-black ${win ? "bg-win/15 text-win" : "bg-lose/15 text-lose"}`}
+              >
                 {win ? "승" : "패"}
               </span>
               <Link

@@ -33,7 +33,12 @@ export function ResultBadge({ result }: { result?: string }) {
   );
 }
 
-/** 빈 상태 */
+/**
+ * 빈 상태.
+ * @param title — 제목
+ * @param description — 보조 설명(선택)
+ * @param icon — 아이콘(기본 🔍, null 이면 아이콘 없이 글자만)
+ */
 export function EmptyState({
   title,
   description,
@@ -41,11 +46,11 @@ export function EmptyState({
 }: {
   title: string;
   description?: string;
-  icon?: string;
+  icon?: string | null;
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-bg-border bg-bg-soft/40 px-6 py-16 text-center">
-      <div className="mb-3 text-4xl opacity-60">{icon}</div>
+      {icon && <div className="mb-3 text-4xl opacity-60">{icon}</div>}
       <p className="text-base font-semibold text-gray-200">{title}</p>
       {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
     </div>

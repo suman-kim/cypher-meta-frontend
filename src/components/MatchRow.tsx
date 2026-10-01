@@ -325,11 +325,8 @@ export default function MatchRow({
     ? `/matches/${match.matchId}?highlight=${encodeURIComponent(highlightPlayerId)}`
     : `/matches/${match.matchId}`;
 
-  const borderClass = resultKnown
-    ? win
-      ? "border-l-win"
-      : "border-l-lose"
-    : "border-l-gray-400";
+  // 결과 표시 — 왼쪽 색 띠 대신 왼쪽에서 은은하게 퍼지는 승(파랑)/패(빨강) 빛(결과를 모르는 일반전은 없음)
+  const glow = resultKnown ? (win ? "from-win/[0.09]" : "from-lose/[0.09]") : null;
 
   // 펼침 시: 내 아이템 빌드 (일반전은 KDA가 없어 이 빌드가 핵심 정보)
   const mine = detail
@@ -352,18 +349,21 @@ export default function MatchRow({
   const highlights = hasKDA ? computeHighlights(meStats) : [];
 
   return (
-    <div className={`overflow-hidden rounded-lg border border-l-4 border-line bg-surface ${borderClass}`}>
+    <div className="relative overflow-hidden rounded-2xl border border-line bg-surface">
+      {glow && (
+        <span className={`pointer-events-none absolute inset-0 bg-gradient-to-r ${glow} via-transparent to-transparent`} aria-hidden />
+      )}
       <button
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="w-full px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
+        className="relative w-full px-3 py-2.5 text-left transition-colors hover:bg-surface-2/50"
       >
         <div className="flex items-center gap-3">
           <div className="flex w-14 shrink-0 flex-col items-center text-center">
             {resultKnown ? (
               <>
-                <span className={`text-sm font-bold ${win ? "text-blue-300" : "text-red-300"}`}>
+                <span className={`text-sm font-black ${win ? "text-win" : "text-lose"}`}>
                   {win ? "승리" : "패배"}
                 </span>
                 <span className="text-[11px] text-gray-500">{gameTypeLabel(gameTypeId)}</span>
@@ -419,7 +419,7 @@ export default function MatchRow({
       </button>
 
       {open && (
-        <div className="border-t border-line/60 px-3 py-3">
+        <div className="relative border-t border-line/60 px-3 py-3">
           {loading && <div className="py-4 text-center text-xs text-gray-500">불러오는 중…</div>}
           {error && <div className="py-4 text-center text-xs text-red-300">{error}</div>}
           {detail && (

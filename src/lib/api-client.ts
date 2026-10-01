@@ -23,3 +23,28 @@ export async function postJSON<T = unknown>(path: string, body?: unknown): Promi
 
   return data as T;
 }
+
+/**
+ * 클라이언트에서 프론트 프록시 라우트(app/api/*)로 JSON GET 하는 헬퍼.
+ * @param path — 자기 도메인 경로(예: "/api/meta/history/duo?a=…")
+ * @returns 응답 JSON
+ * @throws 응답이 실패면 백엔드 message(한국어)를 담은 Error
+ */
+export async function getJSON<T = unknown>(path: string): Promise<T> {
+  const res = await fetch(path, { cache: "no-store" });
+
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    const msg = (data as { message?: string | string[] } | null)?.message;
+    const text = Array.isArray(msg) ? msg.join(", ") : msg;
+    throw new Error(text || `요청에 실패했습니다. (${res.status})`);
+  }
+
+  return data as T;
+}
