@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { searchPlayers, NeopleApiError } from "@/lib/neople";
+import { searchPlayers, NeopleApiError, neopleErrorView } from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import { EmptyState, ErrorState, SectionTitle } from "@/components/ui";
 import SearchBar from "@/components/SearchBar";
@@ -38,10 +38,7 @@ export default async function SearchPage({ searchParams }: Props) {
         <div className="max-w-md">
           <SearchBar defaultValue={nickname} />
         </div>
-        <ErrorState
-          message={err.message}
-          hint={err.code === "NO_API_KEY" ? ".env.local 에 NEOPLE_API_KEY 를 설정했는지 확인하세요." : `code: ${err.code}`}
-        />
+        <ErrorState {...neopleErrorView(err)} />
       </div>
     );
   }

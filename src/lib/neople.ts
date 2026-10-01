@@ -60,6 +60,38 @@ export class NeopleApiError extends Error {
   }
 }
 
+/**
+ * Neople 오류 코드 → 사용자 안내 문구(한국어).
+ * 여기 없는 코드는 Neople 가 준 메시지를 그대로 쓴다.
+ */
+const NEOPLE_ERROR_MESSAGES: Record<string, string> = {
+  // 사이퍼즈 서버 점검(보통 목요일 오전 정기 점검) — Neople 원문은 "SYSTEM_INSPECT"
+  CY980: "사이퍼즈 서버 점검 중입니다. 점검이 끝나면 다시 시도해 주세요.",
+};
+
+/**
+ * 오류를 화면용 안내(ErrorState props)로 바꾼다 — 점검은 전용 점검 화면, 키 미설정은 전용 안내, 그 외는 메시지 + 오류 코드.
+ * @param err — 조회 중 발생한 오류(NeopleApiError 가 아니어도 됨)
+ * @param fallback — 오류 메시지가 없을 때 쓸 문구
+ * @returns { message, hint, icon, variant }
+ */
+export function neopleErrorView(
+  err: unknown,
+  fallback = "데이터를 불러오지 못했습니다.",
+): { message: string; hint?: string; icon?: string; variant?: "error" | "maintenance" } {
+  if (!(err instanceof NeopleApiError)) {
+    return { message: err instanceof Error && err.message ? err.message : fallback };
+  }
+  if (err.code === "CY980") {
+    // 점검은 전용 안내 화면(MaintenanceState)으로 — 기본 문구를 쓰므로 hint 는 비워 둔다
+    return { message: err.message, variant: "maintenance" };
+  }
+  if (err.code === "NO_API_KEY") {
+    return { message: err.message, hint: "백엔드 .env 의 NEOPLE_API_KEY 를 확인하세요." };
+  }
+  return { message: err.message || fallback, hint: `code: ${err.code}` };
+}
+
 interface FetchOptions {
   params?: Record<string, string | number | undefined>;
   revalidate?: number;
@@ -112,10 +144,11 @@ async function neopleFetch<T>(
     // Neople 에러 형식: { error: { status, code|name, message } }
     const err = (body as { error?: { status: number; code?: string; name?: string; message: string } })
       .error;
+    const code = err?.code ?? err?.name ?? "API_ERROR";
     throw new NeopleApiError(
       err?.status ?? res.status,
-      err?.code ?? err?.name ?? "API_ERROR",
-      err?.message ?? `API 오류 (HTTP ${res.status})`,
+      code,
+      NEOPLE_ERROR_MESSAGES[code] ?? err?.message ?? `API 오류 (HTTP ${res.status})`,
     );
   }
 

@@ -7,6 +7,7 @@ import {
   getRatingRanking,
   getCharacters,
   NeopleApiError,
+  neopleErrorView,
 } from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import MatchRow from "@/components/MatchRow";
@@ -152,10 +153,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
 
   if (error || !player) {
     return (
-      <ErrorState
-        message={error?.message ?? "플레이어 정보를 불러오지 못했습니다."}
-        hint={error?.code === "NO_API_KEY" ? ".env.local 의 NEOPLE_API_KEY 를 확인하세요." : undefined}
-      />
+      <ErrorState {...neopleErrorView(error, "플레이어 정보를 불러오지 못했습니다.")} />
     );
   }
 

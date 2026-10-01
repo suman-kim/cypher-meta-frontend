@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getMatch, NeopleApiError } from "@/lib/neople";
+import { getMatch, neopleErrorView } from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import ItemHoverCard from "@/components/ItemHoverCard";
 import MatchTabs from "@/components/match/MatchTabs";
@@ -287,8 +287,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
   try {
     match = await getMatch(params.matchId);
   } catch (e) {
-    const err = e as NeopleApiError;
-    return <ErrorState message={err.message} hint={`code: ${err.code}`} />;
+    return <ErrorState {...neopleErrorView(e)} />;
   }
 
   const teams = match.teams ?? [];

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCharacters, getCharacterRanking, NeopleApiError } from "@/lib/neople";
+import { getCharacters, getCharacterRanking, NeopleApiError, neopleErrorView } from "@/lib/neople";
 import { getRoster, type RosterEntry } from "@/lib/votes";
 import RankingTabs from "@/components/RankingTabs";
 import Pagination from "@/components/Pagination";
@@ -76,7 +76,7 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
     return (
       <div className="space-y-4">
         <RankingTabs active="characters" />
-        <ErrorState message={charError.message} hint={`code: ${charError.code}`} />
+        <ErrorState {...neopleErrorView(charError)} />
       </div>
     );
   }
@@ -163,7 +163,7 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
       <LinkTabs tabs={rankTabs} />
 
       {rankError ? (
-        <ErrorState message={rankError.message} hint={`code: ${rankError.code}`} />
+        <ErrorState {...neopleErrorView(rankError)} />
       ) : rows.length === 0 ? (
         <EmptyState title="랭킹 데이터가 없습니다" icon="🏆" />
       ) : (

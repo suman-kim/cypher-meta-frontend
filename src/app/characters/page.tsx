@@ -1,4 +1,4 @@
-import { getCharacters, NeopleApiError } from "@/lib/neople";
+import { getCharacters, NeopleApiError, neopleErrorView } from "@/lib/neople";
 import { getRoster, type RosterEntry } from "@/lib/votes";
 import CharacterRoster from "@/components/characters/CharacterRoster";
 import { ErrorState } from "@/components/ui";
@@ -65,10 +65,7 @@ export default async function CharactersPage() {
         <p className="mt-1 text-sm text-gray-500">포지션별 사이퍼를 확인하고 상세 정보로 이동하세요.</p>
       </div>
       {error ? (
-        <ErrorState
-          message={error.message}
-          hint={error.code === "NO_API_KEY" ? ".env.local 의 NEOPLE_API_KEY 를 확인하세요." : `code: ${error.code}`}
-        />
+        <ErrorState {...neopleErrorView(error)} />
       ) : (
         <CharacterRoster characters={characters} />
       )}

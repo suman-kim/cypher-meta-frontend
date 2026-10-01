@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTsjRanking, NeopleApiError } from "@/lib/neople";
+import { getTsjRanking, NeopleApiError, neopleErrorView } from "@/lib/neople";
 import { loadRepChars, type RepChar } from "@/lib/ranking-enrich";
 import RankingTabs from "@/components/RankingTabs";
 import Pagination from "@/components/Pagination";
@@ -90,7 +90,7 @@ export default async function TsjRankingPage({ searchParams }: Props) {
       </div>
 
       {error ? (
-        <ErrorState message={error.message} hint={`code: ${error.code}`} />
+        <ErrorState {...neopleErrorView(error)} />
       ) : rows.length === 0 ? (
         <EmptyState title={`${tsjLabel(tsjType)} 랭킹 데이터가 없습니다`} icon="⚔️" />
       ) : (

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { tierColor } from "@/lib/constants";
+import MaintenanceState from "@/components/MaintenanceState";
 
 /** 티어 뱃지 */
 export function TierBadge({ tierName, rp }: { tierName?: string; rp?: number }) {
@@ -51,13 +52,32 @@ export function EmptyState({
   );
 }
 
-/** 에러 상태 */
-export function ErrorState({ message, hint }: { message: string; hint?: string }) {
+/**
+ * 에러 상태.
+ * 글자색은 테마 자동 반전 gray 를 써서 라이트/다크 모두 읽히게 한다(예전 red-200 은 라이트 모드에서 거의 안 보였다).
+ * variant="maintenance"(사이퍼즈 서버 점검)면 붉은 오류 대신 전용 점검 안내(MaintenanceState)를 그린다.
+ * @param message — 안내 문구
+ * @param hint — 보조 설명(선택)
+ * @param icon — 아이콘(기본 ⚠️)
+ * @param variant — "error"(기본) | "maintenance"
+ */
+export function ErrorState({
+  message,
+  hint,
+  icon = "⚠️",
+  variant = "error",
+}: {
+  message: string;
+  hint?: string;
+  icon?: string;
+  variant?: "error" | "maintenance";
+}) {
+  if (variant === "maintenance") return <MaintenanceState message={hint} />;
   return (
     <div className="rounded-lg border border-lose/30 bg-lose/10 px-6 py-10 text-center">
-      <div className="mb-2 text-3xl">⚠️</div>
-      <p className="text-base font-semibold text-red-200">{message}</p>
-      {hint && <p className="mt-2 text-sm text-red-300/70">{hint}</p>}
+      <div className="mb-2 text-3xl">{icon}</div>
+      <p className="text-base font-semibold text-gray-100">{message}</p>
+      {hint && <p className="mt-2 text-sm text-gray-500">{hint}</p>}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getRatingRanking, NeopleApiError } from "@/lib/neople";
+import { getRatingRanking, NeopleApiError, neopleErrorView } from "@/lib/neople";
 import { enrichPlayer, mapLimit, type PlayerMeta } from "@/lib/ranking-enrich";
 import { PLAYSTYLE_SAMPLE } from "@/lib/badges";
 import RankingTabs from "@/components/RankingTabs";
@@ -112,7 +112,7 @@ export default async function RatingRankingPage({ searchParams }: Props) {
     return (
       <div className="space-y-5">
         <RankingTabs active="rating" />
-        <ErrorState message={error.message} hint={`code: ${error.code}`} />
+        <ErrorState {...neopleErrorView(error)} />
       </div>
     );
   }
