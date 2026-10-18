@@ -9,7 +9,7 @@ import { SITE_NAME } from "@/lib/constants";
 
 export const metadata = {
   title: "사업자 정보",
-  description: `${SITE_NAME} 운영 사업자 정보 — 상호, 대표자, 사업자등록번호, 회사 사이트 안내.`,
+  description: `${SITE_NAME} 운영 사업자 정보 — 상호, 대표자, 사업자등록번호, 회사 사이트, 이메일 안내.`,
   alternates: { canonical: "/business-info" },
 };
 
@@ -30,7 +30,7 @@ const BUSINESS = {
   /** 대표 전화번호 */
   phone: "",
   /** 문의 이메일 */
-  email: "",
+  email: "zzsdsdsd@gmail.com",
   /** 호스팅 서비스 제공자 */
   hosting: "",
 };
