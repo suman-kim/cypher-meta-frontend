@@ -90,7 +90,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   // 현재 탭 기준 매치(목록+분석 공용) & 일반전 판수
   let matches: TaggedMatch[] = [];
   let analyticsMatches: MatchRowType[] = [];
-  // 최근 전적 목록(무한 스크롤) 초기값 — 게임 타입별 병합 전체 + 다음 페이지 커서
+  // 최근 전적 목록("더 보기") 초기값 — 게임 타입별 병합 전체 + 다음 페이지 커서
   let listStreams: MatchStream[] = [];
   let normalCount = 0;
   let playerRank: number | null = null; // 전체(레이팅) 순위
@@ -430,7 +430,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
                 icon="🎮"
               />
             ) : (
-              // 탭이 바뀌면 목록을 새로 시작한다(스크롤로 불러온 상태 초기화)
+              // 탭이 바뀌면 목록을 새로 시작한다(더 보기로 불러온 상태 초기화)
               <PlayerMatchList key={gameTypeId ?? "all"} playerId={params.playerId} streams={listStreams} />
             )}
 
