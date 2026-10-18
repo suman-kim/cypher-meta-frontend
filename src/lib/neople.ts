@@ -245,31 +245,69 @@ export async function getPlayerMatches(
   }
 
   // 기본: 신선(무날짜, 당일 포함) + 깊이(90일 범위) 병합
-  const [fresh, deep] = await Promise.all([
-    fetchMatchesPage(playerId, { gameTypeId, limit }, opts.fresh),
+  const merged = await fetchMergedMatches(playerId, gameTypeId, limit, opts.fresh);
+
+  return {
+    matches: {
+      date: merged.date,
+      gameTypeId,
+      next: undefined,
+      rows: merged.rows.slice(0, limit),
+    },
+  };
+}
+
+/**
+ * 플레이어 매치 첫 페이지 + 다음 페이지 커서 — 최근 전적 무한 스크롤용.
+ *
+ * getPlayerMatches 기본 조회와 같은 '신선 + 90일' 병합이지만, 병합 결과를 limit 으로 자르지 않고
+ * 90일 조회의 `next` 커서를 함께 돌려준다. 오늘 경기(신선 쪽에만 있음) 수만큼 90일 쪽 끝부분이
+ * limit 밖으로 밀리는데, 그 행까지 남겨야 `next` 로 이어 받을 때 빠지는 경기가 없다.
+ *
+ * @param playerId — 플레이어 ID
+ * @param opts — gameTypeId(기본 rating) · limit(조회당 개수, 최대 100) · fresh(캐시 무시)
+ * @returns rows — 병합 전체(최신순, 최대 limit + 오늘 경기 수) / next — 다음 페이지 커서(없으면 마지막)
+ */
+export async function getPlayerMatchesWithCursor(
+  playerId: string,
+  opts: { gameTypeId?: string; limit?: number; fresh?: boolean } = {},
+): Promise<{ rows: MatchRow[]; next?: string }> {
+  const merged = await fetchMergedMatches(playerId, opts.gameTypeId ?? "rating", opts.limit ?? 20, opts.fresh);
+  return { rows: merged.rows, next: merged.next };
+}
+
+/**
+ * 신선(무날짜, 당일 포함) + 깊이(90일 범위, 당일 제외) 조회를 병합한다.
+ * matchId 로 중복 제거 후 최신순 정렬하며, 개수는 자르지 않는다.
+ *
+ * @param playerId — 플레이어 ID
+ * @param gameTypeId — 게임 타입(rating/normal)
+ * @param limit — 각 조회의 limit
+ * @param fresh — true 면 캐시 무시
+ * @returns date / rows(병합 전체) / next(90일 조회의 다음 페이지 커서)
+ */
+async function fetchMergedMatches(
+  playerId: string,
+  gameTypeId: string,
+  limit: number,
+  fresh?: boolean,
+): Promise<{ date?: string; rows: MatchRow[]; next?: string }> {
+  const [recent, deep] = await Promise.all([
+    fetchMatchesPage(playerId, { gameTypeId, limit }, fresh),
     fetchMatchesPage(
       playerId,
       { gameTypeId, startDate: dateNDaysAgo(90), endDate: todayStr(), limit },
-      opts.fresh,
+      fresh,
     ),
   ]);
 
   const byId = new Map<string, MatchRow>();
-  for (const r of [...fresh.matches.rows, ...deep.matches.rows]) {
+  for (const r of [...recent.matches.rows, ...deep.matches.rows]) {
     if (r?.matchId && !byId.has(r.matchId)) byId.set(r.matchId, r);
   }
-  const rows = Array.from(byId.values())
-    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-    .slice(0, limit);
+  const rows = Array.from(byId.values()).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
 
-  return {
-    matches: {
-      date: fresh.matches.date ?? deep.matches.date,
-      gameTypeId,
-      next: undefined,
-      rows,
-    },
-  };
+  return { date: recent.matches.date ?? deep.matches.date, rows, next: deep.matches.next };
 }
 
 /* ------------------------------------------------------------------ */
