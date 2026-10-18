@@ -22,6 +22,10 @@ export default function Footer() {
 
           {/* 정보 링크 (인라인) */}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
+            <Link href="/business-info" className="text-gray-400 transition-colors hover:text-primary">
+              사업자 정보
+            </Link>
+            <span className="text-line">·</span>
             <Link href="/terms" className="text-gray-400 transition-colors hover:text-primary">
               이용약관
             </Link>
