@@ -22,7 +22,7 @@ const BUSINESS = {
   /** 사업자등록번호 (예: 000-00-00000) */
   registrationNumber: "509-51-00998",
   /** 회사 사이트 URL */
-  website: "https://pixelstudio.com",
+  website: "https://pixelstudiohq.com",
   /** 통신판매업 신고번호 (해당 없으면 빈 문자열) */
   mailOrderNumber: "",
   /** 사업장 주소 */
