@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getRatingRanking, NeopleApiError, neopleErrorView } from "@/lib/neople";
-import { enrichPlayer, mapLimit, type PlayerMeta } from "@/lib/ranking-enrich";
+import { enrichPlayer, mapLimit, PICK_SAMPLE, type PlayerMeta } from "@/lib/ranking-enrich";
 import { PLAYSTYLE_SAMPLE } from "@/lib/badges";
 import RankingTabs from "@/components/RankingTabs";
 import Pagination from "@/components/Pagination";
@@ -117,16 +117,14 @@ export default async function RatingRankingPage({ searchParams }: Props) {
     );
   }
 
-  // 상위 100위까지만 최근 공식전 기록으로 승률·픽·성향 태그 계산 (10위 이내는 표본 넉넉히)
+  // 상위 100위까지만 최근 공식전 기록으로 픽(100판)·승률·성향 태그(30판) 계산
   // enrich 실패는 페이지 렌더를 막지 않는다(랭킹 자체는 항상 표시).
   let metaMap = new Map<string, PlayerMeta>();
   try {
     const enrichTargets = rows
       .map((r, i) => ({ r, rank: offset + i + 1 }))
       .filter((x) => x.rank <= 100);
-    const metas = await mapLimit(enrichTargets, 8, (x) =>
-      enrichPlayer(x.r.player.playerId, PLAYSTYLE_SAMPLE),
-    );
+    const metas = await mapLimit(enrichTargets, 8, (x) => enrichPlayer(x.r.player.playerId));
     metaMap = new Map<string, PlayerMeta>(metas.map((m) => [m.playerId, m]));
   } catch {
     metaMap = new Map<string, PlayerMeta>();
@@ -177,7 +175,9 @@ export default async function RatingRankingPage({ searchParams }: Props) {
         <section className="space-y-2">
           <div className="flex items-baseline gap-2">
             <h2 className="text-lg font-bold text-gray-100">🏅 4위 ~ 10위</h2>
-            <span className="text-xs text-gray-500">최근 공식전 기준 픽·승률·플레이 성향</span>
+            <span className="text-xs text-gray-500">
+              픽은 최근 공식전 {PICK_SAMPLE}판 · 승률·플레이 성향은 최근 {PLAYSTYLE_SAMPLE}판 기준
+            </span>
           </div>
           <div className="space-y-2">
             {highlights.map((row, i) => (

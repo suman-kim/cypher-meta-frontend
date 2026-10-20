@@ -5,11 +5,20 @@
  * 통합 랭킹(ratingpoint) 응답에는 승/패·캐릭터가 없어서, 플레이어별
  * 매치 기록(getPlayerMatches)에서 파생한다. (서버 컴포넌트 전용)
  *
- * 성향 태그는 프로필 페이지와 공용인 computePlaystyleTags(@/lib/badges) 를 사용한다.
+ * 표본: 픽(TOP3·대표 캐릭터)은 최근 공식전 PICK_SAMPLE(100)판, 승률·성향 태그는
+ * 프로필과 같은 PLAYSTYLE_SAMPLE(30)판. 성향 태그는 프로필 페이지와 공용인
+ * computePlaystyleTags(@/lib/badges) 를 사용한다.
  */
 import { getPlayer, getPlayerMatches } from "@/lib/neople";
 import { winRate } from "@/lib/format";
-import { computePlaystyleTags } from "@/lib/badges";
+import { computePlaystyleTags, PLAYSTYLE_SAMPLE } from "@/lib/badges";
+
+/**
+ * 픽 TOP3·대표 캐릭터 집계에 쓰는 최근 공식전 게임 수.
+ * 프로필 페이지의 공식전 조회(ANALYTICS_LIMIT)와 같은 값이라 같은 캐시를 공유하고,
+ * 프로필 '공식전' 탭의 '자주 플레이한 캐릭터'와 같은 표본이 된다.
+ */
+export const PICK_SAMPLE = 100;
 
 export interface PickInfo {
   characterId: string;
@@ -33,16 +42,23 @@ function emptyMeta(playerId: string): PlayerMeta {
   return { playerId, picks: [], total: 0, wins: 0, winRate: 0, tags: [] };
 }
 
-export async function enrichPlayer(playerId: string, limit: number): Promise<PlayerMeta> {
+/**
+ * 플레이어 한 명의 랭킹 표시용 메타를 만든다. 실패하면 빈 메타.
+ * @param playerId — 플레이어 ID
+ * @returns 픽(최근 PICK_SAMPLE판) · 승률/태그(최근 PLAYSTYLE_SAMPLE판)
+ */
+export async function enrichPlayer(playerId: string): Promise<PlayerMeta> {
   try {
-    const res = await getPlayerMatches(playerId, { gameTypeId: "rating", limit });
+    const res = await getPlayerMatches(playerId, { gameTypeId: "rating", limit: PICK_SAMPLE });
     const rows = res.matches?.rows ?? [];
     if (rows.length === 0) return emptyMeta(playerId);
 
-    const total = rows.length;
-    const wins = rows.filter((r) => r.playInfo?.result === "win").length;
+    // 승률·성향은 프로필과 같은 최근 PLAYSTYLE_SAMPLE판 (rows 는 최신순)
+    const recent = rows.slice(0, PLAYSTYLE_SAMPLE);
+    const total = recent.length;
+    const wins = recent.filter((r) => r.playInfo?.result === "win").length;
 
-    // 픽 분포(대표 캐릭터·TOP3 표시용)
+    // 픽 분포(대표 캐릭터·TOP3 표시용) — 최근 PICK_SAMPLE판 전체
     const pickMap = new Map<string, PickInfo>();
     for (const r of rows) {
       const pi = r.playInfo;
@@ -65,7 +81,7 @@ export async function enrichPlayer(playerId: string, limit: number): Promise<Pla
       total,
       wins,
       winRate: winRate(wins, total - wins),
-      tags: computePlaystyleTags(rows), // 프로필과 동일한 성향 계산
+      tags: computePlaystyleTags(recent), // 프로필과 동일한 성향 계산
     };
   } catch {
     return emptyMeta(playerId);

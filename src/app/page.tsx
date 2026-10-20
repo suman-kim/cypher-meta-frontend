@@ -175,7 +175,7 @@ export default async function HomePage() {
     top = (r.rows ?? []).slice(0, 10);
   } catch {}
 
-  const topMetas = await mapLimit(top, 5, (row) => enrichPlayer(row.player.playerId, 30));
+  const topMetas = await mapLimit(top, 5, (row) => enrichPlayer(row.player.playerId));
   const metaMap = new Map<string, PlayerMeta>(topMetas.map((m) => [m.playerId, m]));
 
   let charMeta: CharacterMeta[] = [];
