@@ -4,6 +4,11 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { CATEGORIES } from "@/lib/community";
 import { postJSON } from "@/lib/api-client";
+import { useBannedWords } from "@/lib/banned-words";
+import BannedWordAlert from "@/components/community/BannedWordAlert";
+
+/** 금칙어가 걸린 입력칸 테두리 강조 */
+const BANNED_INPUT = "border-lose/70 focus:border-lose";
 
 export default function WriteForm({ board }: { board: string }) {
   const router = useRouter();
@@ -14,10 +19,12 @@ export default function WriteForm({ board }: { board: string }) {
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const banned = useBannedWords();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    banned.reset();
 
     if (!guestName.trim() || !password.trim() || !title.trim() || !content.trim()) {
       setError("닉네임, 비밀번호, 제목, 내용을 모두 입력해주세요.");
@@ -37,7 +44,7 @@ export default function WriteForm({ board }: { board: string }) {
       router.push(`/community/${board}/${res.id}`);
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      if (!banned.capture(err, { title, content, guestName })) setError((err as Error).message);
       setSubmitting(false);
     }
   }
@@ -63,10 +70,13 @@ export default function WriteForm({ board }: { board: string }) {
           <label className="mb-1 block text-xs font-semibold text-gray-500">닉네임</label>
           <input
             value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
+            onChange={(e) => {
+              setGuestName(e.target.value);
+              banned.clearField("guestName");
+            }}
             maxLength={20}
             placeholder="비회원 닉네임"
-            className="input"
+            className={`input ${banned.has("guestName") ? BANNED_INPUT : ""}`}
           />
         </div>
         <div>
@@ -86,10 +96,13 @@ export default function WriteForm({ board }: { board: string }) {
         <label className="mb-1 block text-xs font-semibold text-gray-500">제목</label>
         <input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            banned.clearField("title");
+          }}
           maxLength={120}
           placeholder="제목을 입력하세요"
-          className="input"
+          className={`input ${banned.has("title") ? BANNED_INPUT : ""}`}
         />
       </div>
 
@@ -97,13 +110,17 @@ export default function WriteForm({ board }: { board: string }) {
         <label className="mb-1 block text-xs font-semibold text-gray-500">내용</label>
         <textarea
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            banned.clearField("content");
+          }}
           rows={12}
           placeholder="내용을 입력하세요"
-          className="input resize-y"
+          className={`input resize-y ${banned.has("content") ? BANNED_INPUT : ""}`}
         />
       </div>
 
+      {banned.state && <BannedWordAlert state={banned.state} />}
       {error && (
         <p className="rounded-md bg-lose/10 px-3 py-2 text-sm text-red-300">{error}</p>
       )}

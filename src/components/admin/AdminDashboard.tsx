@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import BoardManager from "./BoardManager";
+import BannedWordManager from "./BannedWordManager";
 import NoticeManager from "./NoticeManager";
 import CollectionManager from "./CollectionManager";
 import CostumeManager from "./CostumeManager";
@@ -335,7 +336,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<
-    "analytics" | "board" | "notice" | "update" | "collect" | "costume"
+    "analytics" | "board" | "banned" | "notice" | "update" | "collect" | "costume"
   >("analytics");
 
   const load = useCallback(async (tk: string, d: number) => {
@@ -451,10 +452,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* 뷰 전환 탭 */}
-      <div className="flex w-fit items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">
+      <div className="scroll-row w-fit max-w-full gap-1 rounded-lg border border-line bg-surface-2 p-1">
         {([
           ["analytics", "분석"],
           ["board", "게시판"],
+          ["banned", "금칙어"],
           ["notice", "공지사항"],
           ["update", "업데이트"],
           ["collect", "수집 관리"],
@@ -592,6 +594,7 @@ export default function AdminDashboard() {
       ) : null)}
 
       {view === "board" && <BoardManager token={token} />}
+      {view === "banned" && <BannedWordManager token={token} />}
       {view === "notice" && <NoticeManager token={token} />}
       {view === "update" && <UpdateManager token={token} />}
       {view === "collect" && <CollectionManager token={token} />}

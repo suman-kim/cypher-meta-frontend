@@ -2,8 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import { postJSON } from "@/lib/api-client";
+import { useBannedWords } from "@/lib/banned-words";
+import BannedWordAlert from "@/components/community/BannedWordAlert";
 import { relativeTime } from "@/lib/format";
 import type { UpdateComment } from "@/lib/updates";
+
+/** 금칙어가 걸린 입력칸 테두리 강조 */
+const BANNED_INPUT = "border-lose/70 focus:border-lose";
 
 /** 업데이트 상세의 비회원 댓글 섹션 — 목록(대댓글) + 작성/답글 + 비번 삭제 */
 export default function UpdateComments({
@@ -21,6 +26,7 @@ export default function UpdateComments({
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const banned = useBannedWords();
 
   // 답글 폼(한 번에 하나만 열림)
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
@@ -29,6 +35,7 @@ export default function UpdateComments({
   const [rContent, setRContent] = useState("");
   const [rBusy, setRBusy] = useState(false);
   const [rError, setRError] = useState<string | null>(null);
+  const rBanned = useBannedWords();
 
   // 삭제 확인
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -41,6 +48,7 @@ export default function UpdateComments({
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    banned.reset();
     if (!name.trim() || !password.trim() || !content.trim()) {
       setError("닉네임, 비밀번호, 내용을 모두 입력해주세요.");
       return;
@@ -56,7 +64,7 @@ export default function UpdateComments({
       setContent("");
       setPassword("");
     } catch (err) {
-      setError((err as Error).message);
+      if (!banned.capture(err, { content, guestName: name })) setError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -68,12 +76,14 @@ export default function UpdateComments({
     setRPassword("");
     setRContent("");
     setRError(null);
+    rBanned.reset();
     setDeleteTarget(null);
   }
 
   async function onReply(e: FormEvent, target: UpdateComment) {
     e.preventDefault();
     setRError(null);
+    rBanned.reset();
     if (!rName.trim() || !rPassword.trim() || !rContent.trim()) {
       setRError("닉네임, 비밀번호, 내용을 모두 입력해주세요.");
       return;
@@ -92,7 +102,7 @@ export default function UpdateComments({
       setRPassword("");
       setRName("");
     } catch (err) {
-      setRError((err as Error).message);
+      if (!rBanned.capture(err, { content: rContent, guestName: rName })) setRError((err as Error).message);
     } finally {
       setRBusy(false);
     }
@@ -165,17 +175,30 @@ export default function UpdateComments({
         {replyOpenId === c.id && (
           <form onSubmit={(e) => onReply(e, c)} className="mt-2.5 space-y-2 rounded-lg border border-line bg-surface-2/60 p-3">
             <div className="grid grid-cols-2 gap-2 sm:max-w-md">
-              <input value={rName} onChange={(e) => setRName(e.target.value)} maxLength={20} placeholder="닉네임" className="input h-9 text-sm" />
+              <input
+                value={rName}
+                onChange={(e) => {
+                  setRName(e.target.value);
+                  rBanned.clearField("guestName");
+                }}
+                maxLength={20}
+                placeholder="닉네임"
+                className={`input h-9 text-sm ${rBanned.has("guestName") ? BANNED_INPUT : ""}`}
+              />
               <input type="password" value={rPassword} onChange={(e) => setRPassword(e.target.value)} maxLength={30} placeholder="비밀번호" className="input h-9 text-sm" />
             </div>
             <textarea
               value={rContent}
-              onChange={(e) => setRContent(e.target.value)}
+              onChange={(e) => {
+                setRContent(e.target.value);
+                rBanned.clearField("content");
+              }}
               rows={2}
               maxLength={2000}
               placeholder="답글을 입력하세요 (비회원)"
-              className="input resize-y text-sm"
+              className={`input resize-y text-sm ${rBanned.has("content") ? BANNED_INPUT : ""}`}
             />
+            {rBanned.state && <BannedWordAlert state={rBanned.state} />}
             {rError && <p className="text-xs text-red-400">{rError}</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setReplyOpenId(null)} className="btn-ghost px-3 py-1.5 text-xs">
@@ -229,17 +252,34 @@ export default function UpdateComments({
           의견 남기기 <span className="font-normal text-gray-500">· 비회원(닉네임 + 비밀번호)</span>
         </p>
         <div className="grid grid-cols-2 gap-2 sm:max-w-md">
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} placeholder="닉네임" className="input" />
+          <input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              banned.clearField("guestName");
+            }}
+            maxLength={20}
+            placeholder="닉네임"
+            className={`input ${banned.has("guestName") ? BANNED_INPUT : ""}`}
+          />
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} maxLength={30} placeholder="비밀번호" className="input" />
         </div>
         <textarea
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            banned.clearField("content");
+          }}
           rows={3}
           maxLength={2000}
           placeholder="이 업데이트에 대한 의견을 남겨주세요."
-          className="input mt-2 resize-y"
+          className={`input mt-2 resize-y ${banned.has("content") ? BANNED_INPUT : ""}`}
         />
+        {banned.state && (
+          <div className="mt-2">
+            <BannedWordAlert state={banned.state} />
+          </div>
+        )}
         {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
         <div className="mt-2 flex justify-end">
           <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">
