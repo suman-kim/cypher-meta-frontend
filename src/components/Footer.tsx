@@ -30,6 +30,10 @@ export default function Footer() {
               이용약관
             </Link>
             <span className="text-line">·</span>
+            <Link href="/privacy" className="font-semibold text-gray-300 transition-colors hover:text-primary">
+              개인정보처리방침
+            </Link>
+            <span className="text-line">·</span>
             <a
               href="https://developers.neople.co.kr/"
               target="_blank"

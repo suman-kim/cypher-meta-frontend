@@ -1,6 +1,5 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
 import { SITE_NAME } from "@/lib/constants";
+import LegalDocument, { LegalLink, type LegalArticle } from "@/components/legal/LegalDocument";
 
 export const metadata = {
   title: "이용약관",
@@ -12,19 +11,7 @@ export const metadata = {
 const EFFECTIVE_DATE = "2026년 7월 23일";
 const NEOPLE_TERMS_URL = "https://developers.neople.co.kr/";
 
-interface Item {
-  text?: string;
-  node?: ReactNode;
-  sub?: string[];
-}
-interface Article {
-  code: string;
-  num: string;
-  title: string;
-  items: Item[];
-}
-
-const ARTICLES: Article[] = [
+const ARTICLES: LegalArticle[] = [
   {
     code: "제1조",
     num: "01",
@@ -71,6 +58,14 @@ const ARTICLES: Article[] = [
       {
         text: "서비스는 이름·연락처 등 개인을 식별할 수 있는 정보를 별도로 요구하지 않으며, 수집한 정보를 본래 목적 외로 제3자에게 판매하지 않습니다.",
       },
+      {
+        node: (
+          <>
+            개인정보의 처리·보유 기간과 광고 쿠키 등 자세한 내용은{" "}
+            <LegalLink href="/privacy">개인정보처리방침</LegalLink>에서 확인할 수 있습니다.
+          </>
+        ),
+      },
     ],
   },
   {
@@ -116,16 +111,8 @@ const ARTICLES: Article[] = [
       {
         node: (
           <>
-            네오플 오픈 API 이용약관 원문은{" "}
-            <a
-              href={NEOPLE_TERMS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
-            >
-              여기
-            </a>
-            에서 확인할 수 있습니다.
+            네오플 오픈 API 이용약관 원문은 <LegalLink href={NEOPLE_TERMS_URL}>여기</LegalLink>에서 확인할 수
+            있습니다.
           </>
         ),
       },
@@ -155,74 +142,13 @@ const ARTICLES: Article[] = [
 
 export default function TermsPage() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 py-2">
-      {/* 히어로 */}
-      <div className="relative overflow-hidden rounded-2xl border border-line bg-surface p-8 sm:p-10">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-16 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
-        <div className="relative">
-          <span className="chip bg-primary/10 text-primary">SERVICE TERMS</span>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-gray-50 sm:text-4xl">이용약관</h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-500">
-            {SITE_NAME} 서비스 이용에 관한 조건과 데이터 처리 방침을 안내합니다.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <span className="chip border border-line bg-surface-2 text-gray-400">시행일 · {EFFECTIVE_DATE}</span>
-            <span className="chip border border-line bg-surface-2 text-gray-400">총 {ARTICLES.length}개 조항</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 조항 카드 */}
-      {ARTICLES.map((a) => (
-        <article key={a.code} className="card p-6 sm:p-7">
-          <div className="flex items-center gap-3.5">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-base font-black text-primary">
-              {a.num}
-            </span>
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{a.code}</div>
-              <h2 className="text-lg font-bold text-gray-100">{a.title}</h2>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-4">
-            {a.items.map((it, i) => (
-              <div key={i} className="flex gap-3">
-                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-surface-2 text-[11px] font-bold text-gray-500">
-                  {i + 1}
-                </span>
-                <div className="min-w-0 flex-1 text-[15px] leading-relaxed text-gray-300">
-                  {it.node ?? it.text}
-                  {it.sub && (
-                    <ul className="mt-3 space-y-2 rounded-lg border border-line bg-surface-2 p-4">
-                      {it.sub.map((t) => (
-                        <li key={t} className="flex gap-2.5 text-[14px] leading-relaxed text-gray-400">
-                          <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-                          <span>{t}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      ))}
-
-      {/* 시행일 배너 */}
-      <div className="rounded-2xl border border-line bg-gradient-to-br from-surface to-surface-2 px-6 py-5 text-center">
-        <p className="text-sm text-gray-500">
-          이 약관은 <span className="font-semibold text-gray-200">{EFFECTIVE_DATE}</span>부터 시행합니다.
-        </p>
-      </div>
-
-      <div className="pt-1 text-center">
-        <Link href="/" className="text-sm text-gray-500 transition-colors hover:text-gray-300">
-          ← 홈으로
-        </Link>
-      </div>
-    </div>
+    <LegalDocument
+      chip="SERVICE TERMS"
+      title="이용약관"
+      description={`${SITE_NAME} 서비스 이용에 관한 조건과 데이터 처리 방침을 안내합니다.`}
+      effectiveDate={EFFECTIVE_DATE}
+      articles={ARTICLES}
+      noun="이 약관"
+    />
   );
 }

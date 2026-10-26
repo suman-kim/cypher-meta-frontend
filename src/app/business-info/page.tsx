@@ -1,38 +1,17 @@
 /**
  * 사업자 정보 페이지(/business-info).
  * 서비스 운영 사업자의 표시 사항(상호·대표자·사업자등록번호·연락처 등)을 한곳에 보여 준다.
- * 값은 아래 BUSINESS 상수만 바꾸면 되고, 빈 문자열인 항목은 화면에 표시하지 않는다.
+ * 값은 lib/business.ts 의 BUSINESS 상수만 바꾸면 되고, 빈 문자열인 항목은 화면에 표시하지 않는다.
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BUSINESS } from "@/lib/business";
 import { SITE_NAME } from "@/lib/constants";
 
 export const metadata = {
   title: "사업자 정보",
   description: `${SITE_NAME} 운영 사업자 정보 — 상호, 대표자, 사업자등록번호, 회사 사이트, 이메일 안내.`,
   alternates: { canonical: "/business-info" },
-};
-
-/** 사업자 정보 (이 값만 바꾸면 됩니다 · 빈 문자열인 항목은 숨김) */
-const BUSINESS = {
-  /** 상호(법인명 또는 개인사업자 상호) */
-  companyName: "픽셀스튜디오",
-  /** 대표자 성명 */
-  representative: "김수만",
-  /** 사업자등록번호 (예: 000-00-00000) */
-  registrationNumber: "509-51-00998",
-  /** 회사 사이트 URL */
-  website: "https://pixelstudiohq.com",
-  /** 통신판매업 신고번호 (해당 없으면 빈 문자열) */
-  mailOrderNumber: "",
-  /** 사업장 주소 */
-  address: "",
-  /** 대표 전화번호 */
-  phone: "",
-  /** 문의 이메일 */
-  email: "zzsdsdsd@gmail.com",
-  /** 호스팅 서비스 제공자 */
-  hosting: "",
 };
 
 /** 표시 행 — 값이 없는 항목은 목록에서 제외한다 */
