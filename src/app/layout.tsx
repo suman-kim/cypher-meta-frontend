@@ -5,6 +5,8 @@ import Footer from "@/components/Footer";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import WhatsNewPopup from "@/components/updates/WhatsNewPopup";
 import NativeTabBar from "@/components/native/NativeTabBar";
+import AdSenseScript from "@/components/AdSenseScript";
+import { ADSENSE_CLIENT } from "@/lib/adsense";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site";
 
@@ -61,6 +63,8 @@ export const metadata: Metadata = {
         : {}),
     },
   },
+  // 애드센스 사이트 소유확인 '메타 태그' (서버 렌더 HTML에 바로 들어가므로 크롤러가 확실히 읽는다)
+  other: { "google-adsense-account": ADSENSE_CLIENT },
 };
 
 // FOUC 방지: 렌더 전에 저장된 테마를 적용 (라이트 기본, 'dark' 저장 시 다크)
@@ -111,6 +115,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Footer />
         <WhatsNewPopup />
         <NativeTabBar />
+        <AdSenseScript />
       </body>
     </html>
   );
