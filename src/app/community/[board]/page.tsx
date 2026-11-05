@@ -8,10 +8,16 @@ import PostTable from "@/components/community/PostTable";
 import NumberedPagination from "@/components/community/NumberedPagination";
 import WeeklyRankingCard, { type RankRow } from "@/components/community/WeeklyRankingCard";
 import NoticeCard from "@/components/community/NoticeCard";
+import { isAppRequest } from "@/lib/app-mode";
+import AppCommunity from "@/components/app/screens/social/AppCommunity";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 15;
+/** 앱 목록 한 쪽 글 수 (끝까지 내리면 다음 쪽을 이어 붙인다) */
+const APP_PAGE_SIZE = 20;
+/** 앱 목록 위에 고정할 공지 최대 수 */
+const APP_NOTICE_MAX = 3;
 
 interface Props {
   params: { board: string };
@@ -34,6 +40,31 @@ export default async function BoardPage({ params, searchParams }: Props) {
 
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
   const q = searchParams.q?.trim() || undefined;
+
+  // 앱 WebView: 첫 쪽·인기글·공지만 불러와 앱 목록(시안 12)을 그린다. (웹 사이드바의 주간 랭킹은 앱 랭킹 탭이 맡는다)
+  if (isAppRequest()) {
+    const [appList, appTrending, appNotices] = await Promise.all([
+      getPosts(board, { page: 1, pageSize: APP_PAGE_SIZE, q }).catch(() => null),
+      q ? Promise.resolve([]) : getTrending(board, 3).catch(() => []),
+      q ? Promise.resolve([]) : getNotices(5).catch(() => []),
+    ]);
+    // 이 게시판 공지를 먼저, 그다음 전체 공지(다른 게시판 공지 포함) — 같은 글은 한 번만
+    const seen = new Set<string>();
+    const pinned = [...(appList?.notices ?? []), ...appNotices]
+      .filter((n) => (seen.has(n.id) ? false : (seen.add(n.id), true)))
+      .slice(0, APP_NOTICE_MAX);
+    return (
+      <AppCommunity
+        key={`${board}|${q ?? ""}`}
+        board={board}
+        q={q ?? ""}
+        initial={appList}
+        trending={appTrending}
+        notices={pinned}
+        pageSize={APP_PAGE_SIZE}
+      />
+    );
+  }
 
   const [list, trending, notices, ranking] = await Promise.all([
     getPosts(board, { page, pageSize: PAGE_SIZE, q }).catch(() => null),

@@ -5,12 +5,14 @@ import {
   getCharacterMeta,
   getCharacterItemMeta,
   orderSlots,
+  withTiers,
+  ROLE_LABELS,
   type CharacterMeta,
   type CharacterItemMeta,
 } from "@/lib/meta";
 import { Avatar } from "@/components/CharacterAvatar";
 import CypherProfileView from "@/components/characters/CypherProfile";
-import { getCypherProfile } from "@/lib/cypher-profiles";
+import { getCypherProfile, STAT_DISPLAY } from "@/lib/cypher-profiles";
 import ItemIcon from "@/components/ItemIcon";
 import { EmptyState, ErrorState, LinkTabs, Stat } from "@/components/ui";
 import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants";
@@ -20,13 +22,15 @@ import CharacterUltimates from "@/components/characters/CharacterUltimates";
 import UltimateSwitch from "@/components/characters/UltimateSwitch";
 import { getCharacterUltimates, getCharacterUltimateStats, getPositionSystem } from "@/lib/official-api";
 import { roleByName, ultimateLabel, type CharacterUltimate, type UltimateStatRow, type UltimateType } from "@/lib/official";
+import { isAppRequest } from "@/lib/app-mode";
+import AppCharacter from "@/components/app/screens/meta/AppCharacter";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
   params: { characterId: string };
-  /** rankingType — 랭커 지표 / ult — 1차·2차 궁극기("1st"|"2nd", 2차 보유 캐릭터만) */
-  searchParams: { rankingType?: string; ult?: string };
+  /** rankingType — 랭커 지표 / ult — 1차·2차 궁극기("1st"|"2nd", 2차 보유 캐릭터만) / tab — 앱 전용: 정보·빌드·랭커 칸 */
+  searchParams: { rankingType?: string; ult?: string; tab?: string };
 }
 
 /**
@@ -74,6 +78,8 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
   // 공식 역할군 체계면 이 캐릭터의 1차/2차 궁극기 정의·통계를 먼저 불러온다(실패 시 궁극기 분리 없이 표시)
   let ultimates: CharacterUltimate[] = [];
   let ultimateStats: UltimateStatRow[] = [];
+  /** 전체 캐릭터의 궁극기 단위 통계 — 앱 화면의 티어·역할군 순위 계산용 */
+  let allUltimateStats: UltimateStatRow[] = [];
   if ((await getPositionSystem()) === "official") {
     const [u, st] = await Promise.all([
       getCharacterUltimates().catch(() => [] as CharacterUltimate[]),
@@ -81,6 +87,7 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
     ]);
     ultimates = u.filter((x) => x.characterId === params.characterId);
     ultimateStats = st.filter((x) => x.characterId === params.characterId);
+    allUltimateStats = st;
   }
   // 2차 궁극기 보유 캐릭터는 1차/2차로 페이지를 나눈다(기본 1차). 1차만 있는 캐릭터는 분리 없음.
   const dual = ultimates.some((u) => u.ultimateType === "2nd");
@@ -90,12 +97,13 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
 
   // 메타 통계(자체 픽률·승률·KDA)와 아이템 채택률 — 1차/2차 분리 시 그 궁극기 판만(수집한 매칭 경기의 장착 아이템).
   // 백엔드가 없거나 데이터가 없으면 조용히 생략.
-  const [selfMeta, itemMeta] = await Promise.all([
-    getCharacterMeta()
-      .then((rows: CharacterMeta[]) => rows.find((r) => r.characterId === params.characterId) ?? null)
-      .catch(() => null),
+  const [metaRes, itemMeta] = await Promise.all([
+    getCharacterMeta().catch(() => [] as CharacterMeta[]),
     getCharacterItemMeta(params.characterId, selectedUlt).catch(() => null as CharacterItemMeta | null),
   ]);
+  /** 전체 캐릭터 메타 행 — 앱 화면의 티어·역할군 순위 계산에도 쓴다 */
+  const allMeta: CharacterMeta[] = Array.isArray(metaRes) ? metaRes : [];
+  const selfMeta = allMeta.find((r) => r.characterId === params.characterId) ?? null;
   // 상단 지표 — 1차/2차 분리 시 그 궁극기 통계, 아니면 캐릭터 합산
   const headStat = selectedUlt ? (selectedStat ?? null) : selfMeta;
   const ultLabel = selectedDef ? `${ultimateLabel(selectedDef.ultimateType)} 궁극기 ${selectedDef.skillName}` : null;
@@ -111,6 +119,138 @@ export default async function CharacterDetailPage({ params, searchParams }: Prop
   }
 
   const slots = orderSlots(itemMeta?.slots ?? []);
+
+  // 앱 WebView: 같은 데이터로 앱 캐릭터 상세(시안 07)를 그린다.
+  if (isAppRequest()) {
+    // 티어·역할군 순위 — 메타 화면 기본(종합 기준)과 같은 계산. 공식 체계면 궁극기 단위 행, 아니면 캐릭터 단위 행.
+    const useUlt = allUltimateStats.length > 0;
+    const tieredAll = useUlt ? withTiers(allUltimateStats) : withTiers(allMeta);
+    const mine = useUlt
+      ? tieredAll.find(
+          (r) =>
+            r.characterId === params.characterId &&
+            (r as UltimateStatRow).ultimateType === (selectedUlt ?? "1st"),
+        )
+      : tieredAll.find((r) => r.characterId === params.characterId);
+    const roleOf = (r: (typeof tieredAll)[number]): string | null =>
+      useUlt ? ((r as UltimateStatRow).officialRole ?? null) : ((r as CharacterMeta).role ?? null);
+    const myRole = mine ? roleOf(mine) : null;
+    const sameRole = myRole
+      ? tieredAll.filter((r) => roleOf(r) === myRole).sort((a, b) => b.score - a.score || b.matchCount - a.matchCount)
+      : [];
+    const myIndex = mine ? sameRole.indexOf(mine) : -1;
+    const fallbackRole = selectedDef?.officialRole ?? ultimates.find((u) => u.ultimateType === "1st")?.officialRole ?? null;
+    const roleName = useUlt
+      ? (myRole ?? fallbackRole)
+      : myRole
+        ? (ROLE_LABELS[myRole as keyof typeof ROLE_LABELS] ?? myRole)
+        : fallbackRole;
+    const buffRole = roleByName(selectedDef?.officialRole ?? ultimates.find((u) => u.ultimateType === "1st")?.officialRole);
+    const totalUltPicks = ultimateStats.reduce((n, x) => n + x.picks, 0);
+    const skills = (profile?.skills ?? []).filter((x) => !selectedUlt || !x.ult || x.ult === selectedUlt);
+    const rankHref = (t: string) => {
+      const p = new URLSearchParams();
+      if (selectedUlt) p.set("ult", selectedUlt);
+      if (t !== "winCount") p.set("rankingType", t);
+      p.set("tab", "rank");
+      return `/characters/${params.characterId}?${p.toString()}`;
+    };
+
+    return (
+      <AppCharacter
+        characterId={params.characterId}
+        name={name ?? null}
+        intro={profile?.roleDesc ?? null}
+        tier={mine?.tier ?? null}
+        roleName={roleName}
+        officialRole={!!roleByName(roleName)}
+        roleRank={myIndex >= 0 ? { rank: myIndex + 1, total: sameRole.length } : null}
+        head={headStat ? { pickRate: headStat.pickRate, winRate: headStat.winRate, kda: headStat.kda, picks: headStat.picks } : null}
+        dual={dual}
+        selectedUlt={selectedUlt ?? null}
+        ultimates={[...ultimates]
+          .sort((a, b) => a.ultimateType.localeCompare(b.ultimateType))
+          .map((u) => {
+            const st = ultimateStats.find((x) => x.ultimateType === u.ultimateType);
+            return {
+              type: u.ultimateType,
+              label: ultimateLabel(u.ultimateType),
+              skillName: u.skillName,
+              roleName: u.officialRole,
+              roleDesc: roleByName(u.officialRole)?.desc ?? null,
+              pickRate: st?.pickRate ?? null,
+              winRate: st?.winRate ?? null,
+              share: st && totalUltPicks ? Math.round((st.picks / totalUltPicks) * 1000) / 10 : null,
+            };
+          })}
+        attackType={profile?.attackType ?? null}
+        difficulty={profile?.difficulty ?? null}
+        stats={
+          profile?.stat
+            ? STAT_DISPLAY.map((d) => {
+                const v = profile.stat![d.key];
+                return { label: d.label, value: v.toLocaleString(), pct: Math.max(4, Math.min(100, (v / d.max) * 100)) };
+              })
+            : []
+        }
+        skills={skills.map((x) => ({
+          slot: x.slot,
+          name: x.name,
+          cooldown: x.cooldown ?? null,
+          cost: x.cost ?? null,
+          explain: x.explain,
+          ultLabel: x.ult ? ultimateLabel(x.ult) : null,
+        }))}
+        buff={
+          buffRole && profile?.stat
+            ? {
+                roleKey: buffRole.key,
+                roleName: buffRole.name,
+                buffs: buffRole.buffs,
+                when: selectedUlt ? `${ultimateLabel(selectedUlt)} 궁극기를 고르면 적용돼요` : "기본 능력치에 더해 적용돼요",
+              }
+            : null
+        }
+        buildPicks={itemMeta?.picks ?? null}
+        slots={slots.map((x) => ({
+          code: x.equipSlotCode,
+          label: x.label,
+          items: x.items.map((it) => ({ itemId: it.itemId, name: it.itemName, rarityCode: it.rarityCode, rate: it.rate })),
+        }))}
+        ultTag={ultLabel}
+        metricTabs={CHARACTER_RANKING_TYPES.map((t) => ({
+          key: t.type,
+          label: t.label,
+          href: rankHref(t.type),
+          active: t.type === rankingType,
+        }))}
+        metricLabel={characterRankingLabel(rankingType)}
+        rankers={rows.map((row) => {
+          const wr =
+            row.winCount !== undefined && row.loseCount !== undefined ? winRate(row.winCount, row.loseCount) : undefined;
+          return {
+            rank: row.ranking,
+            playerId: row.player.playerId,
+            nickname: row.player.nickname,
+            value:
+              rankingType === "winRate" && row.winRate !== undefined
+                ? `${Math.round(row.winRate * 10) / 10}%`
+                : (row.value ?? row.winCount ?? "-").toLocaleString(),
+            // 승률 지표일 때는 값과 겹치지 않게 승패만
+            record:
+              row.winCount !== undefined
+                ? `${row.winCount.toLocaleString()}승 ${(row.loseCount ?? 0).toLocaleString()}패${
+                    wr !== undefined && rankingType !== "winRate" ? ` · 승률 ${wr}%` : ""
+                  }`
+                : null,
+          };
+        })}
+        rankerError={error ? error.message || "잠시 뒤 다시 열어 주세요." : null}
+        allRankHref={`/ranking/characters?characterId=${params.characterId}&rankingType=${rankingType}`}
+        rankRetryHref={rankHref(rankingType)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-5">

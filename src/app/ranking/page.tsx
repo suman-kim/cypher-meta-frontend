@@ -11,6 +11,9 @@ import TagChips from "@/components/ranking/TagChips";
 import PickList from "@/components/ranking/PickList";
 import RankChange from "@/components/ranking/RankChange";
 import type { RatingRankingRow } from "@/lib/types";
+import { isAppRequest } from "@/lib/app-mode";
+import AppRanking from "@/components/app/screens/meta/AppRanking";
+import { toAppRankRow } from "@/components/app/screens/meta/rank-data";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -108,6 +111,24 @@ export default async function RatingRankingPage({ searchParams }: Props) {
     error = e as NeopleApiError;
   }
 
+  const app = isAppRequest();
+  const basisNote = `픽은 최근 공식전 ${PICK_SAMPLE}판 · 승률·성향은 최근 ${PLAYSTYLE_SAMPLE}판 기준`;
+
+  // 앱 WebView: 불러오기 실패도 앱 화면 안에서 안내한다.
+  if (error && app) {
+    const ev = neopleErrorView(error);
+    return (
+      <AppRanking
+        top3={[]}
+        rows={[]}
+        nextOffset={null}
+        startRank={null}
+        basisNote={basisNote}
+        error={{ maintenance: ev.variant === "maintenance", message: ev.message }}
+      />
+    );
+  }
+
   if (error) {
     return (
       <div className="space-y-5">
@@ -128,6 +149,22 @@ export default async function RatingRankingPage({ searchParams }: Props) {
     metaMap = new Map<string, PlayerMeta>(metas.map((m) => [m.playerId, m]));
   } catch {
     metaMap = new Map<string, PlayerMeta>();
+  }
+
+  // 앱 WebView: 같은 데이터로 앱 랭킹(시안 08)을 그린다. 4위부터는 끝에 닿으면 이어 불러온다.
+  if (app) {
+    const appRows = rows.map((r) => toAppRankRow(r, metaMap.get(r.player.playerId)));
+    const appTop = offset === 0 && appRows.length >= 3;
+    return (
+      <AppRanking
+        top3={appTop ? appRows.slice(0, 3) : []}
+        rows={appTop ? appRows.slice(3) : appRows}
+        nextOffset={rows.length >= LIMIT ? offset + rows.length : null}
+        startRank={offset > 0 ? offset + 1 : null}
+        basisNote={basisNote}
+        error={null}
+      />
+    );
   }
 
   const showTop = offset === 0 && rows.length >= 3;

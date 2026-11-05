@@ -4,7 +4,10 @@ import CharacterRoster from "@/components/characters/CharacterRoster";
 import { ErrorState } from "@/components/ui";
 import OfficialCharacterRoster from "@/components/characters/OfficialCharacterRoster";
 import { getCharacterUltimates, getPositionSystem } from "@/lib/official-api";
-import type { CharacterUltimate } from "@/lib/official";
+import { characterHref, dualCharacterIds, groupUltimatesByRole, OFFICIAL_ROLES, type CharacterUltimate } from "@/lib/official";
+import { ROLE_LABELS, type RoleOrEtc } from "@/lib/meta";
+import { isAppRequest } from "@/lib/app-mode";
+import AppChars, { type CharGroup } from "@/components/app/screens/core/AppChars";
 
 export const dynamic = "force-dynamic"; // Railway: 요청 시점 렌더(백엔드는 런타임에만 확실히 도달) — 빌드타임 프리렌더 실패 방지
 export const metadata = {
@@ -24,7 +27,25 @@ export default async function CharactersPage() {
   if ((await getPositionSystem()) === "official") {
     ultimates = await getCharacterUltimates().catch(() => null);
   }
+  const app = isAppRequest();
   if (ultimates && ultimates.length > 0) {
+    if (app) {
+      // 앱: 공식 역할군 7종 묶음 (2차 보유 캐릭터는 1차·2차 역할군에 각각)
+      const grouped = groupUltimatesByRole(ultimates);
+      const dual = dualCharacterIds(ultimates);
+      const groups: CharGroup[] = OFFICIAL_ROLES.map((r) => ({
+        key: r.key,
+        label: r.name,
+        official: true,
+        items: grouped[r.key].map((u) => ({
+          characterId: u.characterId,
+          name: u.characterName,
+          href: characterHref(u.characterId, dual.has(u.characterId) ? u.ultimateType : undefined),
+          ult: dual.has(u.characterId) ? (u.ultimateType === "2nd" ? "2차" : "1차") : undefined,
+        })),
+      })).filter((g) => g.items.length > 0);
+      return <AppChars groups={groups} official />;
+    }
     return (
       <div className="space-y-5">
         <div>
@@ -56,6 +77,28 @@ export default async function CharactersPage() {
     } catch (e) {
       error = e as NeopleApiError;
     }
+  }
+
+  if (app) {
+    // 앱: 기존 포지션 묶음 (조회 실패면 빈 목록 → 오류 상태)
+    const order: RoleOrEtc[] = ["tank", "melee", "ranged", "support", "etc"];
+    const groups: CharGroup[] = error
+      ? []
+      : order
+          .map((role) => ({
+            key: role,
+            label: ROLE_LABELS[role],
+            official: false,
+            items: characters
+              .filter((c) => c.role === role)
+              .map((c) => ({
+                characterId: c.characterId,
+                name: c.characterName ?? c.characterId,
+                href: characterHref(c.characterId),
+              })),
+          }))
+          .filter((g) => g.items.length > 0);
+    return <AppChars groups={groups} official={false} />;
   }
 
   return (

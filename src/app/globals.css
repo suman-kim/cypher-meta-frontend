@@ -163,3 +163,203 @@ body {
     animation: none;
   }
 }
+
+/* ─────────────────────────────────────────────
+   앱(Capacitor WebView) 전용 테마 — html[data-app]
+   웹과 색을 따로 가져간다(2026-11-05 결정). 웹 토큰 이름을 그대로 덮어써서
+   기존 Tailwind 유틸(bg-surface, text-gray-100 …)과 재사용 컴포넌트가 앱 색을 따르게 하고,
+   앱에만 있는 값(그라데이션·유리·그림자 등)은 --a-* 변수로 둔다.
+   기준 시안: design/app/CyphersMetaApp.dc.html 의 light/dark 토큰
+   ───────────────────────────────────────────── */
+html[data-app] {
+  --bg: 243 245 249;
+  --surface: 255 255 255;
+  --surface-2: 238 241 246;
+  --surface-3: 228 232 239;
+  --border: 226 229 235;
+  --primary: 47 111 236;
+  --primary-strong: 31 86 200;
+  --win: 29 95 214;
+  --lose: 200 54 47;
+  --up: 22 150 90;
+  --g50: 10 14 22;
+  --g100: 15 20 32;
+  --g200: 45 52 66;
+  --g300: 74 82 99;
+  --g400: 95 103 120;
+  --g500: 113 122 140;
+  --g600: 150 158 173;
+
+  --a-ac-soft: rgba(47, 111, 236, 0.1);
+  --a-ac-tx: #1f56c8;
+  --a-win-bg: rgba(47, 111, 236, 0.07);
+  --a-loss-bg: rgba(226, 70, 63, 0.07);
+  --a-win-tx: #1d5fd6;
+  --a-loss-tx: #c8362f;
+  --a-live: #e5383b;
+  --a-ph: #e4e8ef;
+  --a-hero: #dfe9ff;
+  --a-art-op: 0.3;
+  --a-pill: #0f1420;
+  --a-card: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+  --a-hair: rgba(15, 23, 42, 0.06);
+  --a-glass: rgba(255, 255, 255, 0.78);
+  --a-grad: linear-gradient(135deg, #4f8dff 0%, #2f6fec 55%, #3d4fe0 100%);
+  --a-glow: 0 10px 24px -8px rgba(47, 111, 236, 0.55);
+  --a-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px -14px rgba(15, 23, 42, 0.18);
+  --a-amb: rgba(47, 111, 236, 0.12);
+  color-scheme: light;
+}
+
+html[data-app].dark {
+  --bg: 10 13 19;
+  --surface: 19 24 32;
+  --surface-2: 26 32 43;
+  --surface-3: 34 41 54;
+  --border: 37 42 51;
+  --primary: 91 155 255;
+  --primary-strong: 76 125 255;
+  --win: 134 182 255;
+  --lose: 255 143 143;
+  --up: 74 191 107;
+  --g50: 247 249 252;
+  --g100: 238 241 247;
+  --g200: 205 211 223;
+  --g300: 163 172 190;
+  --g400: 140 149 167;
+  --g500: 124 133 152;
+  --g600: 90 98 115;
+
+  --a-ac-soft: rgba(91, 155, 255, 0.16);
+  --a-ac-tx: #bcd5ff;
+  --a-win-bg: rgba(91, 155, 255, 0.12);
+  --a-loss-bg: rgba(255, 92, 92, 0.11);
+  --a-win-tx: #86b6ff;
+  --a-loss-tx: #ff8f8f;
+  --a-live: #ff4d4d;
+  --a-ph: #1f2633;
+  --a-hero: #17233b;
+  --a-art-op: 0.42;
+  --a-pill: #4a5262;
+  --a-card: linear-gradient(180deg, #161c26 0%, #11161e 100%);
+  --a-hair: rgba(255, 255, 255, 0.07);
+  --a-glass: rgba(12, 16, 23, 0.72);
+  --a-grad: linear-gradient(135deg, #6aa8ff 0%, #4c7dff 55%, #5b5cff 100%);
+  --a-glow: 0 10px 28px -6px rgba(76, 125, 255, 0.55);
+  --a-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+  --a-amb: rgba(76, 125, 255, 0.2);
+  color-scheme: dark;
+}
+
+html[data-app] body {
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  word-break: keep-all;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+html[data-app] ::-webkit-scrollbar {
+  display: none;
+}
+html[data-app] input::placeholder,
+html[data-app] textarea::placeholder {
+  color: rgb(var(--g500));
+}
+
+@keyframes cmPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes cmToast {
+  from {
+    transform: translate(-50%, 10px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+@keyframes cmUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes cmFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  /* 앱 카드: 은은한 세로 그라데이션 + 머리카락 테두리 + 그림자 */
+  .a-card {
+    background: var(--a-card);
+    border: 1px solid var(--a-hair);
+    box-shadow: var(--a-shadow);
+    border-radius: 20px;
+  }
+  /* 작은 카드(목록 행·타일) */
+  .a-tile {
+    background: var(--a-card);
+    border: 1px solid var(--a-hair);
+    border-radius: 14px;
+  }
+  /* 강조 그라데이션(선택된 탭·주요 버튼) */
+  .a-grad {
+    background-image: var(--a-grad);
+    color: #fff;
+  }
+  .a-glow {
+    box-shadow: var(--a-glow);
+  }
+  /* 유리 질감(상단바·하단 탭바) */
+  .a-glass {
+    background: var(--a-glass);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    backdrop-filter: blur(18px) saturate(1.5);
+  }
+  /* 불러오는 중 자리 표시 */
+  .a-skel {
+    background: rgb(var(--surface-2));
+    animation: cmPulse 1.2s ease-in-out infinite;
+  }
+  /* 누를 때 살짝 눌리는 느낌 */
+  .a-press {
+    transition: transform 0.12s ease, background-color 0.15s ease;
+  }
+  .a-press:active {
+    transform: scale(0.98);
+  }
+  /* 가로 스크롤 한 줄(스크롤바 숨김) */
+  .a-hscroll {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .a-hscroll::-webkit-scrollbar {
+    display: none;
+  }
+  /* 화면 좌우 여백까지 넘쳐 흐르게(가로 스크롤 목록용) */
+  .a-bleed {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+    scroll-padding-left: 16px;
+  }
+  .a-fade {
+    animation: cmFade 0.2s ease;
+  }
+}

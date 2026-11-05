@@ -52,6 +52,19 @@ const config: Config = {
           800: v("g200"),
           900: v("g50"),
         },
+        // ── 앱(Capacitor) 전용 색 — html[data-app] 에서만 값이 있다 (globals.css) ──
+        app: {
+          "ac-soft": "var(--a-ac-soft)",
+          "ac-tx": "var(--a-ac-tx)",
+          "win-bg": "var(--a-win-bg)",
+          "loss-bg": "var(--a-loss-bg)",
+          "win-tx": "var(--a-win-tx)",
+          "loss-tx": "var(--a-loss-tx)",
+          live: "var(--a-live)",
+          ph: "var(--a-ph)",
+          hair: "var(--a-hair)",
+          hero: "var(--a-hero)",
+        },
         tier: {
           bronze: "#b06b3f",
           silver: "#9aa7b4",

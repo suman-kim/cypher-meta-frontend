@@ -9,6 +9,8 @@ import MultiSearchForm from "@/components/player/MultiSearchForm";
 import { ErrorState } from "@/components/ui";
 import { buildMultiSummary, MULTI_RECENT, parseNames, type MultiSummary } from "@/lib/multi";
 import { getPlayer, getPlayerMatches, NeopleApiError, neopleErrorView, searchPlayers } from "@/lib/neople";
+import { isAppRequest } from "@/lib/app-mode";
+import AppMulti from "@/components/app/screens/social/AppMulti";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +65,14 @@ export default function MultiSearchPage({ searchParams }: Props) {
   const a = parseNames(searchParams.a);
   const b = parseNames(searchParams.b);
   const empty = a.length + b.length === 0;
+
+  // 앱 WebView: 같은 조회(loadCard)로 앱 멀티서치(시안 09). 조회는 화면이 기다리는 동안 결과 자리에 자리 표시를 둔다.
+  if (isAppRequest()) {
+    const results = empty
+      ? null
+      : Promise.all([Promise.all(a.map(loadCard)), Promise.all(b.map(loadCard))]);
+    return <AppMulti a={a} b={b} results={results} />;
+  }
 
   return (
     <div className="space-y-5">

@@ -31,6 +31,11 @@ import TagChips from "@/components/ranking/TagChips";
 import { positionAttributeImage } from "@/lib/images";
 import { gameTypeLabel } from "@/lib/constants";
 import type { MatchRow as MatchRowType, PlayerDetail } from "@/lib/types";
+import { isAppRequest } from "@/lib/app-mode";
+import AppPlayer from "@/components/app/screens/player/AppPlayer";
+import AppErrorScreen from "@/components/app/screens/player/AppErrorScreen";
+import { buildNormalPlay, buildWeekHeat } from "@/components/app/screens/player/player-data";
+import { GhostLink } from "@/components/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +45,8 @@ const PARTY_SAMPLE = 20;
 
 interface Props {
   params: { playerId: string };
-  searchParams: { gameTypeId?: string; refresh?: string };
+  /** link=1 — 앱 "내 계정" 화면에서 검색해 들어온 연동 흐름(앱에서만 씀) */
+  searchParams: { gameTypeId?: string; refresh?: string; link?: string };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -95,6 +101,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   let normalCount = 0;
   let playerRank: number | null = null; // 전체(레이팅) 순위
   let badgeMatches: MatchRowType[] = [];
+  let normalSample: MatchRowType[] = []; // 앱 화면 "일반전 플레이" 요약용(웹은 쓰지 않음)
   const attackTypeByName = new Map<string, string>();
 
   try {
@@ -120,6 +127,7 @@ export default async function PlayerPage({ params, searchParams }: Props) {
     const ratingRows = (ratingMatchesRes?.rows ?? []).slice(0, ANALYTICS_LIMIT);
     const normalRows = (normalMatchesRes?.rows ?? []).slice(0, ANALYTICS_LIMIT);
     normalCount = normalRows.length;
+    normalSample = normalRows;
 
     const ratingStream: MatchStream = {
       gameTypeId: "rating",
@@ -166,6 +174,31 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   }
 
   if (error || !player) {
+    if (isAppRequest()) {
+      const notFound = error instanceof NeopleApiError && error.status === 404;
+      const view = neopleErrorView(error, "플레이어 정보를 불러오지 못했어요.");
+      return notFound ? (
+        <AppErrorScreen
+          title="플레이어"
+          icon="search"
+          message="플레이어를 찾을 수 없어요"
+          desc="닉네임을 다시 확인하거나 다른 닉네임으로 검색해 보세요."
+          actions={<GhostLink href="/search" icon="search">다른 닉네임 검색</GhostLink>}
+        />
+      ) : (
+        <AppErrorScreen
+          title="플레이어"
+          message={view.variant === "maintenance" ? "사이퍼즈 서버 점검 중이에요" : "플레이어 정보를 불러오지 못했어요"}
+          desc={view.variant === "maintenance" ? "점검이 끝나면 다시 볼 수 있어요." : "잠시 뒤 다시 시도해 주세요."}
+          actions={
+            <>
+              <GhostLink href={`/players/${params.playerId}`} icon="refresh">다시 시도</GhostLink>
+              <GhostLink href="/search" icon="search">검색으로</GhostLink>
+            </>
+          }
+        />
+      );
+    }
     return (
       <ErrorState {...neopleErrorView(error, "플레이어 정보를 불러오지 못했습니다.")} />
     );
@@ -232,6 +265,61 @@ export default async function PlayerPage({ params, searchParams }: Props) {
 
   const hasAnalytics = analyticsMatches.length > 0;
   const hasListMatches = listStreams.some((s) => s.rows.length > 0);
+
+  // 앱(WebView) 요청이면 같은 데이터로 앱 화면을 그린다 (웹 화면은 아래 그대로)
+  if (isAppRequest()) {
+    return (
+      <AppPlayer
+        playerId={params.playerId}
+        nickname={player.nickname}
+        clanName={player.clanName ?? null}
+        grade={typeof player.grade === "number" && player.grade > 0 ? player.grade : null}
+        tierName={player.tierName ?? null}
+        rp={player.ratingPoint ?? null}
+        maxRp={player.maxRatingPoint ?? null}
+        rank={playerRank}
+        represent={
+          player.represent
+            ? {
+                characterId: player.represent.characterId,
+                characterName: player.represent.characterName,
+                positionName: player.represent.position?.name ?? null,
+              }
+            : null
+        }
+        tags={tags}
+        cachedAt={dataMeta.cachedAt ?? null}
+        basis={gameTypeId === "rating" ? "rating" : gameTypeId === "normal" ? "normal" : "all"}
+        positionSystem={positionSystem}
+        linkFlow={searchParams.link === "1"}
+        stats={{
+          officialWins: rt.win,
+          officialLosses: rt.lose,
+          officialWinRate: rt.win + rt.lose > 0 ? overallWinRate : null,
+          recentWinRate,
+          recentResolved: resolved.length,
+          avgKda: avgKDA,
+          kdaSample: kdaMatches.length,
+          normalCountLabel,
+        }}
+        recentSummary={buildRecentSummary(
+          analyticsMatches,
+          gameTypeId,
+          basisLabel,
+          RECENT_SAMPLE,
+          officialRecent.map((t) => t.match),
+        )}
+        playStyle={playStyle.classified > 0 ? playStyle : null}
+        topChars={topChars}
+        sampleCount={analyticsMatches.length}
+        heat={buildWeekHeat(analyticsMatches)}
+        normalPlay={normalSample.length > 0 ? buildNormalPlay(normalSample, ANALYTICS_LIMIT) : null}
+        listStreams={listStreams}
+        partyMatches={analyticsMatches}
+        partySample={PARTY_SAMPLE}
+      />
+    );
+  }
 
   return (
     <div className="space-y-5">

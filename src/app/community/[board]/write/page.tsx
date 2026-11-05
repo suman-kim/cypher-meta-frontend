@@ -2,11 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { boardLabel, isBoard } from "@/lib/community";
 import WriteForm from "@/components/community/WriteForm";
+import { isAppRequest } from "@/lib/app-mode";
+import AppWrite from "@/components/app/screens/social/AppWrite";
 
 export const metadata = { title: "글쓰기" };
 
 export default function WritePage({ params }: { params: { board: string } }) {
   if (!isBoard(params.board)) notFound();
+
+  // 앱 WebView: 앱 글쓰기 화면(시안 18)
+  if (isAppRequest()) return <AppWrite board={params.board} />;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">

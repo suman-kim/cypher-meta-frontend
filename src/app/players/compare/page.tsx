@@ -10,6 +10,8 @@ import PlayerCompare from "@/components/player/PlayerCompare";
 import { EmptyState, ErrorState, LinkTabs } from "@/components/ui";
 import { DUO_GAME_TYPES, type DuoGameType, type DuoPlayer } from "@/lib/duo";
 import { getPlayer, neopleErrorView, searchPlayers } from "@/lib/neople";
+import { isAppRequest } from "@/lib/app-mode";
+import AppCompare from "@/components/app/screens/social/AppCompare";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,23 @@ export default async function ComparePage({ searchParams }: Props) {
   const na = (searchParams.a ?? "").trim();
   const nb = (searchParams.b ?? "").trim();
   const gt: DuoGameType = searchParams.gt === "rating" || searchParams.gt === "normal" ? searchParams.gt : "all";
+
+  // 앱 WebView: 같은 닉네임 조회(resolvePlayer)로 앱 비교 화면(시안 10). 닉네임이 다 없으면 앱 입력 화면.
+  if (isAppRequest()) {
+    if (!na || !nb) return <AppCompare na={na} nb={nb} gt={gt} />;
+    const [appA, appB] = await Promise.all([resolvePlayer(na), resolvePlayer(nb)]);
+    const appFailed = appA.error ?? appB.error;
+    return (
+      <AppCompare
+        na={na}
+        nb={nb}
+        gt={gt}
+        a={appA.player}
+        b={appB.player}
+        errorMsg={appFailed ? neopleErrorView(appFailed, "플레이어 정보를 불러오지 못했습니다.").message : null}
+      />
+    );
+  }
 
   // 상단 히어로 — 제목 + 입력 폼(파랑·빨강 빛 번짐, 점 패턴 배경)
   const hero = (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getMatch, neopleErrorView } from "@/lib/neople";
+import { getMatch, neopleErrorView, NeopleApiError } from "@/lib/neople";
 import { Avatar } from "@/components/CharacterAvatar";
 import ItemHoverCard from "@/components/ItemHoverCard";
 import MatchTabs from "@/components/match/MatchTabs";
@@ -12,6 +12,10 @@ import { characterImage } from "@/lib/images";
 import { formatKDA, kdaColor, calcKDA, formatDate, formatPlayTime, formatNumber } from "@/lib/format";
 import { gameTypeLabel, STAT_LABELS } from "@/lib/constants";
 import type { MatchDetail, MatchDetailItem, MatchDetailPlayer, MatchDetailTeam } from "@/lib/types";
+import { isAppRequest } from "@/lib/app-mode";
+import AppMatch from "@/components/app/screens/player/AppMatch";
+import AppErrorScreen from "@/components/app/screens/player/AppErrorScreen";
+import { GhostLink } from "@/components/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -287,7 +291,43 @@ export default async function MatchPage({ params, searchParams }: Props) {
   try {
     match = await getMatch(params.matchId);
   } catch (e) {
+    if (isAppRequest()) {
+      const notFound = e instanceof NeopleApiError && e.status === 404;
+      const maintenance = neopleErrorView(e).variant === "maintenance";
+      const hl = searchParams.highlight;
+      const self = `/matches/${params.matchId}${hl ? `?highlight=${encodeURIComponent(hl)}` : ""}`;
+      return (
+        <AppErrorScreen
+          title="매치 상세"
+          icon={notFound ? "search" : undefined}
+          backHref={hl ? `/players/${hl}` : "/search"}
+          message={notFound ? "매치를 찾을 수 없어요" : maintenance ? "사이퍼즈 서버 점검 중이에요" : "매치를 불러오지 못했어요"}
+          desc={notFound ? "기록이 지워졌거나 잘못된 주소예요." : "잠시 뒤 다시 시도해 주세요."}
+          actions={
+            <>
+              {!notFound && (
+                <GhostLink href={self} icon="refresh">
+                  다시 시도
+                </GhostLink>
+              )}
+              {hl ? (
+                <GhostLink href={`/players/${hl}`}>플레이어로 돌아가기</GhostLink>
+              ) : (
+                <GhostLink href="/search" icon="search">
+                  검색으로
+                </GhostLink>
+              )}
+            </>
+          }
+        />
+      );
+    }
     return <ErrorState {...neopleErrorView(e)} />;
+  }
+
+  // 앱(WebView) 요청이면 앱 화면으로 (웹 화면은 아래 그대로)
+  if (isAppRequest()) {
+    return <AppMatch match={match} highlight={searchParams.highlight} />;
   }
 
   const teams = match.teams ?? [];
