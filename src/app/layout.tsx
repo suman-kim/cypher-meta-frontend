@@ -107,6 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <AdSenseScript />
       </head>
       <body className="flex min-h-[100dvh] flex-col bg-bg">
         <AnalyticsTracker />
@@ -115,7 +116,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Footer />
         <WhatsNewPopup />
         <NativeTabBar />
-        <AdSenseScript />
       </body>
     </html>
   );
