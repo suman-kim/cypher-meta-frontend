@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import Script from "next/script";
+import { cookies } from "next/headers";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import WhatsNewPopup from "@/components/updates/WhatsNewPopup";
 import NativeTabBar from "@/components/native/NativeTabBar";
-import AdSenseScript from "@/components/AdSenseScript";
 import { ADSENSE_CLIENT } from "@/lib/adsense";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site";
@@ -98,7 +99,14 @@ const jsonLd = [
   },
 ];
 
+/**
+ * 페이지 공통 HTML과 메타데이터를 구성한다.
+ * @param children 현재 경로에서 렌더링할 하위 페이지
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Capacitor 앱은 최초 요청에서 미들웨어가 심은 쿠키로 식별해 광고 스크립트를 제외한다.
+  const isNativeApp = cookies().get("cm_native_app")?.value === "1";
+
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
@@ -107,7 +115,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <AdSenseScript />
+        {!isNativeApp && (
+          <Script
+            id="adsbygoogle"
+            async
+            strategy="beforeInteractive"
+            crossOrigin="anonymous"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+          />
+        )}
       </head>
       <body className="flex min-h-[100dvh] flex-col bg-bg">
         <AnalyticsTracker />
