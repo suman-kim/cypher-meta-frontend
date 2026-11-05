@@ -115,9 +115,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/*
+          애드센스 head 태그. id 를 붙이지 않는다.
+          id="adsbygoogle" 이면 브라우저가 window.adsbygoogle 을 이 <script> 요소로 노출해,
+          로더가 자동 광고 요청(enable_page_level_ads)을 큐에 넣는 단계에서 조용히 버려진다.
+          (외부 src 스크립트라 next/script 도 id 를 요구하지 않는다.)
+        */}
         {!isNativeApp && (
           <Script
-            id="adsbygoogle"
             async
             strategy="beforeInteractive"
             crossOrigin="anonymous"
