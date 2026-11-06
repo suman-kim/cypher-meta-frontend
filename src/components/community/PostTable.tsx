@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { categoryLabel, type CommunityPost } from "@/lib/community";
 import { parseKstParts } from "@/lib/format";
+import BlockedHide from "@/components/moderation/BlockedHide";
 
 function formatViews(n: number): string {
   return n >= 10000 ? `${Math.round(n / 1000)}k` : n.toLocaleString("ko-KR");
@@ -165,27 +166,29 @@ export default function PostTable({
           )}
 
           {posts.map((p) => (
-            <tr
-              key={p.id}
-              className="border-b border-line transition-colors last:border-0 hover:bg-surface-2"
-            >
-              <td className="px-3 py-3 text-center text-gray-400">{p.seq}</td>
-              <td className="px-1 py-3 text-center">
-                <span className="chip bg-surface-3 text-gray-500">{categoryLabel(p.category)}</span>
-              </td>
-              <td className="truncate px-3 py-3 text-gray-200">
-                <TitleCell board={board} post={p} />
-              </td>
-              <td className="truncate px-3 py-3 text-gray-400">{p.authorName ?? "익명"}</td>
-              <td className="px-2 py-3 text-center text-gray-500">{formatViews(p.views)}</td>
-              <td
-                className={`px-2 py-3 text-center font-semibold ${
-                  p.likes > 0 ? "text-primary" : "text-gray-500"
-                }`}
+            // 차단한 작성자의 글은 이 기기에서 숨긴다
+            <BlockedHide key={p.id} name={p.authorName}>
+              <tr
+                className="border-b border-line transition-colors last:border-0 hover:bg-surface-2"
               >
-                {p.likes}
-              </td>
-            </tr>
+                <td className="px-3 py-3 text-center text-gray-400">{p.seq}</td>
+                <td className="px-1 py-3 text-center">
+                  <span className="chip bg-surface-3 text-gray-500">{categoryLabel(p.category)}</span>
+                </td>
+                <td className="truncate px-3 py-3 text-gray-200">
+                  <TitleCell board={board} post={p} />
+                </td>
+                <td className="truncate px-3 py-3 text-gray-400">{p.authorName ?? "익명"}</td>
+                <td className="px-2 py-3 text-center text-gray-500">{formatViews(p.views)}</td>
+                <td
+                  className={`px-2 py-3 text-center font-semibold ${
+                    p.likes > 0 ? "text-primary" : "text-gray-500"
+                  }`}
+                >
+                  {p.likes}
+                </td>
+              </tr>
+            </BlockedHide>
           ))}
         </tbody>
       </table>
@@ -203,7 +206,9 @@ export default function PostTable({
         )}
 
         {posts.map((p) => (
-          <MobileRow key={p.id} board={board} post={p} />
+          <BlockedHide key={p.id} name={p.authorName}>
+            <MobileRow board={board} post={p} />
+          </BlockedHide>
         ))}
       </ul>
     </div>

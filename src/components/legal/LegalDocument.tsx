@@ -19,6 +19,8 @@ export interface LegalArticle {
   /** 카드 배지 번호(예: "01") */
   num: string;
   title: string;
+  /** 바로가기 주소용 앵커 ID(선택, 예: "community-policy" → /terms#community-policy) */
+  id?: string;
   items: LegalItem[];
 }
 
@@ -65,7 +67,7 @@ export default function LegalDocument({
 
       {/* 조항 카드 */}
       {articles.map((a) => (
-        <article key={a.code} className="card p-6 sm:p-7">
+        <article key={a.code} id={a.id} className="card scroll-mt-24 p-6 sm:p-7">
           <div className="flex items-center gap-3.5">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-base font-black text-primary">
               {a.num}

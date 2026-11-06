@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import WhatsNewPopup from "@/components/updates/WhatsNewPopup";
 import SiteNoticeHost from "@/components/notices/SiteNoticeHost";
+import { ModerationHost } from "@/components/moderation/ModerationSheet";
 import NativeTabBar from "@/components/native/NativeTabBar";
 import { AppTabBar, AppThemeSync, AppToaster } from "@/components/app/AppChrome";
 import AppPushSync from "@/components/app/AppPushSync";
@@ -147,6 +148,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="mx-auto w-full max-w-xl">{children}</main>
           <AppTabBar />
           <AppToaster />
+          <ModerationHost />
         </body>
       </html>
     );
@@ -183,6 +185,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <WhatsNewPopup />
         {/* 접속 안내 모달(안드로이드 앱 테스터 모집 등) — 업데이트 팝업과 겹치지 않게 하나만 */}
         <SiteNoticeHost />
+        <ModerationHost />
         <NativeTabBar />
       </body>
     </html>

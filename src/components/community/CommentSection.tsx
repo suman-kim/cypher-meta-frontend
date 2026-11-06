@@ -6,6 +6,9 @@ import { useBannedWords } from "@/lib/banned-words";
 import BannedWordAlert from "@/components/community/BannedWordAlert";
 import { relativeTime } from "@/lib/format";
 import type { CommunityComment } from "@/lib/community";
+import { isBlockedIn, useBlockedAuthors, useTermsAgreed } from "@/lib/moderation";
+import ModerationButtons from "@/components/moderation/ModerationButtons";
+import TermsAgree from "@/components/moderation/TermsAgree";
 
 /** 금칙어가 걸린 입력칸 테두리 강조 */
 const BANNED_INPUT = "border-lose/70 focus:border-lose";
@@ -26,6 +29,12 @@ export default function CommentSection({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const banned = useBannedWords();
+  // 운영 정책 동의(이 기기에 한 번) — 동의 전 등록을 누르면 동의 칸을 강조
+  const termsAgreed = useTermsAgreed();
+  const [termsMissing, setTermsMissing] = useState(false);
+  const [rTermsMissing, setRTermsMissing] = useState(false);
+  // 이 기기에서 차단한 작성자
+  const blocked = useBlockedAuthors();
 
   // 답글 폼(한 번에 하나만 열림)
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
@@ -50,6 +59,10 @@ export default function CommentSection({
     banned.reset();
     if (!name.trim() || !password.trim() || !content.trim()) {
       setError("닉네임, 비밀번호, 내용을 모두 입력해주세요.");
+      return;
+    }
+    if (!termsAgreed) {
+      setTermsMissing(true);
       return;
     }
     setBusy(true);
@@ -85,6 +98,10 @@ export default function CommentSection({
     rBanned.reset();
     if (!rName.trim() || !rPassword.trim() || !rContent.trim()) {
       setRError("닉네임, 비밀번호, 내용을 모두 입력해주세요.");
+      return;
+    }
+    if (!termsAgreed) {
+      setRTermsMissing(true);
       return;
     }
     setRBusy(true);
@@ -129,8 +146,16 @@ export default function CommentSection({
     }
   }
 
-  /** 댓글 1개(본문 + 액션 + 열림 상태의 폼들) */
+  /** 댓글 1개(본문 + 액션 + 열림 상태의 폼들). 차단한 작성자의 댓글은 내용 대신 한 줄 안내 */
   function renderComment(c: CommunityComment, isReply: boolean) {
+    if (isBlockedIn(blocked, c.authorName)) {
+      return (
+        <p className="flex items-center gap-2 text-xs text-gray-500">
+          {isReply && <span>↳</span>}
+          차단한 작성자의 댓글이에요
+        </p>
+      );
+    }
     return (
       <>
         <div className="flex items-center justify-between gap-2">
@@ -140,6 +165,7 @@ export default function CommentSection({
             <span className="text-gray-500">{relativeTime(c.createdAt)}</span>
           </div>
           <div className="flex items-center gap-2">
+            <ModerationButtons target={{ type: "comment", id: c.id, authorName: c.authorName }} />
             <button
               type="button"
               onClick={() => openReply(c)}
@@ -202,6 +228,7 @@ export default function CommentSection({
               className={`input resize-y text-sm ${rBanned.has("content") ? BANNED_INPUT : ""}`}
             />
             {rBanned.state && <BannedWordAlert state={rBanned.state} />}
+            <TermsAgree missing={rTermsMissing} onAgree={() => setRTermsMissing(false)} />
             {rError && <p className="text-xs text-red-300">{rError}</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setReplyOpenId(null)} className="btn-ghost px-3 py-1.5 text-xs">
@@ -271,6 +298,7 @@ export default function CommentSection({
           className={`input resize-y ${banned.has("content") ? BANNED_INPUT : ""}`}
         />
         {banned.state && <BannedWordAlert state={banned.state} />}
+        <TermsAgree missing={termsMissing} onAgree={() => setTermsMissing(false)} />
         {error && <p className="text-sm text-red-300">{error}</p>}
         <div className="flex justify-end">
           <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">

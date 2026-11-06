@@ -7,6 +7,7 @@ import NoticeManager from "./NoticeManager";
 import CollectionManager from "./CollectionManager";
 import CostumeManager from "./CostumeManager";
 import UpdateManager from "./UpdateManager";
+import ReportManager from "./ReportManager";
 
 /* ── 타입 ── */
 interface Stats {
@@ -336,8 +337,17 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<
-    "analytics" | "board" | "banned" | "notice" | "update" | "collect" | "costume"
+    "analytics" | "board" | "report" | "banned" | "notice" | "update" | "collect" | "costume"
   >("analytics");
+  // 처리 대기 중인 신고 대상 수(탭 배지) — 로그인하면 한 번 읽고, 신고 탭이 바뀔 때마다 갱신
+  const [reportPending, setReportPending] = useState<number | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/admin/moderation/reports?view=pending&pageSize=1", { headers: { "x-admin-token": token } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { pendingTargets?: number } | null) => setReportPending(d?.pendingTargets ?? null))
+      .catch(() => setReportPending(null));
+  }, [token]);
 
   const load = useCallback(async (tk: string, d: number) => {
     setLoading(true);
@@ -456,6 +466,7 @@ export default function AdminDashboard() {
         {([
           ["analytics", "분석"],
           ["board", "게시판"],
+          ["report", "신고"],
           ["banned", "금칙어"],
           ["notice", "공지사항"],
           ["update", "업데이트"],
@@ -469,6 +480,9 @@ export default function AdminDashboard() {
             className={`segtab ${view === key ? "segtab-active" : ""}`}
           >
             {label}
+            {key === "report" && reportPending ? (
+              <span className="ml-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">{reportPending}</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -594,6 +608,7 @@ export default function AdminDashboard() {
       ) : null)}
 
       {view === "board" && <BoardManager token={token} />}
+      {view === "report" && <ReportManager token={token} onPendingChange={setReportPending} />}
       {view === "banned" && <BannedWordManager token={token} />}
       {view === "notice" && <NoticeManager token={token} />}
       {view === "update" && <UpdateManager token={token} />}

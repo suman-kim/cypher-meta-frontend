@@ -35,6 +35,7 @@ import { isAppRequest } from "@/lib/app-mode";
 import { formatMatchListDate } from "@/lib/format";
 import AppHome from "@/components/app/screens/home/AppHome";
 import type { NewsItem } from "@/components/app/screens/home/HomeClient";
+import BlockedHide from "@/components/moderation/BlockedHide";
 
 export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
 
@@ -243,6 +244,7 @@ export default async function HomePage() {
       meta: [p.authorName ?? "익명", formatMatchListDate(p.createdAt), p.commentCount > 0 ? `댓글 ${p.commentCount}` : ""]
         .filter(Boolean)
         .join(" · "),
+      authorName: p.isNotice ? null : p.authorName,
     });
     return (
       <AppHome
@@ -511,17 +513,19 @@ export default async function HomePage() {
               </div>
             ) : (
               recent.map((p) => (
-                <Link
-                  key={p.id}
-                  href={communityHref(p)}
-                  className="flex items-center gap-3 p-3 transition-colors hover:bg-surface-2"
-                >
-                  <span className="chip shrink-0 bg-surface-3 text-gray-500">{categoryLabel(p.category)}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{p.title}</span>
-                  {p.commentCount > 0 && (
-                    <span className="shrink-0 text-xs text-gray-500">댓글 {p.commentCount}</span>
-                  )}
-                </Link>
+                // 차단한 작성자의 글은 이 기기에서 숨긴다
+                <BlockedHide key={p.id} name={p.authorName}>
+                  <Link
+                    href={communityHref(p)}
+                    className="flex items-center gap-3 p-3 transition-colors hover:bg-surface-2"
+                  >
+                    <span className="chip shrink-0 bg-surface-3 text-gray-500">{categoryLabel(p.category)}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{p.title}</span>
+                    {p.commentCount > 0 && (
+                      <span className="shrink-0 text-xs text-gray-500">댓글 {p.commentCount}</span>
+                    )}
+                  </Link>
+                </BlockedHide>
               ))
             )}
           </div>

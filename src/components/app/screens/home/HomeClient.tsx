@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useFavs, useHydrated, useMe, useRecent, refreshSaved } from "@/lib/app-storage";
+import { isBlockedIn, useBlockedAuthors } from "@/lib/moderation";
 import { characterHref } from "@/lib/official";
 import type { PlayerCardData } from "@/app/api/app/player-card/route";
 import { Icon } from "../../icons";
@@ -340,6 +341,8 @@ export interface NewsItem {
   title: string;
   /** 보조 줄 (작성자 · 날짜 · 댓글) */
   meta: string;
+  /** 작성자 닉네임 — 차단한 작성자의 글을 숨길 때 쓴다(공지는 비움) */
+  authorName?: string | null;
 }
 
 /**
@@ -349,7 +352,9 @@ export interface NewsItem {
  */
 export function HomeNews({ notices, recent }: { notices: NewsItem[]; recent: NewsItem[] }) {
   const [tab, setTab] = useState<"notice" | "recent">(notices.length > 0 ? "notice" : "recent");
-  const list = tab === "notice" ? notices : recent;
+  const blocked = useBlockedAuthors();
+  // 차단한 작성자의 글은 이 기기에서 숨긴다
+  const list = (tab === "notice" ? notices : recent).filter((n) => !isBlockedIn(blocked, n.authorName));
   return (
     <section className="a-card grid grid-cols-1 gap-3 p-4">
       <SectionHead title="소식 · 커뮤니티" href="/community" cta="커뮤니티" />

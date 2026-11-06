@@ -15,6 +15,8 @@ import { postJSON } from "@/lib/api-client";
 import { useBannedWords } from "@/lib/banned-words";
 import { BOARDS, CATEGORIES, type BoardKey, type CategoryKey } from "@/lib/community";
 import BannedWordAlert from "@/components/community/BannedWordAlert";
+import TermsAgree from "@/components/moderation/TermsAgree";
+import { useTermsAgreed } from "@/lib/moderation";
 import { AppTopBar, goBack, toast } from "../../AppChrome";
 import { AppPage, Chip, Segmented } from "../../ui";
 import { Field, inputCls, Notice, Spinner } from "./social-ui";
@@ -41,6 +43,9 @@ export default function AppWrite({ board }: { board: BoardKey }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const banned = useBannedWords();
+  // 운영 정책 동의(이 기기에 한 번) — 동의 전 올리기를 누르면 동의 칸을 강조
+  const termsAgreed = useTermsAgreed();
+  const [termsMissing, setTermsMissing] = useState(false);
 
   // 등록을 한 번 누른 뒤에만 칸별 안내를 보인다
   const eName = tried && !guestName.trim() ? "필수 항목이에요" : null;
@@ -62,6 +67,10 @@ export default function AppWrite({ board }: { board: BoardKey }) {
     banned.reset();
     setTried(true);
     if (!guestName.trim() || password.length < PW_MIN || !title.trim() || !content.trim()) return;
+    if (!termsAgreed) {
+      setTermsMissing(true);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -178,6 +187,7 @@ export default function AppWrite({ board }: { board: BoardKey }) {
           </Field>
 
           {banned.state && <BannedWordAlert state={banned.state} />}
+          <TermsAgree missing={termsMissing} onAgree={() => setTermsMissing(false)} />
           {error && (
             <Notice icon="alert" tone="loss">
               {error}

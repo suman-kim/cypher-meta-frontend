@@ -8,6 +8,8 @@
  * - 웹 RecommendButton·DeletePostButton·CommentSection 과 같은 API(app/api/community/*)를 쓴다.
  * - 글·댓글 삭제는 아래에서 올라오는 비밀번호 확인 시트로 받는다. 비밀번호는 화면 입력으로만 쓰고 저장하지 않는다.
  * - 글이 없으면 "삭제되었거나 존재하지 않는 글" 빈 상태와 목록으로 가는 버튼을 보인다.
+ * - 신고·차단(Play 사용자 제작 콘텐츠 정책): 상단바 점 세 개 → 글 신고·작성자 차단, 댓글마다 점 세 개.
+ *   차단한 작성자의 글은 본문 대신 안내(BlockedNotice), 댓글은 한 줄 안내로 바꾼다. 댓글 쓰기 전 운영 정책 동의.
  */
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState, type RefObject } from "react";
@@ -21,6 +23,11 @@ import { AppTopBar, toast, TopIconButton } from "../../AppChrome";
 import { Icon } from "../../icons";
 import { AppPage, Badge, GhostLink, StateBox } from "../../ui";
 import { PasswordSheet } from "./PasswordSheet";
+import { canModerate, isBlockedIn, useBlockedAuthors, useTermsAgreed } from "@/lib/moderation";
+import BlockedNotice from "@/components/moderation/BlockedNotice";
+import ModerationButtons from "@/components/moderation/ModerationButtons";
+import { openModeration } from "@/components/moderation/ModerationSheet";
+import TermsAgree from "@/components/moderation/TermsAgree";
 import { compactNum, inputCls, Spinner } from "./social-ui";
 
 /** 앱 게시글 화면이 받는 데이터 */
@@ -77,6 +84,9 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
   const [replyTo, setReplyTo] = useState<CommunityComment | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  // 이 기기에서 차단한 작성자 — 글 작성자를 차단했으면 본문 대신 안내
+  const blocked = useBlockedAuthors();
+  const postBlocked = !post.isNotice && isBlockedIn(blocked, post.authorName);
 
   const topLevel = comments.filter((c) => !c.parentId);
   const repliesOf = (id: string) => comments.filter((c) => c.parentId === id);
@@ -150,72 +160,85 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
           <>
             <TopIconButton icon="share" label="공유" onClick={onShare} />
             {!post.isNotice && <TopIconButton icon="trash" label="글 삭제" onClick={() => openDelete({ kind: "post" })} />}
+            {canModerate(post.authorName, post.isNotice) && (
+              <TopIconButton
+                icon="more"
+                label="신고·차단"
+                onClick={() => openModeration({ type: "post", id: post.id, authorName: post.authorName })}
+              />
+            )}
           </>
         }
       />
-      <AppPage className="!gap-4">
-        {/* 머리 — 분류·제목·작성 정보 */}
-        <header className="grid gap-2">
-          <div className="flex gap-1.5">
-            {post.isNotice ? <Badge tone="grad">공지</Badge> : <Badge tone="mute">{categoryLabel(post.category)}</Badge>}
+      {postBlocked ? (
+        <AppPage>
+          <BlockedNotice name={post.authorName ?? ""} backHref={listHref} />
+        </AppPage>
+      ) : (
+        <AppPage className="!gap-4">
+          {/* 머리 — 분류·제목·작성 정보 */}
+          <header className="grid gap-2">
+            <div className="flex gap-1.5">
+              {post.isNotice ? <Badge tone="grad">공지</Badge> : <Badge tone="mute">{categoryLabel(post.category)}</Badge>}
+            </div>
+            <h1 className="break-words text-[22px] font-extrabold leading-snug tracking-[-0.02em] text-gray-50">{post.title}</h1>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+              <span className="font-semibold text-gray-300">{post.authorName ?? (post.isNotice ? "운영진" : "익명")}</span>
+              <span aria-hidden="true">·</span>
+              <time dateTime={post.createdAt} title={formatKoreanDateTime(post.createdAt)} suppressHydrationWarning>
+                {formatMatchListDate(post.createdAt)}
+              </time>
+              <span className="flex items-center gap-1 tabular-nums" aria-label={`조회 ${post.views}`}>
+                <Icon name="eye" size={13} />
+                {compactNum(post.views)}
+              </span>
+            </div>
+          </header>
+
+          {/* 본문 */}
+          <div className="min-h-[80px] whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-200">{post.content}</div>
+
+          <div className="flex justify-center py-1">
+            <RecommendButton postId={post.id} initialLikes={post.likes} />
           </div>
-          <h1 className="break-words text-[22px] font-extrabold leading-snug tracking-[-0.02em] text-gray-50">{post.title}</h1>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-            <span className="font-semibold text-gray-300">{post.authorName ?? (post.isNotice ? "운영진" : "익명")}</span>
-            <span aria-hidden="true">·</span>
-            <time dateTime={post.createdAt} title={formatKoreanDateTime(post.createdAt)} suppressHydrationWarning>
-              {formatMatchListDate(post.createdAt)}
-            </time>
-            <span className="flex items-center gap-1 tabular-nums" aria-label={`조회 ${post.views}`}>
-              <Icon name="eye" size={13} />
-              {compactNum(post.views)}
-            </span>
-          </div>
-        </header>
 
-        {/* 본문 */}
-        <div className="min-h-[80px] whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-200">{post.content}</div>
+          <hr className="border-line" />
 
-        <div className="flex justify-center py-1">
-          <RecommendButton postId={post.id} initialLikes={post.likes} />
-        </div>
+          {/* 댓글 */}
+          <section className="grid gap-2.5" aria-label="댓글">
+            <h2 className="text-[15px] font-extrabold text-gray-100">
+              댓글 <span className="text-primary">{comments.length}</span>
+            </h2>
 
-        <hr className="border-line" />
+            {topLevel.length === 0 ? (
+              <p className="a-tile px-4 py-6 text-center text-[13px] text-gray-500">첫 댓글을 남겨 보세요.</p>
+            ) : (
+              topLevel.map((c) => (
+                <div key={c.id} className="grid gap-2">
+                  <CommentItem c={c} onReply={startReply} onDelete={() => openDelete({ kind: "comment", id: c.id })} />
+                  {repliesOf(c.id).map((r) => (
+                    <div key={r.id} className="pl-6">
+                      <CommentItem c={r} reply onReply={startReply} onDelete={() => openDelete({ kind: "comment", id: r.id })} />
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
 
-        {/* 댓글 */}
-        <section className="grid gap-2.5" aria-label="댓글">
-          <h2 className="text-[15px] font-extrabold text-gray-100">
-            댓글 <span className="text-primary">{comments.length}</span>
-          </h2>
-
-          {topLevel.length === 0 ? (
-            <p className="a-tile px-4 py-6 text-center text-[13px] text-gray-500">첫 댓글을 남겨 보세요.</p>
-          ) : (
-            topLevel.map((c) => (
-              <div key={c.id} className="grid gap-2">
-                <CommentItem c={c} onReply={startReply} onDelete={() => openDelete({ kind: "comment", id: c.id })} />
-                {repliesOf(c.id).map((r) => (
-                  <div key={r.id} className="pl-6">
-                    <CommentItem c={r} reply onReply={startReply} onDelete={() => openDelete({ kind: "comment", id: r.id })} />
-                  </div>
-                ))}
-              </div>
-            ))
-          )}
-
-          <CommentForm
-            postId={post.id}
-            formRef={formRef}
-            textRef={textRef}
-            replyTo={replyTo}
-            onCancelReply={() => setReplyTo(null)}
-            onCreated={(c) => {
-              setComments((prev) => [...prev, c]);
-              setReplyTo(null);
-            }}
-          />
-        </section>
-      </AppPage>
+            <CommentForm
+              postId={post.id}
+              formRef={formRef}
+              textRef={textRef}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+              onCreated={(c) => {
+                setComments((prev) => [...prev, c]);
+                setReplyTo(null);
+              }}
+            />
+          </section>
+        </AppPage>
+      )}
 
       <PasswordSheet
         open={del !== null}
@@ -294,6 +317,15 @@ function CommentItem({
   onReply: (c: CommunityComment) => void;
   onDelete: () => void;
 }) {
+  const blocked = useIsBlockedComment(c.authorName);
+  if (blocked) {
+    return (
+      <p className="a-tile flex items-center gap-1.5 px-3.5 py-3 text-xs text-gray-500">
+        {reply && <Icon name="reply" size={13} />}
+        차단한 작성자의 댓글이에요
+      </p>
+    );
+  }
   return (
     <div className="a-tile grid gap-1.5 px-3.5 py-3">
       <div className="flex items-center gap-1.5 text-xs">
@@ -313,6 +345,7 @@ function CommentItem({
           <button type="button" onClick={onDelete} className="h-7 rounded-full px-2 font-semibold text-gray-500 active:bg-surface-2">
             삭제
           </button>
+          <ModerationButtons variant="icon" target={{ type: "comment", id: c.id, authorName: c.authorName }} />
         </span>
       </div>
       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200">{c.content}</p>
@@ -351,6 +384,9 @@ function CommentForm({
   const [error, setError] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
   const banned = useBannedWords();
+  // 운영 정책 동의(이 기기에 한 번)
+  const termsAgreed = useTermsAgreed();
+  const [termsMissing, setTermsMissing] = useState(false);
 
   const missName = tried && !name.trim();
   const missPw = tried && !password.trim();
@@ -363,6 +399,10 @@ function CommentForm({
     banned.reset();
     setTried(true);
     if (!name.trim() || !password.trim() || !content.trim()) return;
+    if (!termsAgreed) {
+      setTermsMissing(true);
+      return;
+    }
     setBusy(true);
     try {
       const created = await postJSON<CommunityComment>(`/api/community/posts/${postId}/comments`, {
@@ -441,6 +481,7 @@ function CommentForm({
         </p>
       )}
       {banned.state && <BannedWordAlert state={banned.state} />}
+      <TermsAgree missing={termsMissing} onAgree={() => setTermsMissing(false)} />
       {error && (
         <p className="text-xs font-semibold text-app-loss-tx" role="alert">
           {error}
@@ -456,4 +497,13 @@ function CommentForm({
       </button>
     </form>
   );
+}
+
+/**
+ * 댓글 작성자가 차단됐는지(CommentItem 용).
+ * @param name 작성자 닉네임
+ * @returns 차단했으면 true
+ */
+function useIsBlockedComment(name: string | null): boolean {
+  return isBlockedIn(useBlockedAuthors(), name);
 }
