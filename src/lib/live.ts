@@ -52,7 +52,8 @@ export function mapChzzk(l: ChzzkLive): LiveStream {
 export function mapYoutube(l: YoutubeLive): LiveStream {
   return {
     platform: "youtube",
-    id: `youtube:${l.liveId}`,
+    // 알림 구독 키로도 쓰이므로 방송(영상) ID 가 아니라 채널 ID 로 만든다 — 같은 채널의 다음 방송에도 알림이 이어진다
+    id: `youtube:${l.channelId}`,
     title: l.title,
     thumbnailUrl: l.thumbnailUrl,
     viewerCount: l.concurrentUserCount,

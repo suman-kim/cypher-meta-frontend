@@ -263,9 +263,17 @@ export function AppThemeSync() {
       const dark = theme === "dark" || (theme === "system" && mq.matches);
       document.documentElement.classList.toggle("dark", dark);
       try {
-        const sb = (window as any)?.Capacitor?.Plugins?.StatusBar;
-        sb?.setStyle?.({ style: dark ? "DARK" : "LIGHT" });
-        sb?.setBackgroundColor?.({ color: dark ? "#0a0d13" : "#f3f5f9" });
+        // 상태바 글자·아이콘 색. DARK = 어두운 배경용 밝은 글자.
+        // Capacitor 8(Android 15+ 화면 끝까지 그리기)은 코어 SystemBars 로, 이전 앱 셸은 StatusBar 플러그인으로 맞춘다.
+        // 화면 끝까지 그리는 기기에서는 상태바 뒤로 웹 화면이 보이므로 배경색 지정은 효과가 없다(상단바가 여백을 채운다).
+        const plugins = (window as any)?.Capacitor?.Plugins;
+        const style = dark ? "DARK" : "LIGHT";
+        if (plugins?.SystemBars?.setStyle) {
+          plugins.SystemBars.setStyle({ style })?.catch?.(() => {});
+        } else {
+          plugins?.StatusBar?.setStyle?.({ style });
+          plugins?.StatusBar?.setBackgroundColor?.({ color: dark ? "#0a0d13" : "#f3f5f9" });
+        }
       } catch {
         /* 무시 */
       }

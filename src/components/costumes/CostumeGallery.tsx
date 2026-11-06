@@ -113,12 +113,20 @@ function CostumeCard({ c, onOpen }: { c: Costume; onOpen: () => void }) {
 /* ------------------------------------------------------------------ */
 /* 메인 갤러리                                                          */
 /* ------------------------------------------------------------------ */
+/**
+ * 코스튬 갤러리 (검색·연도 필터·상세 모달).
+ * @param costumes 코스튬 목록
+ * @param nameToId 캐릭터 이름 → 캐릭터 ID (이미지·링크용)
+ * @param showFeedback 상세 모달에 시세 신고·정보 수정 요청(사용자 글) 패널을 보일지. 앱에서 사용자 글을 꺼 두면 false
+ */
 export default function CostumeGallery({
   costumes,
   nameToId = {},
+  showFeedback = true,
 }: {
   costumes: Costume[];
   nameToId?: Record<string, string>;
+  showFeedback?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [year, setYear] = useState<number | "all">("all");
@@ -355,9 +363,11 @@ export default function CostumeGallery({
                 </button>
               </div>
 
-              <div className="p-4 md:min-h-0 md:flex-1 md:overflow-y-auto">
-                <CostumeFeedbackPanel costume={current} />
-              </div>
+              {showFeedback && (
+                <div className="p-4 md:min-h-0 md:flex-1 md:overflow-y-auto">
+                  <CostumeFeedbackPanel costume={current} />
+                </div>
+              )}
             </div>
           </div>
         </div>

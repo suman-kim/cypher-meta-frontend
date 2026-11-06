@@ -7,8 +7,9 @@
 import Link from "next/link";
 import { AppTopBar } from "../../AppChrome";
 import { Icon, type IconName } from "../../icons";
-import { AppPage, Badge, ListRow } from "../../ui";
-import { MoreProfileCard, ThemeSetting } from "./MoreClient";
+import { AppPage, ListRow } from "../../ui";
+import { MoreProfileCard, PushSettings, ThemeSetting } from "./MoreClient";
+import { APP_FEATURES } from "@/lib/app-features";
 
 /** 더보기가 받는 값 */
 export interface AppMoreProps {
@@ -50,7 +51,12 @@ export default function AppMore({ liveCount, latestUpdate }: AppMoreProps) {
             desc={liveCount > 0 ? `지금 방송 중 ${liveCount}` : "사이퍼즈 방송과 동영상"}
             icon="video"
           />
-          <ToolCard href="/community" title="커뮤니티" desc="공식전 · 일반전 게시판" icon="community" />
+          {/* 앱 커뮤니티가 꺼져 있으면 그 자리에 알림 화면을 둔다 — APP_FEATURES.community */}
+          {APP_FEATURES.community ? (
+            <ToolCard href="/community" title="커뮤니티" desc="공식전 · 일반전 게시판" icon="community" />
+          ) : (
+            <ToolCard href="/notifications" title="알림" desc="방송 시작 · 업데이트 소식" icon="bell" />
+          )}
         </div>
 
         <section className="grid gap-2">
@@ -67,19 +73,8 @@ export default function AppMore({ liveCount, latestUpdate }: AppMoreProps) {
           <h2 className="px-1 text-[13px] font-bold text-gray-500">설정</h2>
           <div className="a-card grid gap-4 p-4">
             <ThemeSetting />
-            <div className="grid gap-3 border-t border-line pt-4">
-              {[
-                ["전적 갱신 알림", "내 계정 · 즐겨찾기 플레이어에게 새 매치가 쌓이면 알려 드려요"],
-                ["방송 시작 알림", "알림을 켠 스트리머가 방송을 시작하면 알려 드려요"],
-              ].map(([t, d]) => (
-                <div key={t} className="flex items-center gap-3">
-                  <span className="grid min-w-0 flex-1 gap-0.5">
-                    <span className="text-sm font-bold text-gray-100">{t}</span>
-                    <span className="text-[11px] leading-snug text-gray-500">{d}</span>
-                  </span>
-                  <Badge tone="mute">준비 중</Badge>
-                </div>
-              ))}
+            <div className="border-t border-line pt-4">
+              <PushSettings />
             </div>
           </div>
         </section>

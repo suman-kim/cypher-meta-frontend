@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { getUpdate, getUpdateComments } from "@/lib/updates";
 import UpdateBody from "@/components/updates/UpdateBody";
 import UpdateComments from "@/components/updates/UpdateComments";
+import { isAppRequest } from "@/lib/app-mode";
+import { APP_FEATURES } from "@/lib/app-features";
 
 export const dynamic = "force-dynamic"; // 댓글 신선도 위해 동적 유지
 
@@ -94,8 +96,10 @@ export default async function UpdateDetailPage({ params }: Props) {
         </div>
       </article>
 
-      {/* 댓글 */}
-      <UpdateComments updateId={update.id} initialComments={comments} />
+      {/* 댓글 — 사용자 글(UGC)이라 앱 커뮤니티가 꺼져 있으면 앱에서는 감춘다(APP_FEATURES.community) */}
+      {(!isAppRequest() || APP_FEATURES.community) && (
+        <UpdateComments updateId={update.id} initialComments={comments} />
+      )}
     </div>
   );
 }

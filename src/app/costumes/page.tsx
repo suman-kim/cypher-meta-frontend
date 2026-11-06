@@ -1,6 +1,8 @@
 import { getCostumes, type Costume } from "@/lib/costumes";
 import { getCharacters } from "@/lib/neople";
 import CostumeGallery from "@/components/costumes/CostumeGallery";
+import { isAppRequest } from "@/lib/app-mode";
+import { APP_FEATURES } from "@/lib/app-features";
 import { EmptyState, ErrorState } from "@/components/ui";
 
 export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
@@ -68,7 +70,12 @@ export default async function CostumesPage() {
           icon="👗"
         />
       ) : (
-        <CostumeGallery costumes={rows} nameToId={nameToId} />
+        // 시세 신고·수정 요청은 사용자 글(UGC)이라 앱 커뮤니티가 꺼져 있으면 앱에서는 감춘다
+        <CostumeGallery
+          costumes={rows}
+          nameToId={nameToId}
+          showFeedback={!isAppRequest() || APP_FEATURES.community}
+        />
       )}
     </div>
   );
