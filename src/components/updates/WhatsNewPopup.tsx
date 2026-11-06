@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { isNoticeTurnDone, subscribeNoticeTurn } from "@/lib/site-notices";
 import { markUpdatesSeen, snoozeUpdate, useUnseenUpdate } from "@/lib/updates-client";
 import UpdateBody from "./UpdateBody";
 
@@ -21,26 +22,32 @@ function relDate(iso: string): string | null {
  * WhatsNewPopup — 새 업데이트가 있고 아직 확인하지 않은 방문자에게 요약 팝업을 띄운다.
  * '나중에'(X·배경 클릭 포함)는 24시간 스누즈 — 확인 처리하지 않아 기간이 지나면 다시 뜬다
  * (헤더 NEW 뱃지는 유지). '전체 업데이트 보기'만 해당 버전을 '확인함'으로 영구 저장한다.
- * /updates·/admin 경로에서는 표시하지 않는다.
+ * /updates·/admin·/android-beta 경로에서는 표시하지 않는다.
+ * 접속 안내(SiteNoticeHost, 예: 앱 테스터 모집)가 먼저 뜨는 방문에는 그 안내를 닫은 뒤에 뜬다.
  */
 export default function WhatsNewPopup() {
   const pathname = usePathname();
   const unseen = useUnseenUpdate({ respectSnooze: true });
+  /** 접속 안내 차례가 끝났는지(끝나야 이 팝업이 뜬다) */
+  const noticeDone = useSyncExternalStore(subscribeNoticeTurn, isNoticeTurnDone, () => false);
   const [show, setShow] = useState(false);
 
-  const hiddenRoute = !!pathname && (pathname.startsWith("/updates") || pathname.startsWith("/admin"));
+  // 업데이트 노트·관리 화면, 앱 테스터 모집 공고(읽으러 온 화면을 가리지 않게)에서는 띄우지 않는다
+  const hiddenRoute =
+    !!pathname &&
+    (pathname.startsWith("/updates") || pathname.startsWith("/admin") || pathname.startsWith("/android-beta"));
 
   // 등장 시 살짝 지연 후 페이드인(로드 직후 깜빡임 방지)
   useEffect(() => {
-    if (!unseen || hiddenRoute) {
+    if (!unseen || hiddenRoute || !noticeDone) {
       setShow(false);
       return;
     }
     const t = setTimeout(() => setShow(true), 650);
     return () => clearTimeout(t);
-  }, [unseen, hiddenRoute]);
+  }, [unseen, hiddenRoute, noticeDone]);
 
-  if (!unseen || hiddenRoute) return null;
+  if (!unseen || hiddenRoute || !noticeDone) return null;
 
   /** '나중에'/X/배경 클릭 — 24시간 스누즈(확인 처리 아님, 기간 후 재팝업). */
   function dismiss() {

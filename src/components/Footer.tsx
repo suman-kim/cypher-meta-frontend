@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/constants";
 import Logo from "@/components/Logo";
+import { ANDROID_BETA } from "@/lib/android-beta";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -22,6 +23,15 @@ export default function Footer() {
 
           {/* 정보 링크 (인라인) */}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
+            {ANDROID_BETA.enabled && (
+              <>
+                {/* 테스터 모집 공고 — 안내 모달을 닫은 방문자도 여기서 다시 볼 수 있게 */}
+                <Link href={ANDROID_BETA.pagePath} className="font-semibold text-[#34a853] transition-colors hover:text-primary">
+                  안드로이드 앱 테스트 참여
+                </Link>
+                <span className="text-line">·</span>
+              </>
+            )}
             <Link href="/business-info" className="text-gray-400 transition-colors hover:text-primary">
               사업자 정보
             </Link>

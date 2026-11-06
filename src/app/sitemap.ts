@@ -17,6 +17,7 @@ const ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.S
   { path: "/items", priority: 0.6, changeFrequency: "weekly" },
   { path: "/costumes", priority: 0.6, changeFrequency: "weekly" },
   { path: "/community", priority: 0.7, changeFrequency: "daily" },
+  { path: "/android-beta", priority: 0.5, changeFrequency: "weekly" },
   { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
   { path: "/business-info", priority: 0.2, changeFrequency: "yearly" },
