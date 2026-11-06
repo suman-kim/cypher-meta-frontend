@@ -63,7 +63,7 @@ export const ANDROID_BETA_STEPS: BetaStep[] = [
   {
     key: "store",
     title: "앱 설치",
-    desc: "Play 스토어에서 '설치'를 눌러 주세요.",
+    desc: "Play 스토어에서 '설치'를 눌러 주세요. 테스터 등록 뒤 스토어에 반영되기까지 10분 정도 걸릴 수 있어요.",
     cta: "Play 스토어에서 받기",
     href: ANDROID_BETA.storeUrl,
   },
