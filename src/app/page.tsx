@@ -22,6 +22,7 @@ import LiveStreams from "@/components/LiveStreams";
 import { getLiveStreams } from "@/lib/live";
 import { getLatestUpdate } from "@/lib/updates";
 import LatestUpdateCard from "@/components/updates/LatestUpdateCard";
+import AndroidBetaBanner from "@/components/notices/AndroidBetaBanner";
 import {
   getNotices,
   getRecentPosts,
@@ -333,6 +334,7 @@ export default async function HomePage() {
       </section>
 
       {latestUpdate && <LatestUpdateCard update={latestUpdate} />}
+      <AndroidBetaBanner />
 
       {/* 지금 방송 중 (치지직·유튜브·SOOP 라이브, 시청자수 순) */}
       <LiveStreams initial={liveStreams} limit={20} />

@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --experimental-strip-types scripts/test-normalize.ts"
+    "test": "node --experimental-strip-types scripts/test-normalize.ts && node --experimental-strip-types scripts/test-notices.ts"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
