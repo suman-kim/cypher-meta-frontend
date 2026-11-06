@@ -2,6 +2,8 @@ import LiveAccordion from "@/components/videos/LiveAccordion";
 import VideoBrowser from "@/components/videos/VideoBrowser";
 import { getLiveStreams } from "@/lib/live";
 import { getVideosPage } from "@/lib/videos";
+import { isAppRequest } from "@/lib/app-mode";
+import AppVideos from "@/components/app/screens/social/AppVideos";
 
 export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
 
@@ -12,8 +14,22 @@ export const metadata = {
   alternates: { canonical: "/videos" },
 };
 
-export default async function VideosPage() {
+export default async function VideosPage({ searchParams }: { searchParams: { tab?: string } }) {
   const [live, page] = await Promise.all([getLiveStreams(20, 120), getVideosPage("view", 24, "", 0, 120)]);
+
+  // 앱 WebView: 같은 데이터로 앱 방송·동영상 화면(시안 11). ?tab=videos 면 동영상 칸부터 연다.
+  if (isAppRequest()) {
+    return (
+      <AppVideos
+        lives={live}
+        initialVideos={page.videos}
+        initialCursor={{ yt: page.nextYt === null ? "none" : page.nextYt, cz: page.nextCz }}
+        initialHasMore={page.hasMore}
+        initialTab={searchParams.tab === "videos" ? "videos" : "live"}
+        now={Date.now()}
+      />
+    );
+  }
 
   return (
     <div className="space-y-10">

@@ -6,6 +6,7 @@ import {
   type RoleCompositionsResult,
   type MetaSummary,
 } from "@/lib/meta";
+import { ROLE_LABELS, type RoleOrEtc } from "@/lib/meta";
 import {
   getRoster,
   getCompVotes,
@@ -30,14 +31,19 @@ import {
   getUltimateCompositions,
 } from "@/lib/official-api";
 import {
+  OFFICIAL_ROLES,
+  characterHref,
   dualCharacterIds,
   isOfficialRoleKey,
+  ultimateLabel,
   unitKey,
   type CharacterUltimate,
   type OfficialCompVotesResult,
   type OfficialFormation,
   type UltimateCompositionsResult,
 } from "@/lib/official";
+import { isAppRequest } from "@/lib/app-mode";
+import AppMetaComp, { type AppCompItem } from "@/components/app/screens/meta/AppMetaComp";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -61,8 +67,11 @@ function renderHeader(tab: "data" | "vote") {
 }
 
 interface Props {
-  /** tab=vote|data, 공식 역할군 체계에서는 size(2|3)·roles(역할군 키 쉼표 목록)·basis(freq|win|both) */
-  searchParams: { tab?: string; size?: string; roles?: string; basis?: string };
+  /**
+   * tab=vote|data, 공식 역할군 체계에서는 size(2|3)·roles(역할군 키 쉼표 목록)·basis(freq|win|both).
+   * cat — 앱 전용: 예전 체계의 조합 카테고리(dealerduo 등). 앱에서 size·cat 이 없으면 5인 풀팀을 보여 준다.
+   */
+  searchParams: { tab?: string; size?: string; roles?: string; basis?: string; cat?: string };
 }
 
 /**
@@ -71,7 +80,9 @@ interface Props {
  * 아니면(legacy·조회 실패) 기존 역할 카테고리 조합·편성 투표를 보여 준다. 5인 풀팀 집계는 두 체계 공통.
  */
 export default async function CompMetaPage({ searchParams }: Props) {
-  const tab = searchParams.tab === "vote" ? "vote" : "data";
+  // 앱 WebView 는 커뮤니티 투표 탭 없이 데이터 조합만 보여 준다(투표는 앱 시안상 P2).
+  const app = isAppRequest();
+  const tab = !app && searchParams.tab === "vote" ? "vote" : "data";
   const official = (await getPositionSystem()) === "official";
 
   /* ───────── 커뮤니티 투표 탭 — 공식 역할군 체계 ───────── */
@@ -256,6 +267,11 @@ export default async function CompMetaPage({ searchParams }: Props) {
     ? null
     : await getRoleCompositions({ gameTypeId: "rating", limit: 8, minGames: 3 }).catch(() => null);
 
+  // 앱 WebView: 같은 데이터로 앱 조합 티어 화면(시안 06)을 그린다.
+  if (app) {
+    return renderAppComp({ searchParams, size, roleKeys, comps, ultComps, roleComps });
+  }
+
   return (
     <div className="space-y-5">
       {renderHeader("data")}
@@ -319,5 +335,171 @@ export default async function CompMetaPage({ searchParams }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 앱 조합 화면 주소 — 편성(5인/듀오/트리오/예전 카테고리)·역할군·기준을 쿼리로 담는다.
+ * @param kind full | duo | trio | 예전 카테고리 키
+ * @param roles 듀오·트리오 역할군 필터(영문 키)
+ * @param basis freq | win
+ * @returns /meta/comp 주소
+ */
+function appCompHref(kind: string, roles: string[], basis: "freq" | "win"): string {
+  const p = new URLSearchParams();
+  if (kind === "duo" || kind === "trio") {
+    p.set("size", kind === "trio" ? "3" : "2");
+    if (roles.length) p.set("roles", roles.join(","));
+  } else if (kind !== "full") {
+    p.set("cat", kind);
+  }
+  if (basis !== "freq") p.set("basis", basis);
+  const q = p.toString();
+  return q ? `/meta/comp?${q}` : "/meta/comp";
+}
+
+/**
+ * 앱 조합 티어 화면을 그린다 — 웹이 불러온 조합 데이터를 앱 카드 모양으로 바꾼다.
+ * @param a.searchParams 페이지 쿼리
+ * @param a.size 듀오·트리오 인원(2|3)
+ * @param a.roleKeys 듀오·트리오 역할군 필터(영문 키)
+ * @param a.comps 5인 풀팀 집계 (없으면 null)
+ * @param a.ultComps 공식 역할군 듀오·트리오 집계 (없으면 null)
+ * @param a.roleComps 예전 체계 역할 카테고리 조합 (없으면 null)
+ */
+function renderAppComp(a: {
+  searchParams: Props["searchParams"];
+  size: 2 | 3;
+  roleKeys: string[];
+  comps: CompositionsResult | null;
+  ultComps: UltimateCompositionsResult | null;
+  roleComps: RoleCompositionsResult | null;
+}) {
+  const { searchParams, size, roleKeys, comps, ultComps, roleComps } = a;
+  const basis: "freq" | "win" = searchParams.basis === "win" ? "win" : "freq";
+  const legacyCats = (roleComps?.categories ?? []).filter((c) => c.distinctCombos > 0);
+  const kind: string =
+    ultComps && (searchParams.size === "2" || searchParams.size === "3")
+      ? size === 3
+        ? "trio"
+        : "duo"
+      : !ultComps && legacyCats.some((c) => c.key === searchParams.cat)
+        ? (searchParams.cat as string)
+        : "full";
+  const roles = kind === "duo" || kind === "trio" ? roleKeys : [];
+
+  // 편성 칩 — 공식 체계: 5인/듀오/트리오, 예전 체계: 5인 + 역할 카테고리
+  const kindDefs: { key: string; label: string }[] = [
+    { key: "full", label: "5인 풀팀" },
+    ...(ultComps
+      ? [
+          { key: "duo", label: "듀오" },
+          { key: "trio", label: "트리오" },
+        ]
+      : legacyCats.map((c) => ({ key: c.key, label: c.label }))),
+  ];
+
+  let items: AppCompItem[] = [];
+  let title = "최근 공식전 5인 조합";
+  let desc: string | null = null;
+  let note = "";
+  let minGames = comps?.minGames ?? 3;
+  let noData = false;
+
+  if (kind === "full") {
+    noData = !comps || comps.totalTeams === 0;
+    const list = comps ? (basis === "win" ? comps.byWinRate : comps.byFrequency) : [];
+    items = list.map((c) => ({
+      key: c.ids.join("-"),
+      games: c.games,
+      winRate: c.winRate,
+      matchIds: c.ids,
+      members: c.ids.map((id, j) => ({
+        characterId: id,
+        name: c.names[j] ?? "",
+        href: `/characters/${id}`,
+        ultLabel: null,
+        roleName: null,
+        officialRole: false,
+      })),
+    }));
+    desc = comps ? `팀 ${comps.totalTeams.toLocaleString()}개 · 조합 ${comps.distinctCombos.toLocaleString()}종` : null;
+    note = `5명이 정확히 같은 팀만 같은 조합으로 세요. 그래서 대부분 1~2판이고, 판수가 적으면 참고만 해 주세요. 승률순은 ${minGames}판 이상 나온 조합만 보여요.`;
+  } else if ((kind === "duo" || kind === "trio") && ultComps) {
+    const list = basis === "win" ? ultComps.byWinRate : ultComps.byFrequency;
+    minGames = ultComps.minGames;
+    items = list.map((c) => ({
+      key: c.members.map((m) => unitKey(m.characterId, m.ultimateType)).join("|"),
+      games: c.games,
+      winRate: c.winRate,
+      matchIds: null,
+      members: c.members.map((m) => ({
+        characterId: m.characterId,
+        name: m.characterName,
+        href: characterHref(m.characterId, m.ultimateType),
+        ultLabel: m.dual ? ultimateLabel(m.ultimateType) : null,
+        roleName: m.officialRole,
+        officialRole: true,
+      })),
+    }));
+    title = kind === "trio" ? "같은 팀 3인 조합" : "같은 팀 2인 조합";
+    desc = `${ultComps.distinctCombos.toLocaleString()}종${ultComps.filterRoles.length ? ` · ${ultComps.filterRoles.join("+")} 포함` : ""}`;
+    note = `같은 팀(승패 같음) 안의 ${ultComps.size}인 조합이에요. 한 칸은 캐릭터와 그 판의 궁극기(장착 아이템으로 판별)이고, 역할군은 사이퍼즈 공식 역할군이에요. 승률순은 ${minGames}판 이상 나온 조합만 보여요.`;
+  } else {
+    const cat = legacyCats.find((c) => c.key === kind);
+    const list = cat ? (basis === "win" ? cat.byWinRate : cat.byFrequency) : [];
+    minGames = roleComps?.minGames ?? minGames;
+    items = list.map((c) => ({
+      key: `${c.ids.join("-")}-${c.roles.join("-")}`,
+      games: c.games,
+      winRate: c.winRate,
+      matchIds: null,
+      members: c.ids.map((id, j) => ({
+        characterId: id,
+        name: c.names[j] ?? "",
+        href: `/characters/${id}`,
+        ultLabel: null,
+        roleName: ROLE_LABELS[c.roles[j] as RoleOrEtc] ?? c.roles[j] ?? null,
+        officialRole: false,
+      })),
+    }));
+    title = cat?.label ?? "역할 조합";
+    desc = cat ? `${cat.distinctCombos.toLocaleString()}종` : null;
+    note =
+      "같은 팀(승패 같음) 안의 2·3인 조합이에요. 포지션은 그 판의 운용(목걸이·능력치·캐릭터)으로 판별해요. 탱커 트리오는 탱커 3명 또는 탱커 2명+서포터 1명이에요.";
+  }
+
+  return (
+    <AppMetaComp
+      kindTabs={kindDefs.map((k) => ({ key: k.key, label: k.label, href: appCompHref(k.key, [], basis), active: k.key === kind }))}
+      basisTabs={(
+        [
+          ["freq", "많이 나온 순"],
+          ["win", "승률순"],
+        ] as const
+      ).map(([k, label]) => ({ key: k, label, href: appCompHref(kind, roles, k), active: k === basis }))}
+      roleTabs={
+        kind === "duo" || kind === "trio"
+          ? [
+              { key: "all", label: "전체", href: appCompHref(kind, [], basis), active: roles.length === 0 },
+              ...OFFICIAL_ROLES.map((r) => ({
+                key: r.key,
+                label: r.name,
+                href: appCompHref(kind, [r.key], basis),
+                active: roles.length === 1 && roles[0] === r.key,
+                roleIcon: r.key,
+              })),
+            ]
+          : null
+      }
+      items={items}
+      basis={basis}
+      minGames={minGames}
+      title={title}
+      desc={desc}
+      note={note}
+      noData={noData}
+      gameTypeId={comps?.gameTypeId ?? "rating"}
+    />
   );
 }

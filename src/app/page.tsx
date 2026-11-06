@@ -30,6 +30,10 @@ import {
   type CommunityPost,
 } from "@/lib/community";
 import type { RatingRankingRow } from "@/lib/types";
+import { isAppRequest } from "@/lib/app-mode";
+import { formatMatchListDate } from "@/lib/format";
+import AppHome from "@/components/app/screens/home/AppHome";
+import type { NewsItem } from "@/components/app/screens/home/HomeClient";
 
 export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용 — 빌드 프리렌더 대신 요청 시점 렌더
 
@@ -227,6 +231,46 @@ export default async function HomePage() {
 
   const liveStreams = await getLiveStreams(20, 300);
   const latestUpdate = await getLatestUpdate(600);
+
+  // 앱 WebView: 같은 데이터로 앱 홈(시안 01)을 그린다.
+  if (isAppRequest()) {
+    const toNews = (p: CommunityPost, badge: string): NewsItem => ({
+      id: p.id,
+      href: communityHref(p),
+      badge,
+      title: p.title,
+      meta: [p.authorName ?? "익명", formatMatchListDate(p.createdAt), p.commentCount > 0 ? `댓글 ${p.commentCount}` : ""]
+        .filter(Boolean)
+        .join(" · "),
+    });
+    return (
+      <AppHome
+        rankers={top.map((row) => {
+          const m = metaMap.get(row.player.playerId);
+          return {
+            rank: row.ranking,
+            playerId: row.player.playerId,
+            nickname: row.player.nickname,
+            tierName: row.tierName ?? null,
+            rp: row.ratingPoint ?? 0,
+            winRate: m && m.total > 0 ? m.winRate : null,
+            picks: m?.picks.slice(0, 3) ?? [],
+          };
+        })}
+        roleGroups={
+          hasMeta
+            ? roleCards.map((rc) => ({ key: rc.key, label: rc.label, official: !rc.legacyIcon, list: rc.list }))
+            : []
+        }
+        comps={compTrend}
+        notices={notices.map((n) => toNews(n, "공지"))}
+        recent={recent.map((p) => toNews(p, categoryLabel(p.category)))}
+        lives={liveStreams}
+        latestUpdate={latestUpdate}
+        summary={summary}
+      />
+    );
+  }
 
   return (
     <div className="space-y-10">

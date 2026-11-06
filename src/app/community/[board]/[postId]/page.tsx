@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { boardLabel, categoryLabel, getPost, type PostDetail } from "@/lib/community";
+import { boardLabel, categoryLabel, getPost, isBoard, type PostDetail } from "@/lib/community";
 import { relativeTime } from "@/lib/format";
 import { ErrorState } from "@/components/ui";
 import CommentSection from "@/components/community/CommentSection";
 import RecommendButton from "@/components/community/RecommendButton";
 import DeletePostButton from "@/components/community/DeletePostButton";
+import { isAppRequest } from "@/lib/app-mode";
+import AppPost from "@/components/app/screens/social/AppPost";
 
 export const dynamic = "force-dynamic"; // 댓글 신선도 위해 동적 유지
 
@@ -13,6 +15,13 @@ interface Props {
 }
 
 export default async function PostDetailPage({ params }: Props) {
+  // 앱 WebView: 같은 글 상세로 앱 게시글 화면(시안 13)을 그린다. 글이 없으면 앱 화면 안에서 빈 상태를 보인다.
+  if (isAppRequest()) {
+    const appPost = await getPost(params.postId).catch(() => null);
+    const appBoard = isBoard(params.board) ? params.board : appPost && isBoard(appPost.boardType) ? appPost.boardType : "free";
+    return <AppPost post={appPost} board={appBoard} />;
+  }
+
   let post: PostDetail;
   try {
     post = await getPost(params.postId);

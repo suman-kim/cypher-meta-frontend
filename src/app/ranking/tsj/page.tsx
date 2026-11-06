@@ -9,6 +9,8 @@ import RankAvatar from "@/components/ranking/RankAvatar";
 import { TSJ_TYPES, tsjLabel } from "@/lib/constants";
 import { formatNumber, winRate } from "@/lib/format";
 import type { TsjRankingRow } from "@/lib/types";
+import { isAppRequest } from "@/lib/app-mode";
+import AppRankingTsj from "@/components/app/screens/meta/AppRankingTsj";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -52,6 +54,42 @@ export default async function TsjRankingPage({ searchParams }: Props) {
     rows.length > 0
       ? await loadRepChars(rows.map((r) => r.player.playerId))
       : new Map<string, RepChar | undefined>();
+
+  // 앱 WebView: 같은 데이터로 앱 결투장 랭킹 목록을 그린다(쪽 단위 이전/다음).
+  if (isAppRequest()) {
+    const ev = error ? neopleErrorView(error) : null;
+    const pageHref = (o: number) => `/ranking/tsj?tsjType=${tsjType}${o > 0 ? `&offset=${o}` : ""}`;
+    return (
+      <AppRankingTsj
+        typeTabs={TSJ_TYPES.map((t) => ({
+          key: t.type,
+          label: t.label,
+          href: `/ranking/tsj?tsjType=${t.type}`,
+          active: t.type === tsjType,
+        }))}
+        typeLabel={tsjLabel(tsjType)}
+        rows={rows.map((row) => {
+          const rep = repMap.get(row.player.playerId);
+          return {
+            rank: row.ranking,
+            playerId: row.player.playerId,
+            nickname: row.player.nickname,
+            repCharId: rep?.characterId ?? null,
+            repCharName: rep?.characterName ?? null,
+            score: row.score ?? null,
+            wins: row.winCount ?? null,
+            losses: row.loseCount ?? null,
+            winRate: rowWinRate(row) ?? null,
+          };
+        })}
+        error={ev ? { maintenance: ev.variant === "maintenance", message: ev.message } : null}
+        prevHref={offset > 0 ? pageHref(Math.max(0, offset - LIMIT)) : null}
+        nextHref={!error && rows.length >= LIMIT ? pageHref(offset + LIMIT) : null}
+        rangeLabel={rows.length > 0 ? `${offset + 1}~${offset + rows.length}위` : null}
+        retryHref={pageHref(offset)}
+      />
+    );
+  }
 
   const tsjTabs = TSJ_TYPES.map((t) => ({
     href: `/ranking/tsj?tsjType=${t.type}`,

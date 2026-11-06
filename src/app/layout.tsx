@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { cookies } from "next/headers";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import WhatsNewPopup from "@/components/updates/WhatsNewPopup";
 import NativeTabBar from "@/components/native/NativeTabBar";
+import { AppTabBar, AppThemeSync, AppToaster } from "@/components/app/AppChrome";
+import { isAppRequest } from "@/lib/app-mode";
 import { ADSENSE_CLIENT } from "@/lib/adsense";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site";
@@ -68,6 +69,20 @@ export const metadata: Metadata = {
   other: { "google-adsense-account": ADSENSE_CLIENT },
 };
 
+/**
+ * 뷰포트 — 앱 WebView 는 노치·홈 표시줄 안전 영역까지 그리도록 viewport-fit=cover 를 준다.
+ * @returns 요청(웹/앱)에 맞는 뷰포트 설정
+ */
+export function generateViewport(): Viewport {
+  if (isAppRequest()) {
+    return { width: "device-width", initialScale: 1, viewportFit: "cover" };
+  }
+  return { width: "device-width", initialScale: 1 };
+}
+
+// 앱 FOUC 방지: 렌더 전에 앱 테마(기기 저장, 기본=기기 설정 따름)를 적용한다. 웹 테마 키('theme')와 따로 쓴다.
+const appThemeScript = `(function(){try{var v=null;try{v=JSON.parse(localStorage.getItem('cm_app_theme'))}catch(e){}var d=v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+
 // FOUC 방지: 렌더 전에 저장된 테마를 적용 (라이트 기본, 'dark' 저장 시 다크)
 const themeScript = `(function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`;
 
@@ -104,8 +119,34 @@ const jsonLd = [
  * @param children 현재 경로에서 렌더링할 하위 페이지
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Capacitor 앱은 최초 요청에서 미들웨어가 심은 쿠키로 식별해 광고 스크립트를 제외한다.
-  const isNativeApp = cookies().get("cm_native_app")?.value === "1";
+  // Capacitor 앱은 최초 요청에서 미들웨어가 심은 쿠키(또는 앱 식별 User-Agent)로 식별해 광고 스크립트를 제외한다.
+  const isNativeApp = isAppRequest();
+
+  // 앱 WebView: 웹 머리글·바닥글 대신 앱 틀(상단바는 각 화면, 하단 탭바는 여기)로 그린다.
+  // 화면별 앱 UI 는 각 page.tsx 가 isAppRequest() 로 갈라 그린다. 광고는 앱 광고 방식(A/B) 결정 전까지 넣지 않는다.
+  if (isNativeApp) {
+    return (
+      <html lang="ko" data-app="" suppressHydrationWarning>
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: appThemeScript }} />
+          <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
+          />
+        </head>
+        <body
+          className="min-h-[100dvh] bg-bg text-gray-100"
+          style={{ paddingBottom: "calc(86px + env(safe-area-inset-bottom))" }}
+        >
+          <AnalyticsTracker />
+          <AppThemeSync />
+          <main className="mx-auto w-full max-w-xl">{children}</main>
+          <AppTabBar />
+          <AppToaster />
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="ko" suppressHydrationWarning>

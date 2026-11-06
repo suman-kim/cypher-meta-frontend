@@ -9,7 +9,11 @@ import RankAvatar from "@/components/ranking/RankAvatar";
 import { Avatar } from "@/components/CharacterAvatar";
 import RankingCharacterPicker from "@/components/ranking/RankingCharacterPicker";
 import { getCharacterUltimates, getPositionSystem } from "@/lib/official-api";
-import type { CharacterUltimate } from "@/lib/official";
+import { OFFICIAL_ROLES, dualCharacterIds, groupUltimatesByRole, ultimateLabel, type CharacterUltimate } from "@/lib/official";
+import { ROLE_LABELS, type RoleOrEtc } from "@/lib/meta";
+import { isAppRequest } from "@/lib/app-mode";
+import AppRankingChars from "@/components/app/screens/meta/AppRankingChars";
+import type { PickerGroup } from "@/components/app/screens/meta/CharPicker";
 import { CHARACTER_RANKING_TYPES, characterRankingLabel } from "@/lib/constants";
 import { formatNumber, winRate } from "@/lib/format";
 import type { CharacterRankingRow } from "@/lib/types";
@@ -72,6 +76,27 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
   const officialUltimates: CharacterUltimate[] =
     (await getPositionSystem()) === "official" ? await getCharacterUltimates().catch(() => []) : [];
 
+  // 앱 WebView: 캐릭터 고르기 화면(또는 캐릭터 목록 실패)을 앱 화면으로 그린다.
+  const app = isAppRequest();
+  if (app && (charError || !characterId)) {
+    const ev = charError ? neopleErrorView(charError) : null;
+    return (
+      <AppRankingChars
+        characterId={null}
+        charName={null}
+        rankingType={rankingType}
+        metricLabel={characterRankingLabel(rankingType)}
+        metricTabs={[]}
+        rows={[]}
+        groups={appPickerGroups(characters, officialUltimates)}
+        error={ev ? { maintenance: ev.variant === "maintenance", message: ev.message } : null}
+        prevHref={null}
+        nextHref={null}
+        rangeLabel={null}
+      />
+    );
+  }
+
   if (charError) {
     return (
       <div className="space-y-4">
@@ -116,6 +141,51 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
     label: t.label,
     active: t.type === rankingType,
   }));
+
+  // 앱 WebView: 고른 캐릭터의 지표별 랭킹을 앱 목록으로 그린다(쪽 단위 이전/다음).
+  if (app) {
+    const ev = rankError ? neopleErrorView(rankError) : null;
+    const pageHref = (o: number) =>
+      `/ranking/characters?characterId=${characterId}&rankingType=${rankingType}${o > 0 ? `&offset=${o}` : ""}`;
+    return (
+      <AppRankingChars
+        characterId={characterId}
+        charName={charName ?? null}
+        rankingType={rankingType}
+        metricLabel={characterRankingLabel(rankingType)}
+        metricTabs={CHARACTER_RANKING_TYPES.map((t) => ({
+          key: t.type,
+          label: t.label,
+          href: `/ranking/characters?characterId=${characterId}&rankingType=${t.type}`,
+          active: t.type === rankingType,
+        }))}
+        rows={rows.map((row) => {
+          const wr = rowWinRate(row);
+          return {
+            rank: row.ranking,
+            playerId: row.player.playerId,
+            nickname: row.player.nickname,
+            value:
+              rankingType === "winRate" && row.winRate !== undefined
+                ? `${Math.round(row.winRate * 10) / 10}%`
+                : formatNumber(row.value ?? row.winCount),
+            // 승률 지표일 때는 값과 겹치지 않게 승패만
+            record:
+              row.winCount !== undefined && row.loseCount !== undefined
+                ? `${formatNumber(row.winCount)}승 ${formatNumber(row.loseCount)}패${
+                    wr !== undefined && rankingType !== "winRate" ? ` · 승률 ${wr}%` : ""
+                  }`
+                : null,
+          };
+        })}
+        groups={[]}
+        error={ev ? { maintenance: ev.variant === "maintenance", message: ev.message } : null}
+        prevHref={offset > 0 ? pageHref(Math.max(0, offset - LIMIT)) : null}
+        nextHref={!rankError && rows.length >= LIMIT ? pageHref(offset + LIMIT) : null}
+        rangeLabel={rows.length > 0 ? `${offset + 1}~${offset + rows.length}위` : null}
+      />
+    );
+  }
 
   const showPodium = offset === 0 && rows.length >= 3;
   const podium = showPodium ? rows.slice(0, 3) : [];
@@ -260,4 +330,39 @@ export default async function CharacterRankingPage({ searchParams }: Props) {
       )}
     </div>
   );
+}
+
+/** 예전 포지션 묶음 순서 */
+const LEGACY_GROUPS: RoleOrEtc[] = ["tank", "melee", "ranged", "support", "etc"];
+
+/**
+ * 앱 캐릭터 고르기 묶음 — 공식 역할군 체계면 역할군 7종(2차 보유 캐릭터는 두 곳), 아니면 예전 포지션별.
+ * @param characters 기존 로스터(포지션 코드 포함)
+ * @param ultimates 공식 역할군 궁극기 정의 (예전 체계·실패면 빈 배열)
+ * @returns 역할군 묶음 목록
+ */
+function appPickerGroups(characters: RosterEntry[], ultimates: CharacterUltimate[]): PickerGroup[] {
+  if (ultimates.length > 0) {
+    const grouped = groupUltimatesByRole(ultimates);
+    const dual = dualCharacterIds(ultimates);
+    return OFFICIAL_ROLES.map((r) => ({
+      key: r.key,
+      label: r.name,
+      roleIcon: r.key,
+      items: grouped[r.key].map((u) => ({
+        characterId: u.characterId,
+        name: u.characterName,
+        ultLabel: dual.has(u.characterId) ? ultimateLabel(u.ultimateType) : null,
+      })),
+    })).filter((g) => g.items.length > 0);
+  }
+  return LEGACY_GROUPS.map((role) => ({
+    key: role,
+    label: ROLE_LABELS[role],
+    roleIcon: null,
+    items: characters
+      .filter((c) => c.role === role)
+      .map((c) => ({ characterId: c.characterId, name: c.characterName ?? c.characterId, ultLabel: null }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ko")),
+  })).filter((g) => g.items.length > 0);
 }

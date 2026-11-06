@@ -40,13 +40,17 @@ import {
 } from "@/lib/official-api";
 import {
   OFFICIAL_ROLES,
+  characterHref,
   isOfficialRoleKey,
   roleByKey,
+  ultimateLabel,
   type CharacterUltimate,
   type OfficialTierVotesResult,
   type UltimateStatRow,
 } from "@/lib/official";
 import OfficialTierVoteSection from "@/components/meta/OfficialTierVoteSection";
+import { isAppRequest } from "@/lib/app-mode";
+import AppMetaTier from "@/components/app/screens/meta/AppMetaTier";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -117,7 +121,9 @@ interface Props {
 }
 
 export default async function MetaPage({ searchParams }: Props) {
-  const tab = searchParams.tab === "vote" ? "vote" : "data";
+  // 앱 WebView 는 커뮤니티 투표 탭 없이 데이터 티어만 보여 준다(투표는 앱 시안상 P2).
+  const app = isAppRequest();
+  const tab = !app && searchParams.tab === "vote" ? "vote" : "data";
 
   /* ───────── 커뮤니티 투표 탭 — 공식 역할군 체계 ───────── */
   if (tab === "vote" && (await getPositionSystem()) === "official") {
@@ -252,6 +258,52 @@ export default async function MetaPage({ searchParams }: Props) {
     : ROLE_TABS;
   const roleLabel = (r: string) =>
     r === "all" ? "전체" : official ? (roleByKey(r)?.name ?? r) : ROLE_LABELS[r as RoleOrEtc];
+
+  // 앱 WebView: 같은 티어 계산으로 앱 캐릭터 티어 화면(시안 05)을 그린다.
+  if (app) {
+    const appBase: TierRow[] = failed ? [] : official ? ultRows : rows;
+    const appAll = withTiers(appBase, tierBy);
+    const appOfficialName = official && role !== "all" ? roleByKey(role)?.name : undefined;
+    const appFiltered =
+      role === "all" ? appAll : appAll.filter((r) => (official ? r.officialRole === appOfficialName : r.role === role));
+    const appGrouped = groupByTier(appFiltered, tierBy);
+    const appSorted = TIER_ORDER.flatMap((t) => appGrouped[t]);
+    return (
+      <AppMetaTier
+        failed={failed}
+        totalRows={appBase.length}
+        summary={summary}
+        roleLabel={roleLabel(role)}
+        basisLabel={TIER_BASIS_LABEL[tierBy]}
+        roleTabs={roleTabs.map((t) => ({
+          key: t.key,
+          label: t.label,
+          href: metaHref(gameType, tierBy, t.key),
+          active: t.key === role,
+          roleIcon: official && t.key !== "all" ? t.key : undefined,
+        }))}
+        basisTabs={BASIS_TABS.map((b) => ({
+          key: b.key,
+          label: b.label,
+          href: metaHref(gameType, b.key, role),
+          active: b.key === tierBy,
+        }))}
+        rows={appSorted.map((r) => ({
+          key: r.ultimateType ? `${r.characterId}:${r.ultimateType}` : r.characterId,
+          characterId: r.characterId,
+          characterName: r.characterName,
+          tier: r.tier,
+          pickRate: r.pickRate,
+          winRate: r.winRate,
+          picks: r.picks,
+          roleName: official ? (r.officialRole ?? null) : r.role ? ROLE_LABELS[r.role as RoleOrEtc] ?? null : null,
+          officialRole: official,
+          ultLabel: r.dual && r.ultimateType ? ultimateLabel(r.ultimateType) : null,
+          href: characterHref(r.characterId, r.ultimateType),
+        }))}
+      />
+    );
+  }
 
   if (failed) {
     return (
