@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  boardLabel,
-  categoryLabel,
-  getPost,
-  isBoard,
-  type PostDetail,
-} from "@/lib/community";
+import { boardLabel, categoryLabel, getPost, isBoard, type PostDetail } from "@/lib/community";
 import { relativeTime } from "@/lib/format";
 import { ErrorState } from "@/components/ui";
 import CommentSection from "@/components/community/CommentSection";
@@ -27,11 +21,7 @@ export default async function PostDetailPage({ params }: Props) {
   // 앱 WebView: 같은 글 상세로 앱 게시글 화면(시안 13)을 그린다. 글이 없으면 앱 화면 안에서 빈 상태를 보인다.
   if (isAppRequest()) {
     const appPost = await getPost(params.postId).catch(() => null);
-    const appBoard = isBoard(params.board)
-      ? params.board
-      : appPost && isBoard(appPost.boardType)
-        ? appPost.boardType
-        : "free";
+    const appBoard = isBoard(params.board) ? params.board : appPost && isBoard(appPost.boardType) ? appPost.boardType : "free";
     return <AppPost post={appPost} board={appBoard} />;
   }
 
@@ -61,13 +51,7 @@ export default async function PostDetailPage({ params }: Props) {
       {/* 차단한 작성자의 글이면 본문·댓글 대신 안내(이 기기 기준) */}
       <BlockedHide
         name={post.isNotice ? null : post.authorName}
-        placeholder={
-          <BlockedNotice
-            name={post.authorName ?? ""}
-            backHref={`/community/${board}`}
-            backLabel={`${boardLabel(post.boardType)} 목록`}
-          />
-        }
+        placeholder={<BlockedNotice name={post.authorName ?? ""} backHref={`/community/${board}`} backLabel={`${boardLabel(post.boardType)} 목록`} />}
       >
         <article className="card p-6">
           <div className="flex flex-wrap items-center gap-2">
@@ -78,9 +62,7 @@ export default async function PostDetailPage({ params }: Props) {
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line pb-4 text-xs text-gray-500">
-            <span className="font-medium text-gray-400">
-              {post.authorName ?? "익명"}
-            </span>
+            <span className="font-medium text-gray-400">{post.authorName ?? "익명"}</span>
             <span>{relativeTime(post.createdAt)}</span>
             <span>조회 {post.views.toLocaleString()}</span>
             <span>추천 {post.likes}</span>
@@ -98,13 +80,7 @@ export default async function PostDetailPage({ params }: Props) {
           {!post.isNotice && (
             <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-4">
               <div className="flex items-center gap-3">
-                <ModerationButtons
-                  target={{
-                    type: "post",
-                    id: post.id,
-                    authorName: post.authorName,
-                  }}
-                />
+                <ModerationButtons target={{ type: "post", id: post.id, authorName: post.authorName }} />
               </div>
               <DeletePostButton postId={post.id} board={board} />
             </div>

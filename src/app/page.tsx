@@ -1,15 +1,8 @@
 import Link from "next/link";
 import { UltimateBadge } from "@/components/characters/UltimateBadge";
 import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
-import {
-  getCharacterUltimateStats,
-  getPositionSystem,
-} from "@/lib/official-api";
-import {
-  characterHref,
-  OFFICIAL_ROLES,
-  type UltimateStatRow,
-} from "@/lib/official";
+import { getCharacterUltimateStats, getPositionSystem } from "@/lib/official-api";
+import { characterHref, OFFICIAL_ROLES, type UltimateStatRow } from "@/lib/official";
 import type { Metadata } from "next";
 import SearchBar from "@/components/SearchBar";
 import { getRatingRanking } from "@/lib/neople";
@@ -49,9 +42,7 @@ export const dynamic = "force-dynamic"; // Railway 내부망은 런타임 전용
 // 홈페이지는 브랜드키워드 "사이퍼즈 메타"로 검색 노출되도록 제목·설명에 그 문구를 명시한다.
 // title.absolute 로 두면 레이아웃의 "%s · Cyphers Meta" 템플릿이 적용되지 않는다.
 export const metadata: Metadata = {
-  title: {
-    absolute: "사이퍼즈 메타 · 전적 검색·랭킹·캐릭터 티어 | Cyphers Meta",
-  },
+  title: { absolute: "사이퍼즈 메타 · 전적 검색·랭킹·캐릭터 티어 | Cyphers Meta" },
   description:
     "사이퍼즈 메타 — 사이퍼즈 전적 검색, 실시간 랭킹, 캐릭터 티어와 아이템 빌드, 5인 조합 메타를 한눈에 확인하세요.",
   alternates: { canonical: "/" },
@@ -156,9 +147,7 @@ function SectionHeader({
   return (
     <div className="mb-3.5 flex items-center justify-between">
       <h2 className="flex items-center gap-2.5 text-lg font-bold text-gray-100">
-        <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-base">
-          {icon}
-        </span>
+        <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-base">{icon}</span>
         {title}
       </h2>
       {href && cta && (
@@ -174,23 +163,13 @@ function SectionHeader({
   );
 }
 
-function HeroStat({
-  value,
-  label,
-  delay = 0,
-}: {
-  value: number;
-  label: string;
-  delay?: number;
-}) {
+function HeroStat({ value, label, delay = 0 }: { value: number; label: string; delay?: number }) {
   return (
     <div className="text-center">
       <div className="bg-gradient-to-b from-gray-50 to-gray-300 bg-clip-text text-xl font-black text-transparent sm:text-2xl">
         <CountUp end={value} duration={1500 + delay} />
       </div>
-      <div className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
-        {label}
-      </div>
+      <div className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">{label}</div>
     </div>
   );
 }
@@ -202,12 +181,8 @@ export default async function HomePage() {
     top = (r.rows ?? []).slice(0, 10);
   } catch {}
 
-  const topMetas = await mapLimit(top, 5, (row) =>
-    enrichPlayer(row.player.playerId),
-  );
-  const metaMap = new Map<string, PlayerMeta>(
-    topMetas.map((m) => [m.playerId, m]),
-  );
+  const topMetas = await mapLimit(top, 5, (row) => enrichPlayer(row.player.playerId));
+  const metaMap = new Map<string, PlayerMeta>(topMetas.map((m) => [m.playerId, m]));
 
   let charMeta: CharacterMeta[] = [];
   let comps: CompositionsResult | null = null;
@@ -215,32 +190,23 @@ export default async function HomePage() {
   try {
     [charMeta, comps, summary] = await Promise.all([
       getCharacterMeta("rating"),
-      getCompositions({ gameTypeId: "rating", limit: 6, minGames: 1 }).catch(
-        () => null,
-      ),
+      getCompositions({ gameTypeId: "rating", limit: 6, minGames: 1 }).catch(() => null),
       getMetaSummary().catch(() => null),
     ]);
   } catch {}
 
   // 역할별 TOP3 — official 이면 공식 역할군 7종 × (캐릭터, 1차/2차) 단위, 아니면 기존 포지션 4종
-  const byPick = <T extends { pickRate: number; winRate: number }>(
-    a: T,
-    b: T,
-  ) => b.pickRate - a.pickRate || b.winRate - a.winRate;
+  const byPick = <T extends { pickRate: number; winRate: number }>(a: T, b: T) =>
+    b.pickRate - a.pickRate || b.winRate - a.winRate;
   let roleCards: RoleTopCard[] = ROLE_META.map((rm) => ({
     key: rm.key,
     label: rm.label,
     color: rm.color,
     legacyIcon: true,
-    list: charMeta
-      .filter((c) => c.role === rm.key)
-      .sort(byPick)
-      .slice(0, 3),
+    list: charMeta.filter((c) => c.role === rm.key).sort(byPick).slice(0, 3),
   }));
   if ((await getPositionSystem()) === "official") {
-    const ult = await getCharacterUltimateStats("rating").catch(
-      () => [] as UltimateStatRow[],
-    );
+    const ult = await getCharacterUltimateStats("rating").catch(() => [] as UltimateStatRow[]);
     if (ult.length > 0) {
       roleCards = OFFICIAL_ROLES.map((r) => ({
         key: r.key,
@@ -248,10 +214,7 @@ export default async function HomePage() {
         // 카드 상단 테두리 — 공식 아이콘의 시그니처 색
         color: r.iconColor,
         legacyIcon: false,
-        list: ult
-          .filter((u) => u.officialRole === r.name)
-          .sort(byPick)
-          .slice(0, 3),
+        list: ult.filter((u) => u.officialRole === r.name).sort(byPick).slice(0, 3),
       }));
     }
   }
@@ -278,11 +241,7 @@ export default async function HomePage() {
       href: communityHref(p),
       badge,
       title: p.title,
-      meta: [
-        p.authorName ?? "익명",
-        formatMatchListDate(p.createdAt),
-        p.commentCount > 0 ? `댓글 ${p.commentCount}` : "",
-      ]
+      meta: [p.authorName ?? "익명", formatMatchListDate(p.createdAt), p.commentCount > 0 ? `댓글 ${p.commentCount}` : ""]
         .filter(Boolean)
         .join(" · "),
       authorName: p.isNotice ? null : p.authorName,
@@ -303,12 +262,7 @@ export default async function HomePage() {
         })}
         roleGroups={
           hasMeta
-            ? roleCards.map((rc) => ({
-                key: rc.key,
-                label: rc.label,
-                official: !rc.legacyIcon,
-                list: rc.list,
-              }))
+            ? roleCards.map((rc) => ({ key: rc.key, label: rc.label, official: !rc.legacyIcon, list: rc.list }))
             : []
         }
         comps={compTrend}
@@ -330,8 +284,7 @@ export default async function HomePage() {
         <div
           className="pointer-events-none absolute inset-0 opacity-70 [mask-image:radial-gradient(ellipse_at_center,black,transparent_72%)]"
           style={{
-            backgroundImage:
-              "radial-gradient(rgb(var(--border)) 1px, transparent 1px)",
+            backgroundImage: "radial-gradient(rgb(var(--border)) 1px, transparent 1px)",
             backgroundSize: "22px 22px",
           }}
         />
@@ -340,33 +293,20 @@ export default async function HomePage() {
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
             CYPHERS META
           </span>
-          <h1
-            className="fade-up mt-4 text-3xl font-black leading-tight tracking-tight text-gray-50 sm:text-[2.75rem]"
-            style={{ animationDelay: "0.07s" }}
-          >
+          <h1 className="fade-up mt-4 text-3xl font-black leading-tight tracking-tight text-gray-50 sm:text-[2.75rem]" style={{ animationDelay: "0.07s" }}>
             사이퍼즈{" "}
             <span className="bg-gradient-to-r from-primary to-primary-strong bg-clip-text text-transparent">
               전적·통계
             </span>{" "}
             검색
           </h1>
-          <p
-            className="fade-up mx-auto mt-3 max-w-md text-sm text-gray-500 sm:text-base"
-            style={{ animationDelay: "0.14s" }}
-          >
-            사이퍼즈 메타 — 닉네임으로 전적을 검색하고 랭킹·캐릭터 티어·조합
-            메타를 한눈에 확인하세요.
+          <p className="fade-up mx-auto mt-3 max-w-md text-sm text-gray-500 sm:text-base" style={{ animationDelay: "0.14s" }}>
+            사이퍼즈 메타 — 닉네임으로 전적을 검색하고 랭킹·캐릭터 티어·조합 메타를 한눈에 확인하세요.
           </p>
-          <div
-            className="fade-up relative z-30 mx-auto mt-6 max-w-xl"
-            style={{ animationDelay: "0.21s" }}
-          >
+          <div className="fade-up relative z-30 mx-auto mt-6 max-w-xl" style={{ animationDelay: "0.21s" }}>
             <SearchBar size="lg" />
           </div>
-          <div
-            className="fade-up mt-4 flex flex-wrap items-center justify-center gap-2"
-            style={{ animationDelay: "0.28s" }}
-          >
+          <div className="fade-up mt-4 flex flex-wrap items-center justify-center gap-2" style={{ animationDelay: "0.28s" }}>
             {[
               { href: "/ranking", label: "🏅 랭킹" },
               { href: "/meta", label: "📈 캐릭터 티어" },
@@ -384,19 +324,12 @@ export default async function HomePage() {
           </div>
 
           {summary && (
-            <div
-              className="fade-up mx-auto mt-7 flex max-w-md items-center justify-center gap-5 rounded-2xl border border-line bg-surface/60 px-5 py-3.5 shadow-[0_10px_34px_-14px_rgba(83,131,232,0.4)] ring-1 ring-primary/5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(83,131,232,0.5)] sm:gap-8"
-              style={{ animationDelay: "0.35s" }}
-            >
+            <div className="fade-up mx-auto mt-7 flex max-w-md items-center justify-center gap-5 rounded-2xl border border-line bg-surface/60 px-5 py-3.5 shadow-[0_10px_34px_-14px_rgba(83,131,232,0.4)] ring-1 ring-primary/5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(83,131,232,0.5)] sm:gap-8" style={{ animationDelay: "0.35s" }}>
               <HeroStat value={summary.matches} label="수집 매치" />
               <span className="h-8 w-px bg-line" />
               <HeroStat value={summary.characters} label="캐릭터" delay={150} />
               <span className="h-8 w-px bg-line" />
-              <HeroStat
-                value={summary.playerRecords}
-                label="플레이 기록"
-                delay={300}
-              />
+              <HeroStat value={summary.playerRecords} label="플레이 기록" delay={300} />
             </div>
           )}
         </div>
@@ -410,12 +343,7 @@ export default async function HomePage() {
 
       {/* 상위 랭커 TOP 10 */}
       <section>
-        <SectionHeader
-          icon="🏅"
-          title="상위 랭커 TOP 10"
-          href="/ranking"
-          cta="전체 순위"
-        />
+        <SectionHeader icon="🏅" title="상위 랭커 TOP 10" href="/ranking" cta="전체 순위" />
         {top.length === 0 ? (
           <div className="card p-8 text-center text-sm text-gray-500">
             랭킹 데이터를 불러올 수 없습니다. (API 키/네트워크 확인)
@@ -446,16 +374,12 @@ export default async function HomePage() {
       <section>
         <SectionHeader
           icon="🧭"
-          title={
-            officialCards ? "역할군별 캐릭터 TOP3" : "포지션별 캐릭터 TOP3"
-          }
+          title={officialCards ? "역할군별 캐릭터 TOP3" : "포지션별 캐릭터 TOP3"}
           href="/meta"
           cta="캐릭터 티어"
         />
         {!hasMeta ? (
-          <div className="card p-8 text-center text-sm text-gray-500">
-            수집된 메타 데이터가 아직 없습니다.
-          </div>
+          <div className="card p-8 text-center text-sm text-gray-500">수집된 메타 데이터가 아직 없습니다.</div>
         ) : (
           <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
             {roleCards.map((rm) => {
@@ -466,32 +390,21 @@ export default async function HomePage() {
                   className="card overflow-hidden shadow-sm transition-shadow hover:shadow-float"
                 >
                   <div className="relative flex items-center gap-2 border-b border-line px-4 py-3">
-                    <span
-                      className="absolute inset-x-0 top-0 h-0.5"
-                      style={{ backgroundColor: rm.color }}
-                    />
+                    <span className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: rm.color }} />
                     {rm.legacyIcon ? (
                       <RoleIcon role={rm.key} color={rm.color} />
                     ) : (
                       <OfficialRoleIcon role={rm.key} size={18} />
                     )}
-                    <span className="text-sm font-bold text-gray-100">
-                      {rm.label}
-                    </span>
+                    <span className="text-sm font-bold text-gray-100">{rm.label}</span>
                   </div>
                   {list.length === 0 ? (
-                    <div className="p-5 text-center text-xs text-gray-500">
-                      데이터 없음
-                    </div>
+                    <div className="p-5 text-center text-xs text-gray-500">데이터 없음</div>
                   ) : (
                     <div className="divide-y divide-line">
                       {list.map((c, i) => (
                         <Link
-                          key={
-                            c.ultimateType
-                              ? `${c.characterId}:${c.ultimateType}`
-                              : c.characterId
-                          }
+                          key={c.ultimateType ? `${c.characterId}:${c.ultimateType}` : c.characterId}
                           href={characterHref(c.characterId, c.ultimateType)}
                           className="flex items-center gap-2.5 p-2.5 transition-colors hover:bg-surface-2"
                         >
@@ -509,12 +422,8 @@ export default async function HomePage() {
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1 truncate text-sm font-semibold text-gray-100">
-                              <span className="truncate">
-                                {c.characterName ?? c.characterId}
-                              </span>
-                              {c.dual && c.ultimateType && (
-                                <UltimateBadge ultimateType={c.ultimateType} />
-                              )}
+                              <span className="truncate">{c.characterName ?? c.characterId}</span>
+                              {c.dual && c.ultimateType && <UltimateBadge ultimateType={c.ultimateType} />}
                             </div>
                             <div className="text-[11px] text-gray-500">
                               픽 {c.pickRate}% · 승 {c.winRate}%
@@ -533,16 +442,9 @@ export default async function HomePage() {
 
       {/* 5인 조합 메타 트렌드 */}
       <section>
-        <SectionHeader
-          icon="🧩"
-          title="5인 조합 메타 트렌드"
-          href="/meta/comp"
-          cta="조합 티어"
-        />
+        <SectionHeader icon="🧩" title="5인 조합 메타 트렌드" href="/meta/comp" cta="조합 티어" />
         {compTrend.length === 0 ? (
-          <div className="card p-8 text-center text-sm text-gray-500">
-            수집된 조합 데이터가 아직 없습니다.
-          </div>
+          <div className="card p-8 text-center text-sm text-gray-500">수집된 조합 데이터가 아직 없습니다.</div>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
             {compTrend.map((c, i) => (
@@ -550,24 +452,13 @@ export default async function HomePage() {
                 key={c.ids.join("-")}
                 className="card flex items-center gap-3 p-3 shadow-sm transition-colors hover:border-primary/40"
               >
-                <span
-                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm font-black ${rankBadge(i)}`}
-                >
+                <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm font-black ${rankBadge(i)}`}>
                   {i + 1}
                 </span>
                 <div className="flex flex-1 flex-wrap items-center gap-1.5">
                   {c.ids.map((id, j) => (
-                    <span
-                      key={`${id}-${j}`}
-                      className="flex flex-col items-center gap-0.5"
-                      title={c.names[j]}
-                    >
-                      <Avatar
-                        characterId={id}
-                        characterName={c.names[j]}
-                        size={32}
-                        zoom={1}
-                      />
+                    <span key={`${id}-${j}`} className="flex flex-col items-center gap-0.5" title={c.names[j]}>
+                      <Avatar characterId={id} characterName={c.names[j]} size={32} zoom={1} />
                       <span className="w-9 truncate text-center text-[9px] leading-tight text-gray-500">
                         {c.names[j]}
                       </span>
@@ -577,9 +468,7 @@ export default async function HomePage() {
                 <div className="shrink-0 text-right">
                   <div
                     className="text-sm font-bold"
-                    style={{
-                      color: c.winRate >= 50 ? "rgb(var(--win))" : undefined,
-                    }}
+                    style={{ color: c.winRate >= 50 ? "rgb(var(--win))" : undefined }}
                   >
                     {c.winRate}%
                   </div>
@@ -594,17 +483,10 @@ export default async function HomePage() {
       {/* 최신 소식 + 커뮤니티 */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div>
-          <SectionHeader
-            icon="🗞"
-            title="최신 소식"
-            href="/community"
-            cta="커뮤니티"
-          />
+          <SectionHeader icon="🗞" title="최신 소식" href="/community" cta="커뮤니티" />
           <div className="card divide-y divide-line shadow-sm">
             {notices.length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-500">
-                등록된 공지가 없습니다.
-              </div>
+              <div className="p-6 text-center text-sm text-gray-500">등록된 공지가 없습니다.</div>
             ) : (
               notices.map((n) => (
                 <Link
@@ -612,32 +494,20 @@ export default async function HomePage() {
                   href={communityHref(n)}
                   className="flex items-center gap-3 p-3 transition-colors hover:bg-surface-2"
                 >
-                  <span className="chip shrink-0 bg-primary/10 text-primary">
-                    공지
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-200">
-                    {n.title}
-                  </span>
+                  <span className="chip shrink-0 bg-primary/10 text-primary">공지</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{n.title}</span>
                 </Link>
               ))
             )}
           </div>
         </div>
         <div>
-          <SectionHeader
-            icon="💬"
-            title="커뮤니티 포스트"
-            href="/community"
-            cta="더보기"
-          />
+          <SectionHeader icon="💬" title="커뮤니티 포스트" href="/community" cta="더보기" />
           <div className="card divide-y divide-line shadow-sm">
             {recent.length === 0 ? (
               <div className="p-6 text-center text-sm text-gray-500">
                 아직 게시글이 없습니다.{" "}
-                <Link
-                  href="/community/free/write"
-                  className="font-medium text-primary hover:underline"
-                >
+                <Link href="/community/free/write" className="font-medium text-primary hover:underline">
                   첫 글 남기기
                 </Link>
               </div>
@@ -649,16 +519,10 @@ export default async function HomePage() {
                     href={communityHref(p)}
                     className="flex items-center gap-3 p-3 transition-colors hover:bg-surface-2"
                   >
-                    <span className="chip shrink-0 bg-surface-3 text-gray-500">
-                      {categoryLabel(p.category)}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-gray-200">
-                      {p.title}
-                    </span>
+                    <span className="chip shrink-0 bg-surface-3 text-gray-500">{categoryLabel(p.category)}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{p.title}</span>
                     {p.commentCount > 0 && (
-                      <span className="shrink-0 text-xs text-gray-500">
-                        댓글 {p.commentCount}
-                      </span>
+                      <span className="shrink-0 text-xs text-gray-500">댓글 {p.commentCount}</span>
                     )}
                   </Link>
                 </BlockedHide>

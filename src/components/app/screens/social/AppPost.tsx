@@ -15,13 +15,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState, type RefObject } from "react";
 import { postJSON } from "@/lib/api-client";
 import { useBannedWords } from "@/lib/banned-words";
-import {
-  boardLabel,
-  categoryLabel,
-  type BoardKey,
-  type CommunityComment,
-  type PostDetail,
-} from "@/lib/community";
+import { boardLabel, categoryLabel, type BoardKey, type CommunityComment, type PostDetail } from "@/lib/community";
 import { formatKoreanDateTime, formatMatchListDate } from "@/lib/format";
 import { nativeShare } from "@/lib/native";
 import BannedWordAlert from "@/components/community/BannedWordAlert";
@@ -29,12 +23,7 @@ import { AppTopBar, toast, TopIconButton } from "../../AppChrome";
 import { Icon } from "../../icons";
 import { AppPage, Badge, GhostLink, StateBox } from "../../ui";
 import { PasswordSheet } from "./PasswordSheet";
-import {
-  canModerate,
-  isBlockedIn,
-  useBlockedAuthors,
-  useTermsAgreed,
-} from "@/lib/moderation";
+import { canModerate, isBlockedIn, useBlockedAuthors, useTermsAgreed } from "@/lib/moderation";
 import BlockedNotice from "@/components/moderation/BlockedNotice";
 import ModerationButtons from "@/components/moderation/ModerationButtons";
 import { openModeration } from "@/components/moderation/ModerationSheet";
@@ -88,15 +77,14 @@ export default function AppPost({ post, board }: AppPostProps) {
 function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
   const router = useRouter();
   const listHref = `/community/${board}`;
-  const [comments, setComments] = useState<CommunityComment[]>(
-    post.comments ?? [],
-  );
+  const [comments, setComments] = useState<CommunityComment[]>(post.comments ?? []);
   const [del, setDel] = useState<DeleteTarget>(null);
   const [delBusy, setDelBusy] = useState(false);
   const [delErr, setDelErr] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<CommunityComment | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  // 이 기기에서 차단한 작성자 — 글 작성자를 차단했으면 본문 대신 안내
   const blocked = useBlockedAuthors();
   const postBlocked = !post.isNotice && isBlockedIn(blocked, post.authorName);
 
@@ -145,17 +133,12 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
       const id = del.id;
       await postJSON(`/api/community/comments/${id}/delete`, { password });
       // 원댓글을 지우면 답글도 함께 사라진다(웹과 같음)
-      setComments((prev) =>
-        prev.filter((c) => c.id !== id && c.parentId !== id),
-      );
-      if (replyTo && (replyTo.id === id || replyTo.parentId === id))
-        setReplyTo(null);
+      setComments((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
+      if (replyTo && (replyTo.id === id || replyTo.parentId === id)) setReplyTo(null);
       setDel(null);
       toast("댓글을 삭제했어요");
     } catch (e) {
-      setDelErr(
-        (e as Error).message || "삭제하지 못했어요. 비밀번호를 확인해 주세요.",
-      );
+      setDelErr((e as Error).message || "삭제하지 못했어요. 비밀번호를 확인해 주세요.");
     } finally {
       setDelBusy(false);
     }
@@ -176,13 +159,7 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
         right={
           <>
             <TopIconButton icon="share" label="공유" onClick={onShare} />
-            {!post.isNotice && (
-              <TopIconButton
-                icon="trash"
-                label="글 삭제"
-                onClick={() => openDelete({ kind: "post" })}
-              />
-            )}
+            {!post.isNotice && <TopIconButton icon="trash" label="글 삭제" onClick={() => openDelete({ kind: "post" })} />}
             {canModerate(post.authorName, post.isNotice) && (
               <TopIconButton
                 icon="more"
@@ -202,31 +179,16 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
           {/* 머리 — 분류·제목·작성 정보 */}
           <header className="grid gap-2">
             <div className="flex gap-1.5">
-              {post.isNotice ? (
-                <Badge tone="grad">공지</Badge>
-              ) : (
-                <Badge tone="mute">{categoryLabel(post.category)}</Badge>
-              )}
+              {post.isNotice ? <Badge tone="grad">공지</Badge> : <Badge tone="mute">{categoryLabel(post.category)}</Badge>}
             </div>
-            <h1 className="break-words text-[22px] font-extrabold leading-snug tracking-[-0.02em] text-gray-50">
-              {post.title}
-            </h1>
+            <h1 className="break-words text-[22px] font-extrabold leading-snug tracking-[-0.02em] text-gray-50">{post.title}</h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-              <span className="font-semibold text-gray-300">
-                {post.authorName ?? (post.isNotice ? "운영진" : "익명")}
-              </span>
+              <span className="font-semibold text-gray-300">{post.authorName ?? (post.isNotice ? "운영진" : "익명")}</span>
               <span aria-hidden="true">·</span>
-              <time
-                dateTime={post.createdAt}
-                title={formatKoreanDateTime(post.createdAt)}
-                suppressHydrationWarning
-              >
+              <time dateTime={post.createdAt} title={formatKoreanDateTime(post.createdAt)} suppressHydrationWarning>
                 {formatMatchListDate(post.createdAt)}
               </time>
-              <span
-                className="flex items-center gap-1 tabular-nums"
-                aria-label={`조회 ${post.views}`}
-              >
+              <span className="flex items-center gap-1 tabular-nums" aria-label={`조회 ${post.views}`}>
                 <Icon name="eye" size={13} />
                 {compactNum(post.views)}
               </span>
@@ -234,9 +196,7 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
           </header>
 
           {/* 본문 */}
-          <div className="min-h-[80px] whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-200">
-            {post.content}
-          </div>
+          <div className="min-h-[80px] whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-200">{post.content}</div>
 
           <div className="flex justify-center py-1">
             <RecommendButton postId={post.id} initialLikes={post.likes} />
@@ -251,27 +211,14 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
             </h2>
 
             {topLevel.length === 0 ? (
-              <p className="a-tile px-4 py-6 text-center text-[13px] text-gray-500">
-                첫 댓글을 남겨 보세요.
-              </p>
+              <p className="a-tile px-4 py-6 text-center text-[13px] text-gray-500">첫 댓글을 남겨 보세요.</p>
             ) : (
               topLevel.map((c) => (
                 <div key={c.id} className="grid gap-2">
-                  <CommentItem
-                    c={c}
-                    onReply={startReply}
-                    onDelete={() => openDelete({ kind: "comment", id: c.id })}
-                  />
+                  <CommentItem c={c} onReply={startReply} onDelete={() => openDelete({ kind: "comment", id: c.id })} />
                   {repliesOf(c.id).map((r) => (
                     <div key={r.id} className="pl-6">
-                      <CommentItem
-                        c={r}
-                        reply
-                        onReply={startReply}
-                        onDelete={() =>
-                          openDelete({ kind: "comment", id: r.id })
-                        }
-                      />
+                      <CommentItem c={r} reply onReply={startReply} onDelete={() => openDelete({ kind: "comment", id: r.id })} />
                     </div>
                   ))}
                 </div>
@@ -315,13 +262,7 @@ function PostBody({ post, board }: { post: PostDetail; board: BoardKey }) {
  * @param postId 글 ID
  * @param initialLikes 처음 추천 수
  */
-function RecommendButton({
-  postId,
-  initialLikes,
-}: {
-  postId: string;
-  initialLikes: number;
-}) {
+function RecommendButton({ postId, initialLikes }: { postId: string; initialLikes: number }) {
   const [likes, setLikes] = useState(initialLikes);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -331,16 +272,12 @@ function RecommendButton({
     if (busy || done) return;
     setBusy(true);
     try {
-      const res = await postJSON<{ likes: number }>(
-        `/api/community/posts/${postId}/like`,
-      );
+      const res = await postJSON<{ likes: number }>(`/api/community/posts/${postId}/like`);
       setLikes(res.likes);
       setDone(true);
       toast("이 글을 추천했어요");
     } catch (e) {
-      toast(
-        (e as Error).message || "추천하지 못했어요. 잠시 뒤 다시 눌러 주세요.",
-      );
+      toast((e as Error).message || "추천하지 못했어요. 잠시 뒤 다시 눌러 주세요.");
     } finally {
       setBusy(false);
     }
@@ -353,16 +290,10 @@ function RecommendButton({
       disabled={busy || done}
       aria-pressed={done}
       className={`a-press flex h-12 min-w-[128px] items-center justify-center gap-2 rounded-full px-6 text-[15px] font-bold transition-colors ${
-        done
-          ? "bg-app-ac-soft text-app-ac-tx"
-          : "border border-line bg-surface text-gray-100"
+        done ? "bg-app-ac-soft text-app-ac-tx" : "border border-line bg-surface text-gray-100"
       }`}
     >
-      {busy ? (
-        <Spinner size={16} />
-      ) : (
-        <Icon name="thumb" size={18} fill={done ? "currentColor" : "none"} />
-      )}
+      {busy ? <Spinner size={16} /> : <Icon name="thumb" size={18} fill={done ? "currentColor" : "none"} />}
       추천 <span className="tabular-nums">{likes.toLocaleString()}</span>
     </button>
   );
@@ -403,36 +334,21 @@ function CommentItem({
             <Icon name="reply" size={13} />
           </span>
         )}
-        <span className="min-w-0 truncate font-bold text-gray-100">
-          {c.authorName ?? "익명"}
-        </span>
+        <span className="min-w-0 truncate font-bold text-gray-100">{c.authorName ?? "익명"}</span>
         <span className="shrink-0 text-gray-500" suppressHydrationWarning>
           {formatMatchListDate(c.createdAt)}
         </span>
         <span className="ml-auto flex shrink-0 items-center">
-          <button
-            type="button"
-            onClick={() => onReply(c)}
-            className="h-7 rounded-full px-2 font-semibold text-gray-500 active:bg-surface-2"
-          >
+          <button type="button" onClick={() => onReply(c)} className="h-7 rounded-full px-2 font-semibold text-gray-500 active:bg-surface-2">
             답글
           </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="h-7 rounded-full px-2 font-semibold text-gray-500 active:bg-surface-2"
-          >
+          <button type="button" onClick={onDelete} className="h-7 rounded-full px-2 font-semibold text-gray-500 active:bg-surface-2">
             삭제
           </button>
-          <ModerationButtons
-            variant="icon"
-            target={{ type: "comment", id: c.id, authorName: c.authorName }}
-          />
+          <ModerationButtons variant="icon" target={{ type: "comment", id: c.id, authorName: c.authorName }} />
         </span>
       </div>
-      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200">
-        {c.content}
-      </p>
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200">{c.content}</p>
     </div>
   );
 }
@@ -489,46 +405,33 @@ function CommentForm({
     }
     setBusy(true);
     try {
-      const created = await postJSON<CommunityComment>(
-        `/api/community/posts/${postId}/comments`,
-        {
-          guestName: name,
-          password,
-          content,
-          ...(replyTo ? { parentId: replyTo.parentId ?? replyTo.id } : {}), // 답글의 답글은 스레드 첫 댓글에 붙인다
-        },
-      );
+      const created = await postJSON<CommunityComment>(`/api/community/posts/${postId}/comments`, {
+        guestName: name,
+        password,
+        content,
+        ...(replyTo ? { parentId: replyTo.parentId ?? replyTo.id } : {}), // 답글의 답글은 스레드 첫 댓글에 붙인다
+      });
       onCreated(created);
       setContent("");
       setPassword("");
       setTried(false);
       toast(replyTo ? "답글을 남겼어요" : "댓글을 남겼어요");
     } catch (err) {
-      if (!banned.capture(err, { content, guestName: name }))
-        setError((err as Error).message);
+      if (!banned.capture(err, { content, guestName: name })) setError((err as Error).message);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form
-      ref={formRef}
-      onSubmit={onSubmit}
-      className="a-card mt-1 grid gap-2 p-3.5"
-      noValidate
-    >
+    <form ref={formRef} onSubmit={onSubmit} className="a-card mt-1 grid gap-2 p-3.5" noValidate>
       {replyTo && (
         <div className="flex items-center gap-1.5 rounded-[10px] bg-app-ac-soft px-3 py-2 text-xs text-app-ac-tx">
           <Icon name="reply" size={13} />
           <span className="min-w-0 flex-1 truncate">
             <b>{replyTo.authorName ?? "익명"}</b>님에게 답글
           </span>
-          <button
-            type="button"
-            onClick={onCancelReply}
-            className="shrink-0 font-bold"
-          >
+          <button type="button" onClick={onCancelReply} className="shrink-0 font-bold">
             취소
           </button>
         </div>
@@ -574,15 +477,11 @@ function CommentForm({
       />
       {(missName || missPw || missContent) && (
         <p className="text-xs font-semibold text-app-loss-tx" role="alert">
-          닉네임, 비밀번호, 내용을 모두 입력해 주세요. 비밀번호는 댓글을 지울 때
-          필요해요.
+          닉네임, 비밀번호, 내용을 모두 입력해 주세요. 비밀번호는 댓글을 지울 때 필요해요.
         </p>
       )}
       {banned.state && <BannedWordAlert state={banned.state} />}
-      <TermsAgree
-        missing={termsMissing}
-        onAgree={() => setTermsMissing(false)}
-      />
+      <TermsAgree missing={termsMissing} onAgree={() => setTermsMissing(false)} />
       {error && (
         <p className="text-xs font-semibold text-app-loss-tx" role="alert">
           {error}
@@ -601,7 +500,7 @@ function CommentForm({
 }
 
 /**
- * 댓글 작성자가 차단됐는지(CommentItem 용 — 훅 이름을 화면 안에서 읽기 쉽게 감쌈).
+ * 댓글 작성자가 차단됐는지(CommentItem 용).
  * @param name 작성자 닉네임
  * @returns 차단했으면 true
  */
