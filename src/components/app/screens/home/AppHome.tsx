@@ -14,6 +14,7 @@ import { AppTopBar, TopIconButton } from "../../AppChrome";
 import { Icon } from "../../icons";
 import { LiveCard } from "../../live";
 import { AppPage, Badge, CharImg, SectionHead, StateBox, GhostLink, tierKo, wrClass } from "../../ui";
+import { APP_FEATURES } from "@/lib/app-features";
 import { HomeFavs, HomeMyCard, HomeNews, HomeRoleTop3, HomeSearchEntry, type NewsItem, type RoleTopGroup } from "./HomeClient";
 
 /** 상위 랭커 카드 한 장 */
@@ -187,7 +188,8 @@ export default function AppHome({ rankers, roleGroups, comps, notices, recent, l
           )}
         </section>
 
-        <HomeNews notices={notices} recent={recent} />
+        {/* 커뮤니티(UGC)는 앱에서 꺼 둘 수 있다 — APP_FEATURES.community */}
+        {APP_FEATURES.community && <HomeNews notices={notices} recent={recent} />}
 
         {summary && (
           <footer className="grid justify-items-center gap-1 pt-1 text-center">

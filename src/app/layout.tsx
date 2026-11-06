@@ -7,6 +7,7 @@ import AnalyticsTracker from "@/components/AnalyticsTracker";
 import WhatsNewPopup from "@/components/updates/WhatsNewPopup";
 import NativeTabBar from "@/components/native/NativeTabBar";
 import { AppTabBar, AppThemeSync, AppToaster } from "@/components/app/AppChrome";
+import AppPushSync from "@/components/app/AppPushSync";
 import { isAppRequest } from "@/lib/app-mode";
 import { ADSENSE_CLIENT } from "@/lib/adsense";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
@@ -140,6 +141,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <AnalyticsTracker />
           <AppThemeSync />
+          {/* 푸시 알림: 권한·토큰 등록, 구독 동기화, 알림 눌러 이동 */}
+          <AppPushSync />
           <main className="mx-auto w-full max-w-xl">{children}</main>
           <AppTabBar />
           <AppToaster />

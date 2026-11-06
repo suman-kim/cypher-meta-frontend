@@ -170,7 +170,7 @@ function LiveRow({ s, now, on }: { s: LiveStream; now: number; on: boolean }) {
 
   /** 알림 켜기/끄기 + 토스트 */
   function onBell() {
-    const next = toggleLiveAlert(s.id);
+    const next = toggleLiveAlert(s.id, s.channelName);
     toast(next ? "방송 시작 알림을 켰어요" : "방송 시작 알림을 껐어요");
   }
 

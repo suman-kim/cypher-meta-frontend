@@ -34,7 +34,7 @@ export interface SavedPlayer {
 /** 앱 테마 선택값 — system 이면 기기 설정을 따른다 */
 export type AppTheme = "system" | "light" | "dark";
 
-/** 알림 설정 (푸시는 다음 단계 — 지금은 선택값만 저장) */
+/** 알림 설정 — 푸시 구독 대상을 정할 때 쓴다(src/components/app/AppPushSync.tsx) */
 export interface AlertPrefs {
   /** 내 계정·즐겨찾기 플레이어의 새 매치 알림 */
   match: boolean;
@@ -54,8 +54,10 @@ export const STORE_KEYS = {
   theme: "cm_app_theme",
   /** 알림 설정 */
   alerts: "cm_app_alerts",
-  /** 방송 시작 알림을 켠 채널 { [채널키]: true } */
+  /** 방송 시작 알림을 켠 채널 { [채널키 플랫폼:채널ID]: 채널 이름 (예전 값은 true) } */
   liveAlerts: "cm_app_live_alerts",
+  /** 이 설치본의 고유 ID — 푸시 구독을 서버에서 구분하는 값(로그인 없음) */
+  installId: "cm_app_install_id",
 } as const;
 
 /** 즐겨찾기 최대 개수 */
@@ -68,7 +70,7 @@ const EVT = "cm-app-storage";
 const EMPTY_FAVS: SavedPlayer[] = [];
 const EMPTY_RECENT: string[] = [];
 const DEFAULT_ALERTS: AlertPrefs = { match: true, live: true };
-const EMPTY_LIVE_ALERTS: Record<string, boolean> = {};
+const EMPTY_LIVE_ALERTS: Record<string, string | boolean> = {};
 
 /** 키별로 마지막 원문·해석값을 기억해, 값이 같으면 같은 참조를 돌려준다. */
 const cache = new Map<string, { raw: string | null; val: unknown }>();
@@ -296,21 +298,40 @@ export function setAlertPref(key: keyof AlertPrefs, on: boolean): void {
   writeKey(STORE_KEYS.alerts, { ...cur, [key]: on });
 }
 
-/** 방송 시작 알림을 켠 채널 목록 */
-export function useLiveAlerts(): Record<string, boolean> {
-  return useKey<Record<string, boolean>>(STORE_KEYS.liveAlerts, EMPTY_LIVE_ALERTS);
+/** 방송 시작 알림을 켠 채널 목록 { [플랫폼:채널ID]: 채널 이름 | true } — 값이 참이면 켜짐 */
+export function useLiveAlerts(): Record<string, string | boolean> {
+  return useKey<Record<string, string | boolean>>(STORE_KEYS.liveAlerts, EMPTY_LIVE_ALERTS);
 }
 
 /**
  * 채널 하나의 방송 시작 알림을 켜거나 끈다.
  * @param channel 채널 키 (플랫폼:채널ID)
+ * @param name 채널 이름 — 푸시 구독에 표시명으로 함께 보낸다
  * @returns 처리 뒤 켜짐 여부
  */
-export function toggleLiveAlert(channel: string): boolean {
-  const cur = readKey<Record<string, boolean>>(STORE_KEYS.liveAlerts, EMPTY_LIVE_ALERTS);
+export function toggleLiveAlert(channel: string, name?: string): boolean {
+  const cur = readKey<Record<string, string | boolean>>(STORE_KEYS.liveAlerts, EMPTY_LIVE_ALERTS);
   const next = { ...cur };
   if (next[channel]) delete next[channel];
-  else next[channel] = true;
+  else next[channel] = name?.trim() || true;
   writeKey(STORE_KEYS.liveAlerts, next);
   return !!next[channel];
+}
+
+/**
+ * 이 설치본의 고유 ID 를 돌려준다(없으면 만들어 저장). 서버 환경에서는 빈 문자열.
+ * @returns UUID v4 문자열
+ */
+export function getInstallId(): string {
+  if (typeof window === "undefined") return "";
+  const saved = readKey<string | null>(STORE_KEYS.installId, null);
+  if (saved && /^[0-9a-f-]{36}$/i.test(saved)) return saved;
+  const id =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+          (Number(c) ^ (Math.random() * 16) >> (Number(c) / 4)).toString(16),
+        );
+  writeKey(STORE_KEYS.installId, id);
+  return id;
 }

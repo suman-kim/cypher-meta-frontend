@@ -14,6 +14,8 @@ import { AppTopBar } from "../../AppChrome";
 import { Icon, type IconName } from "../../icons";
 import { uptime } from "../../live";
 import { AppPage, GhostLink, SectionHead, Skel } from "../../ui";
+import { APP_FEATURES } from "@/lib/app-features";
+import { PushStatusNote } from "./MoreClient";
 
 /** 업데이트·공지 한 줄 */
 export interface NotiItem {
@@ -96,12 +98,7 @@ export default function AppNotifications({ lives, updates, notices, now }: AppNo
     <>
       <AppTopBar title="알림" backHref="/" />
       <AppPage className="!gap-4">
-        <p className="flex items-start gap-2 rounded-xl bg-surface-2 px-3.5 py-2.5 text-xs leading-relaxed text-gray-300">
-          <span className="mt-px text-gray-500">
-            <Icon name="info" size={15} />
-          </span>
-          푸시 알림은 준비 중이에요. 지금은 앱을 열었을 때 이곳에서 새 소식을 확인할 수 있어요.
-        </p>
+        <PushStatusNote />
 
         <section className="grid">
           <SectionHead title="방송" />
@@ -150,6 +147,8 @@ export default function AppNotifications({ lives, updates, notices, now }: AppNo
           )}
         </section>
 
+        {/* 공지는 커뮤니티 글이라 앱 커뮤니티가 꺼져 있으면 감춘다 — APP_FEATURES.community */}
+        {APP_FEATURES.community && (
         <section className="grid">
           <SectionHead title="공지" href="/community" cta="커뮤니티" />
           {notices.length === 0 ? (
@@ -162,6 +161,7 @@ export default function AppNotifications({ lives, updates, notices, now }: AppNo
             </div>
           )}
         </section>
+        )}
       </AppPage>
     </>
   );
