@@ -10,6 +10,7 @@ import { Icon, type IconName } from "../../icons";
 import { AppPage, ListRow } from "../../ui";
 import { MoreProfileCard, PushSettings, ThemeSetting } from "./MoreClient";
 import { APP_FEATURES } from "@/lib/app-features";
+import { BLOCKED_PAGE_HREF } from "@/lib/moderation-core";
 
 /** 더보기가 받는 값 */
 export interface AppMoreProps {
@@ -77,6 +78,12 @@ export default function AppMore({ liveCount, latestUpdate }: AppMoreProps) {
               <PushSettings />
             </div>
           </div>
+          {/* 커뮤니티에서 차단한 작성자(이 기기에만 저장) — 앱 커뮤니티가 켜져 있을 때만 */}
+          {APP_FEATURES.community && (
+            <div className="a-card grid overflow-hidden">
+              <ListRow href={BLOCKED_PAGE_HREF} title="차단한 작성자" desc="커뮤니티에서 숨긴 작성자 보기 · 차단 풀기" />
+            </div>
+          )}
         </section>
 
         <footer className="grid justify-items-center gap-2 pt-1 text-center">

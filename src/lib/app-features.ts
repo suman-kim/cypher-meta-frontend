@@ -8,14 +8,20 @@
 /** 앱에서 켜고 끄는 기능 묶음 */
 export interface AppFeatures {
   /**
-   * 커뮤니티·댓글 등 사용자가 쓴 글(UGC) 화면.
-   * Google Play 사용자 제작 콘텐츠 정책은 앱 안에 글·사용자 신고, 사용자 차단, 글쓰기 전 약관 동의를 요구한다.
-   * 세 기능을 갖추기 전까지 앱에서는 감춘다(웹은 그대로).
+   * 커뮤니티 게시판·업데이트 댓글 등 사용자가 쓴 글(UGC) 화면.
+   * Google Play 사용자 제작 콘텐츠 정책이 요구하는 글·사용자 신고(ModerationSheet → content_reports),
+   * 사용자 차단(기기 저장), 글쓰기 전 운영 정책 동의(TermsAgree)를 갖춰 2026-11-07 에 켰다.
    */
   community: boolean;
+  /**
+   * 코스튬 시세·수정 제보 목록. 다른 사람에게 공개되는 사용자 글이지만 아직 신고·차단이 붙어 있지 않아
+   * 앱에서는 감춘다(웹은 그대로). 붙이려면 백엔드 moderation 에 ReportTarget 을 하나 추가하고 이 값을 켠다.
+   */
+  costumeFeedback: boolean;
 }
 
 /** 현재 앱 기능 설정 */
 export const APP_FEATURES: AppFeatures = {
-  community: false,
+  community: true,
+  costumeFeedback: false,
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BLOCKED_PAGE_HREF, COMMUNITY_POLICY_HREF } from "@/lib/moderation-core";
 import { usePathname } from "next/navigation";
 import { BOARDS, isBoard } from "@/lib/community";
 
@@ -41,6 +42,15 @@ export default function BoardSidebar() {
         <Link href={`/community/${board}/write`} className="btn-primary mt-4 w-full">
           ✎ 글쓰기
         </Link>
+        <div className="mt-3 flex justify-center gap-3 text-xs text-gray-500">
+          <Link href={COMMUNITY_POLICY_HREF} className="hover:text-gray-300">
+            운영 정책
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href={BLOCKED_PAGE_HREF} className="hover:text-gray-300">
+            차단한 작성자
+          </Link>
+        </div>
       </div>
 
       <Link href="/ranking" className="card block overflow-hidden">

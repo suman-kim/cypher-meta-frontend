@@ -1,5 +1,6 @@
 import { SITE_NAME } from "@/lib/constants";
 import LegalDocument, { LegalLink, type LegalArticle } from "@/components/legal/LegalDocument";
+import { COMMUNITY_RULES } from "@/lib/moderation-core";
 
 export const metadata = {
   title: "이용약관",
@@ -8,7 +9,7 @@ export const metadata = {
 };
 
 /** 시행일 · 외부 약관 링크 (이 두 값만 바꾸면 됩니다) */
-const EFFECTIVE_DATE = "2026년 7월 23일";
+const EFFECTIVE_DATE = "2026년 11월 14일";
 const NEOPLE_TERMS_URL = "https://developers.neople.co.kr/";
 
 const ARTICLES: LegalArticle[] = [
@@ -87,10 +88,24 @@ const ARTICLES: LegalArticle[] = [
   {
     code: "제5조",
     num: "05",
-    title: "커뮤니티 및 투표",
+    title: "커뮤니티 운영 정책 및 투표",
+    id: "community-policy",
     items: [
       {
         text: "커뮤니티 게시물·댓글과 티어·조합 투표 결과는 이용자가 자유롭게 작성·참여한 것으로, 서비스의 공식 견해가 아닙니다.",
+      },
+      {
+        text: "이용자는 글이나 댓글을 처음 쓰기 전에 이 운영 정책에 동의해야 하며, 다음 내용은 올릴 수 없습니다.",
+        sub: COMMUNITY_RULES,
+      },
+      {
+        text: "이용자는 글·댓글마다 있는 '신고'로 정책에 어긋나는 게시물과 작성자를 신고할 수 있습니다. 신고한 사람은 작성자에게 알려지지 않습니다.",
+      },
+      {
+        text: "신고된 게시물은 운영진이 24시간 안에 확인하며, 정책에 어긋나는 게시물은 사전 통지 없이 삭제합니다. 같은 위반이 반복되면 해당 닉네임으로 글을 쓸 수 없도록 제한할 수 있습니다.",
+      },
+      {
+        text: "이용자는 '차단'으로 특정 작성자의 글·댓글을 자신의 화면에서 숨길 수 있습니다. 차단 목록은 이용자의 기기에만 저장되며 언제든 풀 수 있습니다.",
       },
       {
         text: "투표 결과와 통계는 참고용 지표이며, 표본 수나 이용자 성향에 따라 실제 게임 내 평가와 다를 수 있습니다.",

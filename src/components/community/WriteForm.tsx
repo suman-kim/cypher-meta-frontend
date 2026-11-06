@@ -6,6 +6,8 @@ import { CATEGORIES } from "@/lib/community";
 import { postJSON } from "@/lib/api-client";
 import { useBannedWords } from "@/lib/banned-words";
 import BannedWordAlert from "@/components/community/BannedWordAlert";
+import TermsAgree from "@/components/moderation/TermsAgree";
+import { useTermsAgreed } from "@/lib/moderation";
 
 /** 금칙어가 걸린 입력칸 테두리 강조 */
 const BANNED_INPUT = "border-lose/70 focus:border-lose";
@@ -20,6 +22,9 @@ export default function WriteForm({ board }: { board: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const banned = useBannedWords();
+  // 운영 정책 동의(이 기기에 한 번) — 동의 전 등록을 누르면 동의 칸을 강조
+  const termsAgreed = useTermsAgreed();
+  const [termsMissing, setTermsMissing] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -28,6 +33,10 @@ export default function WriteForm({ board }: { board: string }) {
 
     if (!guestName.trim() || !password.trim() || !title.trim() || !content.trim()) {
       setError("닉네임, 비밀번호, 제목, 내용을 모두 입력해주세요.");
+      return;
+    }
+    if (!termsAgreed) {
+      setTermsMissing(true);
       return;
     }
 
@@ -121,6 +130,7 @@ export default function WriteForm({ board }: { board: string }) {
       </div>
 
       {banned.state && <BannedWordAlert state={banned.state} />}
+      <TermsAgree missing={termsMissing} onAgree={() => setTermsMissing(false)} />
       {error && (
         <p className="rounded-md bg-lose/10 px-3 py-2 text-sm text-red-300">{error}</p>
       )}

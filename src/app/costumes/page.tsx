@@ -74,7 +74,7 @@ export default async function CostumesPage() {
         <CostumeGallery
           costumes={rows}
           nameToId={nameToId}
-          showFeedback={!isAppRequest() || APP_FEATURES.community}
+          showFeedback={!isAppRequest() || APP_FEATURES.costumeFeedback}
         />
       )}
     </div>

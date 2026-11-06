@@ -25,6 +25,7 @@ import {
   type PostListResult,
 } from "@/lib/community";
 import { formatMatchListDate } from "@/lib/format";
+import { isBlockedIn, useBlockedAuthors } from "@/lib/moderation";
 import { AppTopBar, TABBAR_H, TopIconButton } from "../../AppChrome";
 import { Icon } from "../../icons";
 import { AppPage, Badge, Chip, ChipRow, GhostLink, Segmented, Skel, StateBox } from "../../ui";
@@ -78,7 +79,10 @@ export default function AppCommunity({ board, q, initial, trending, notices, pag
   const searchRef = useRef<HTMLInputElement>(null);
 
   const hasMore = !ended && items.length < total;
-  const visible = cat === "all" ? items : items.filter((p) => p.category === cat);
+  // 차단한 작성자의 글은 이 기기에서 숨긴다
+  const blocked = useBlockedAuthors();
+  const visible = (cat === "all" ? items : items.filter((p) => p.category === cat)).filter((p) => !isBlockedIn(blocked, p.authorName));
+  const visibleTrending = trending.filter((p) => !isBlockedIn(blocked, p.authorName));
 
   /** 다음 쪽을 받아 이어 붙인다 (이미 받는 중이면 건너뜀) */
   const loadMore = useCallback(async () => {
@@ -251,7 +255,7 @@ export default function AppCommunity({ board, q, initial, trending, notices, pag
             )}
 
             {/* 인기글 */}
-            {showTop && trending.length > 0 && (
+            {showTop && visibleTrending.length > 0 && (
               <section className="a-card grid gap-1 px-4 pb-2 pt-3.5" aria-label="인기글">
                 <h2 className="flex items-center gap-1.5 pb-1 text-[15px] font-extrabold text-gray-100">
                   <span className="text-app-loss-tx">
@@ -259,7 +263,7 @@ export default function AppCommunity({ board, q, initial, trending, notices, pag
                   </span>
                   인기글
                 </h2>
-                {trending.map((p, i) => (
+                {visibleTrending.map((p, i) => (
                   <Link
                     key={p.id}
                     href={`/community/${boardOf(p, board)}/${p.id}`}
