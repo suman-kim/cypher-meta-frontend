@@ -8,6 +8,10 @@ import CollectionManager from "./CollectionManager";
 import CostumeManager from "./CostumeManager";
 import UpdateManager from "./UpdateManager";
 import ReportManager from "./ReportManager";
+import DailyView from "./analytics/DailyView";
+import VisitLogView from "./analytics/VisitLogView";
+import type { LogPreset } from "./analytics/VisitLogView";
+import ActivityView from "./analytics/ActivityView";
 
 /* ── 타입 ── */
 interface Stats {
@@ -40,6 +44,16 @@ interface RecentVisit {
 
 const TOKEN_KEY = "cy_admin_token";
 const DAY_OPTIONS = [7, 30, 90];
+
+/** 분석 탭 안의 작은 탭 */
+type AnalyticsTab = "summary" | "daily" | "logs" | "activity";
+/** 분석 탭 안의 작은 탭 목록(키·이름·설명) */
+const ANALYTICS_TABS: { key: AnalyticsTab; label: string; desc: string }[] = [
+  { key: "summary", label: "요약", desc: "기간 전체 숫자와 인기 페이지" },
+  { key: "daily", label: "일별", desc: "하루 단위 조회수와 화면별 조회수" },
+  { key: "logs", label: "방문 로그", desc: "방문 기록을 걸러 보기" },
+  { key: "activity", label: "활동", desc: "글·댓글·신고·투표 등" },
+];
 
 function fmt(n: number | undefined): string {
   return (n ?? 0).toLocaleString("ko-KR");
@@ -339,6 +353,17 @@ export default function AdminDashboard() {
   const [view, setView] = useState<
     "analytics" | "board" | "report" | "banned" | "notice" | "update" | "collect" | "costume"
   >("analytics");
+  // 분석 탭 안의 작은 탭, 방문 로그로 넘길 조건(seq 가 바뀌면 방문 로그를 그 조건으로 새로 연다)
+  const [aview, setAview] = useState<AnalyticsTab>("summary");
+  const [logPreset, setLogPreset] = useState<{ seq: number; preset?: LogPreset }>({ seq: 0 });
+  /**
+   * 방문 로그 탭을 주어진 조건으로 연다.
+   * @param preset — 미리 채울 조건(없으면 기본 필터)
+   */
+  const openLogs = useCallback((preset?: LogPreset) => {
+    setLogPreset((p) => ({ seq: p.seq + 1, preset }));
+    setAview("logs");
+  }, []);
   // 처리 대기 중인 신고 대상 수(탭 배지) — 로그인하면 한 번 읽고, 신고 탭이 바뀔 때마다 갱신
   const [reportPending, setReportPending] = useState<number | null>(null);
   useEffect(() => {
@@ -441,8 +466,8 @@ export default function AdminDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-black text-gray-50">관리자 대시보드</h1>
         <div className="flex items-center gap-2">
-          {view === "analytics" && (
-            <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">
+          {view === "analytics" && aview !== "logs" && (
+            <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1" aria-label="기간">
               {DAY_OPTIONS.map((d) => (
                 <button
                   key={d}
@@ -487,10 +512,38 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {view === "analytics" && (loading && !stats ? (
+      {/* 분석 탭 안의 작은 탭 */}
+      {view === "analytics" && (
+        <div className="scroll-row gap-1 border-b border-line" role="tablist" aria-label="분석 보기">
+          {ANALYTICS_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={aview === t.key}
+              onClick={() => setAview(t.key)}
+              title={t.desc}
+              className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+                aview === t.key ? "border-primary text-gray-50" : "border-transparent text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {view === "analytics" && aview === "daily" && <DailyView token={token} days={days} onOpenLogs={openLogs} />}
+      {view === "analytics" && aview === "logs" && (
+        <VisitLogView key={logPreset.seq} token={token} preset={logPreset.preset} />
+      )}
+      {view === "analytics" && aview === "activity" && <ActivityView token={token} days={days} />}
+
+      {view === "analytics" && aview === "summary" && (loading && !stats ? (
         <div className="card p-10 text-center text-sm text-gray-500">불러오는 중…</div>
       ) : stats ? (
         <>
+          <p className="text-xs text-gray-500">한국 시간 자정 기준 · 검색 로봇 제외 · 조회수는 화면을 연 횟수(버튼 클릭 등 기타 이벤트 제외)</p>
           {/* KPI */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile label={`총 조회수 (${days}일)`} value={fmt(stats.totals.views)} />
@@ -551,7 +604,12 @@ export default function AdminDashboard() {
 
           {/* 최근 방문 */}
           <section className="space-y-2">
-            <h2 className="text-sm font-bold text-gray-400">최근 방문 {recent.length}건</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-gray-400">최근 방문 {recent.length}건</h2>
+              <button type="button" onClick={() => openLogs()} className="text-xs text-gray-500 hover:text-primary">
+                방문 로그에서 걸러 보기 →
+              </button>
+            </div>
             <div className="card overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
