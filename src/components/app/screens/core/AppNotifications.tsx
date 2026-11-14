@@ -5,7 +5,7 @@
  *  - 방송: 방송 시작 알림(종)을 켠 스트리머 중 지금 방송 중인 사람
  *  - 업데이트: Cyphers Meta 새 기능 소식(업데이트 노트)
  *  - 공지: 커뮤니티 공지
- * 푸시 알림은 다음 단계라 지금은 이 화면에서 모아 보여 준다(안내 문구로 알린다).
+ * 휴대폰 알림(푸시)을 받든 안 받든 이 화면에서 다시 모아 볼 수 있다. 맨 위 PushStatusNote 가 푸시 상태를 알려 준다.
  */
 import Link from "next/link";
 import { useHydrated, useLiveAlerts } from "@/lib/app-storage";
