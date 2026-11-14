@@ -1,53 +1,18 @@
 "use client";
 
 /**
- * 앱 홈의 상호작용 조각들 — 검색 진입줄, 내 전적 카드, 즐겨찾기, 역할군 TOP3, 소식·커뮤니티.
- * 기기 저장값(내 계정·즐겨찾기·최근 검색)을 읽거나 탭 전환 상태가 있는 부분만 여기 둔다.
+ * 앱 홈의 상호작용 조각들 — 내 전적 카드, 즐겨찾기, 역할군 TOP3, 소식·커뮤니티.
+ * 기기 저장값(내 계정·즐겨찾기)을 읽거나 탭 전환 상태가 있는 부분만 여기 둔다.
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useFavs, useHydrated, useMe, useRecent, refreshSaved } from "@/lib/app-storage";
+import { useFavs, useHydrated, useMe, refreshSaved } from "@/lib/app-storage";
 import { isBlockedIn, useBlockedAuthors } from "@/lib/moderation";
 import { characterHref } from "@/lib/official";
 import type { PlayerCardData } from "@/app/api/app/player-card/route";
 import { Icon } from "../../icons";
 import { Badge, CharImg, Chip, ChipRow, SectionHead, Segmented, Skel, UltBadge, WinLossStrip, wrClass } from "../../ui";
 import { OfficialRoleIcon } from "@/components/characters/OfficialRoleIcon";
-
-/* ── 검색 진입줄 ─────────────────────────────── */
-
-/** 홈 맨 위 검색 진입(누르면 검색 탭) + 캐릭터 목록·최근 검색 칩 */
-export function HomeSearchEntry() {
-  const recent = useRecent();
-  return (
-    <div className="grid grid-cols-1 gap-2.5">
-      <Link
-        href="/search"
-        className="a-press flex h-12 items-center gap-2.5 rounded-3xl bg-surface-2 px-[18px] text-sm text-gray-500"
-      >
-        <Icon name="search" size={18} />
-        닉네임으로 전적 검색
-      </Link>
-      <ChipRow>
-        <Link
-          href="/characters"
-          className="flex h-8 shrink-0 items-center rounded-full bg-app-ac-soft px-3 text-xs font-bold text-app-ac-tx"
-        >
-          캐릭터 목록
-        </Link>
-        {recent.map((r) => (
-          <Link
-            key={r}
-            href={`/search?nickname=${encodeURIComponent(r)}`}
-            className="flex h-8 shrink-0 items-center rounded-full border border-line px-3 text-xs text-gray-300"
-          >
-            {r}
-          </Link>
-        ))}
-      </ChipRow>
-    </div>
-  );
-}
 
 /* ── 내 전적 카드 ────────────────────────────── */
 

@@ -9,6 +9,7 @@
  * - 테마: 기기 저장소의 선택값(system/light/dark)을 html.dark 에 반영하고, system 이면 기기 설정 변화를 따라간다.
  */
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { haptic } from "@/lib/native";
@@ -172,9 +173,9 @@ export function AppTopBar({
       <div className={`flex h-[52px] items-center gap-1 ${variant === "back" ? "px-2" : "px-4"}`}>
         {variant === "home" && (
           <>
-            <Link href="/" className="flex flex-1 items-center gap-2">
-              <span className="a-grad grid h-7 w-7 place-items-center rounded-lg text-[13px] font-extrabold">CM</span>
-              <span className="text-[17px] font-bold tracking-[-0.01em] text-gray-100">Cyphers Meta</span>
+            {/* 웹 머리글과 같은 브랜드 로고(배지 + Cyphers Meta 워드마크) */}
+            <Link href="/" className="flex flex-1 items-center" aria-label="Cyphers Meta 홈">
+              <Logo />
             </Link>
           </>
         )}
