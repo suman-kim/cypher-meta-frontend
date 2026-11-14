@@ -63,12 +63,12 @@ function req(over: Partial<LockRequest>): LockRequest {
 console.log("안드로이드 잠금 규칙");
 
 // 막아야 하는 경우
-for (const path of ["/", "/players/abc", "/meta", "/ranking", "/search", "/android-betax", "/admin"]) {
+for (const path of ["/", "/players/abc", "/meta", "/ranking", "/search", "/android-betax", "/administrator"]) {
   assert(`안드로이드 브라우저 ${path} → 잠금`, shouldLockToBeta(req({ pathname: path })));
 }
 
 // 열어 두는 경로
-for (const path of ["/android-beta", "/privacy", "/terms", "/business-info", "/api/track", "/_next/data/x.json"]) {
+for (const path of ["/android-beta", "/privacy", "/terms", "/business-info", "/admin", "/admin/analytics", "/api/track", "/_next/data/x.json"]) {
   assert(`안드로이드 브라우저 ${path} → 통과`, !shouldLockToBeta(req({ pathname: path })));
 }
 for (const path of ["/robots.txt", "/sitemap.xml", "/ads.txt", "/icon.svg", "/opengraph-image.png"]) {
