@@ -5,7 +5,8 @@
  *
  * 구성: 상단바(뒤로 + "방송 · 동영상") 아래 붙는 세그먼트 [방송 N | 동영상].
  *  - 방송: 시청자수 순 목록. 썸네일(LIVE 시청자수·방송 시간), 제목, 채널·플랫폼, 오른쪽 종 버튼(방송 시작 알림 켜기/끄기).
- *    알림은 기기에만 저장한다(app-storage). 실제 푸시는 다음 단계라 처음 켜면 안내 줄을 보인다.
+ *    켠 채널은 기기에 저장하고(app-storage) AppPushSync 가 서버 구독으로 맞춘다. 서버가 방송 시작을 감지하면 푸시를 보낸다.
+ *    종을 하나라도 켜면 푸시 상태(LivePushNote)에 맞는 안내 줄을 보인다.
  *  - 동영상: 웹 VideoBrowser 와 같은 /api/videos(커서)로 조회순·최신순 카드 목록, 끝까지 내리면 이어 불러오기.
  * - 방송·영상 링크는 플랫폼 페이지라 앱 밖(기기 브라우저·플랫폼 앱)으로 연다(target=_blank).
  * - ?tab=videos 로 들어오면 동영상 칸을 먼저 연다(홈 빈 상태 버튼). 칸을 바꾸면 주소의 tab 도 맞춰 둔다.
@@ -14,7 +15,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiveStream } from "@/lib/live";
 import type { Video, VideoSort } from "@/lib/videos";
-import { toggleLiveAlert, useHydrated, useLiveAlerts } from "@/lib/app-storage";
+import { toggleLiveAlert, useAlertPrefs, useHydrated, useLiveAlerts } from "@/lib/app-storage";
+import { usePushState } from "@/lib/app-push";
 import SafeImage from "@/components/SafeImage";
 import { AppTopBar, toast } from "../../AppChrome";
 import { Icon } from "../../icons";
@@ -140,21 +142,70 @@ function LiveList({ lives, now, onShowVideos }: { lives: LiveStream[]; now: numb
   return (
     <AppPage className="!gap-3">
       <p className="text-xs text-gray-500">시청자수 순 · 종을 누르면 방송 시작 알림을 켜요 · 누르면 방송 앱이나 브라우저로 열려요</p>
-      {anyOn && (
-        <Notice icon="bell" tone="ac">
-          푸시 알림은 준비 중이에요. 알림을 켠 스트리머가 방송 중이면{" "}
-          <Link href="/notifications" className="font-bold underline underline-offset-2">
-            알림 화면
-          </Link>
-          에서 볼 수 있어요.
-        </Notice>
-      )}
+      {anyOn && <LivePushNote />}
       <ul className="grid gap-3.5">
         {lives.map((s) => (
           <LiveRow key={s.id} s={s} now={now} on={hydrated && !!alerts[s.id]} />
         ))}
       </ul>
     </AppPage>
+  );
+}
+
+/**
+ * 종을 켠 사람에게 보이는 안내 — 휴대폰 알림(푸시)이 실제로 오는지에 맞춰 다음에 할 일을 알려 준다.
+ *  - 켜짐: 방송이 시작되면 휴대폰으로 알려 준다고 확인만 한다.
+ *  - 휴대폰 알림은 켜졌지만 알림 설정의 '방송 시작' 스위치가 꺼짐: 그 스위치를 켜라고 안내한다.
+ *  - 앱에서 알림이 꺼짐/권한 거부/등록 멈춤: 알림 설정(더보기)으로 안내한다.
+ *  - 예전 앱(푸시 플러그인 없음): 업데이트하면 받을 수 있다고 안내한다.
+ *  - 웹(브라우저로 앱 화면을 미리 보는 경우): 알림 화면에서 볼 수 있다고 안내한다.
+ */
+function LivePushNote() {
+  const hydrated = useHydrated();
+  const push = usePushState();
+  const prefs = useAlertPrefs();
+  if (!hydrated) return null;
+
+  /** 이 기기로 푸시가 실제로 오는 상태인지 */
+  const on = push.support === "native" && push.permission === "granted" && push.optedIn && !push.blocked;
+  if (on && !prefs.live) {
+    return (
+      <Notice icon="bell" tone="ac">
+        &lsquo;방송 시작 알림&rsquo;이 꺼져 있어요.{" "}
+        <Link href="/more" className="font-bold underline underline-offset-2">
+          알림 설정
+        </Link>
+        에서 켜면 방송이 시작될 때 휴대폰으로 알려 드려요.
+      </Notice>
+    );
+  }
+  if (on) {
+    return (
+      <Notice icon="bell" tone="ac">
+        알림을 켠 스트리머가 방송을 시작하면 휴대폰 알림으로 알려 드려요.
+      </Notice>
+    );
+  }
+  if (push.support === "native") {
+    return (
+      <Notice icon="bell" tone="ac">
+        휴대폰 알림이 꺼져 있어서 방송 시작을 알려 드릴 수 없어요.{" "}
+        <Link href="/more" className="font-bold underline underline-offset-2">
+          알림 설정
+        </Link>
+        에서 알림을 켜 주세요.
+      </Notice>
+    );
+  }
+  return (
+    <Notice icon="bell" tone="ac">
+      {push.support === "outdated" ? "앱을 최신 버전으로 업데이트하면 휴대폰 알림을 받을 수 있어요. " : ""}
+      알림을 켠 스트리머가 방송 중이면{" "}
+      <Link href="/notifications" className="font-bold underline underline-offset-2">
+        알림 화면
+      </Link>
+      에서 볼 수 있어요.
+    </Notice>
   );
 }
 
