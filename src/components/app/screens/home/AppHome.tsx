@@ -1,7 +1,7 @@
 /**
  * 앱 홈 화면 (시안 01).
  *
- * 순서: 검색 진입 → 내 전적 → 즐겨찾기 → 최신 업데이트 → 지금 방송 중 → 상위 랭커 TOP 10
+ * 순서: 내 전적 → 즐겨찾기 → 최신 업데이트 → 지금 방송 중 → 상위 랭커 TOP 10
  *       → 역할군별 TOP3 → 5인 조합 트렌드 → 소식·커뮤니티 → 집계 숫자
  * 데이터는 웹 홈(app/page.tsx)이 불러온 값을 그대로 받는다. 기기 저장값이 필요한 부분은 HomeClient.
  */
@@ -15,7 +15,7 @@ import { Icon } from "../../icons";
 import { LiveCard } from "../../live";
 import { AppPage, Badge, CharImg, SectionHead, StateBox, GhostLink, tierKo, wrClass } from "../../ui";
 import { APP_FEATURES } from "@/lib/app-features";
-import { HomeFavs, HomeMyCard, HomeNews, HomeRoleTop3, HomeSearchEntry, type NewsItem, type RoleTopGroup } from "./HomeClient";
+import { HomeFavs, HomeMyCard, HomeNews, HomeRoleTop3, type NewsItem, type RoleTopGroup } from "./HomeClient";
 
 /** 상위 랭커 카드 한 장 */
 export interface HomeRanker {
@@ -67,7 +67,6 @@ export default function AppHome({ rankers, roleGroups, comps, notices, recent, l
     >
       <AppTopBar variant="home" right={<TopIconButton icon="bell" label="알림" href="/notifications" />} />
       <AppPage>
-        <HomeSearchEntry />
         <HomeMyCard />
         <HomeFavs />
 
