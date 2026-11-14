@@ -8,6 +8,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import BetaSteps from "@/components/notices/BetaSteps";
 import { ANDROID_BETA } from "@/lib/android-beta";
+import { ANDROID_LOCK } from "@/lib/android-lock";
 import { isAppRequest } from "@/lib/app-mode";
 
 export const metadata: Metadata = {
@@ -77,13 +78,33 @@ const FAQ: { q: string; a: string }[] = [
   },
 ];
 
-/** 테스터 모집 공고 페이지 */
-export default function AndroidBetaPage() {
+/**
+ * 테스터 모집 공고 페이지
+ * @param searchParams 주소 쿼리 — `locked=1` 이면 안드로이드 잠금(미들웨어)으로 돌려보낸 요청이다
+ */
+export default function AndroidBetaPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
   if (!ANDROID_BETA.enabled) notFound();
   if (isAppRequest()) redirect("/");
+  /** 다른 화면을 열려다 이 페이지로 온 안드로이드 방문자인지 */
+  const locked = searchParams[ANDROID_LOCK.lockedQuery] === "1";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-2">
+      {/* 안드로이드 잠금 안내 — 왜 이 페이지만 열리는지와 다음에 할 일 */}
+      {locked && (
+        <div className="rounded-2xl border border-[#34a853]/30 bg-[#34a853]/10 px-5 py-4">
+          <p className="text-sm font-semibold text-gray-100">안드로이드 휴대폰에서는 앱으로 이용해 주세요</p>
+          <p className="mt-1 text-sm leading-relaxed text-gray-400">
+            정식 출시 준비 기간에는 안드로이드 브라우저에서 이 안내만 열려요. 아래 3단계로 앱을 설치하면 전적 검색·메타·랭킹을 모두
+            그대로 쓸 수 있어요. PC나 아이폰에서는 웹사이트를 그대로 이용할 수 있어요.
+          </p>
+          <a href="#steps" className="btn-primary mt-3">
+            앱 설치하러 가기
+            <span aria-hidden>↓</span>
+          </a>
+        </div>
+      )}
+
       {/* 히어로 */}
       <section className="relative overflow-hidden rounded-2xl border border-line bg-surface p-7 sm:p-10">
         <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-[#34a853]/15 blur-3xl" />
@@ -170,11 +191,14 @@ export default function AndroidBetaPage() {
         </p>
       </div>
 
-      <div className="pt-1 text-center">
-        <Link href="/" className="text-sm text-gray-500 transition-colors hover:text-gray-300">
-          ← 홈으로
-        </Link>
-      </div>
+      {/* 잠금으로 온 방문자에게는 홈 링크를 숨긴다(눌러도 이 페이지로 돌아온다) */}
+      {!locked && (
+        <div className="pt-1 text-center">
+          <Link href="/" className="text-sm text-gray-500 transition-colors hover:text-gray-300">
+            ← 홈으로
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
