@@ -276,17 +276,26 @@ function PlayerDetail({ p, team, mvp }: { p: MatchDetailPlayer; team: MatchDetai
 
       {buys.length > 0 && (
         <div className="grid gap-1.5">
-          <SubLabel right={`${buys.length}번 구매`}>구매 순서</SubLabel>
-          <div className="a-hscroll -mx-3 gap-2 px-3 pt-1.5">
+          <SubLabel right={`왼쪽부터 · ${buys.length}번 구매`}>구매 순서</SubLabel>
+          {/* 왼쪽부터 산 순서. 순번 숫자 대신 아이콘 아래에 부위(손·머리·장신구1 …)를 적는다 */}
+          <div className="a-hscroll -mx-3 gap-1.5 px-3">
             {buys.map((id, i) => {
               const m = meta.get(id);
               return (
-                <span key={`${id}-${i}`} className="relative shrink-0 pl-1">
-                  <span className="a-grad absolute -top-1.5 left-0 z-10 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-extrabold">
-                    {i + 1}
-                  </span>
-                  <ItemButton itemId={id} itemName={m?.itemName} rarityCode={m?.rarityCode} slotName={m?.slotName} size={32} />
-                </span>
+                <ItemButton
+                  key={`${id}-${i}`}
+                  itemId={id}
+                  itemName={m?.itemName}
+                  rarityCode={m?.rarityCode}
+                  slotName={m?.slotName}
+                  size={32}
+                  className="w-11 shrink-0 flex-col gap-1"
+                  label={
+                    <span className="w-full truncate text-center text-[10px] leading-none text-gray-400">
+                      {shortSlot(m?.slotName) || "아이템"}
+                    </span>
+                  }
+                />
               );
             })}
           </div>

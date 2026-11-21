@@ -55,6 +55,9 @@ export interface AppMultiProps {
  * @param props AppMultiProps
  */
 export default function AppMulti({ a, b, results }: AppMultiProps) {
+  // 팀 구성(주소)을 나타내는 값. 입력 폼과 결과가 같은 부모 아래 형제라서 key 는 서로 달라야 한다.
+  // (같은 key 를 쓰면 React 가 이전 폼을 지우지 못해, 검색할 때마다 입력 칸이 화면에 쌓였다)
+  const teamKey = [...a, "|", ...b].join(",");
   return (
     <div className="min-h-[100dvh]" style={{ background: "radial-gradient(120% 42% at 50% -8%, var(--a-amb), transparent 70%)" }}>
       <AppTopBar title="멀티서치" backHref="/more" />
@@ -71,13 +74,13 @@ export default function AppMulti({ a, b, results }: AppMultiProps) {
         </div>
 
         {/* 주소(팀 구성)가 바뀌면(뒤로 가기 등) 입력도 그 주소 값으로 다시 시작한다 */}
-        <MultiForm key={[...a, "|", ...b].join(",")} defaultA={a} defaultB={b} />
+        <MultiForm key={`form:${teamKey}`} defaultA={a} defaultB={b} />
 
         {/* 검색 뒤 이 자리로 내려온다(상단바에 가리지 않게 여백) */}
         <div id="multi-result" className="-mb-4 scroll-mt-20" aria-hidden="true" />
 
         {results ? (
-          <Suspense key={[...a, "|", ...b].join(",")} fallback={<MultiSkeleton a={a.length} b={b.length} />}>
+          <Suspense key={`result:${teamKey}`} fallback={<MultiSkeleton a={a.length} b={b.length} />}>
             <MultiResults results={results} />
           </Suspense>
         ) : (
